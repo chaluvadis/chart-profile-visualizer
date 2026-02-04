@@ -1,0 +1,23 @@
+# QA environment overrides
+replicaCount: 3
+
+image:
+  tag: "1.21.5"
+
+ingress:
+  enabled: true
+  hosts:
+    - host: qa.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 512Mi
+  requests:
+    cpu: 150m
+    memory: 256Mi
+
+environment: qa

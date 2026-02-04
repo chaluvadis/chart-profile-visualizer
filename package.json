@@ -1,0 +1,69 @@
+{
+  "name": "chart-profiles",
+  "displayName": "ChartProfiles",
+  "description": "Visualize Helm charts across environments with value merging and template rendering",
+  "version": "0.1.0",
+  "publisher": "chart-profiles",
+  "engines": {
+    "vscode": "^1.97.0",
+    "node": ">=20.0.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/Chart.yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "chartProfiles",
+          "name": "Chart Profiles"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "chartProfiles.refreshCharts",
+        "title": "Refresh Charts",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "chartProfiles.viewRenderedYaml",
+        "title": "View Rendered YAML"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "chartProfiles.refreshCharts",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "echo \"No tests yet\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.97.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "^8.19.1",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "@types/js-yaml": "^4.0.9"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "license": "MIT"
+}
