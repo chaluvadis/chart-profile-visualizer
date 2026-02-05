@@ -1,0 +1,28 @@
+# Production environment overrides
+replicaCount: 5
+
+image:
+  tag: "1.21.5"
+  pullPolicy: Always
+
+service:
+  type: LoadBalancer
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: prod.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+environment: prod
