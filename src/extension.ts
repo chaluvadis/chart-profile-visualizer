@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ChartProfilesProvider } from './chartProfilesProvider';
 import { showRenderedYaml } from './renderedYamlView';
+import { ChartVisualizationView } from './chartVisualizationView';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('ChartProfiles extension is now active');
@@ -25,7 +26,12 @@ export function activate(context: vscode.ExtensionContext) {
         await showRenderedYaml(item);
     });
 
-    context.subscriptions.push(treeView, refreshCommand, viewRenderedCommand);
+    // Register visualize chart command
+    const visualizeChartCommand = vscode.commands.registerCommand('chartProfiles.visualizeChart', async (item) => {
+        await ChartVisualizationView.show(context, item);
+    });
+
+    context.subscriptions.push(treeView, refreshCommand, viewRenderedCommand, visualizeChartCommand);
 
     // Auto-refresh when workspace files change
     const fileWatcher = vscode.workspace.createFileSystemWatcher('**/{Chart.yaml,values*.yaml}');

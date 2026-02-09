@@ -48,6 +48,15 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
             // Environment level: show actions
             return [
                 new ChartTreeItem(
+                    'Visualize Chart',
+                    element.chart!.path,
+                    vscode.TreeItemCollapsibleState.None,
+                    'action',
+                    element.chart,
+                    element.environment,
+                    'visualize'
+                ),
+                new ChartTreeItem(
                     'View Merged Values',
                     element.chart!.path,
                     vscode.TreeItemCollapsibleState.None,
@@ -96,7 +105,7 @@ export class ChartTreeItem extends vscode.TreeItem {
         public readonly type: 'chart' | 'environment' | 'action',
         public readonly chart?: HelmChart,
         public readonly environment?: string,
-        public readonly action?: 'values' | 'rendered'
+        public readonly action?: 'values' | 'rendered' | 'visualize'
     ) {
         super(label, collapsibleState);
 
@@ -105,11 +114,19 @@ export class ChartTreeItem extends vscode.TreeItem {
         this.iconPath = this.getIcon();
 
         if (type === 'action') {
-            this.command = {
-                command: 'chartProfiles.viewRenderedYaml',
-                title: 'View',
-                arguments: [this]
-            };
+            if (action === 'visualize') {
+                this.command = {
+                    command: 'chartProfiles.visualizeChart',
+                    title: 'Visualize',
+                    arguments: [this]
+                };
+            } else {
+                this.command = {
+                    command: 'chartProfiles.viewRenderedYaml',
+                    title: 'View',
+                    arguments: [this]
+                };
+            }
         }
     }
 
@@ -118,6 +135,8 @@ export class ChartTreeItem extends vscode.TreeItem {
             return `Helm Chart: ${this.label}\nPath: ${this.chartPath}`;
         } else if (this.type === 'environment') {
             return `Environment: ${this.environment}`;
+        } else if (this.action === 'visualize') {
+            return `Visualize chart statistics for ${this.environment} environment`;
         } else if (this.action === 'values') {
             return `View merged values for ${this.environment} environment`;
         } else if (this.action === 'rendered') {
@@ -131,6 +150,8 @@ export class ChartTreeItem extends vscode.TreeItem {
             return new vscode.ThemeIcon('package');
         } else if (this.type === 'environment') {
             return new vscode.ThemeIcon('server-environment');
+        } else if (this.action === 'visualize') {
+            return new vscode.ThemeIcon('graph');
         } else if (this.action === 'values') {
             return new vscode.ThemeIcon('file-code');
         } else if (this.action === 'rendered') {
