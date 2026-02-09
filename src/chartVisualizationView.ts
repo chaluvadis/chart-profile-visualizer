@@ -12,6 +12,7 @@ import { renderHelmTemplate } from './helmRenderer';
  */
 export class ChartVisualizationView {
     private static currentPanel: vscode.WebviewPanel | undefined;
+    private static readonly defaultNamespace = 'default';
 
     public static async show(context: vscode.ExtensionContext, item: ChartTreeItem) {
         if (!item || !item.chart || !item.environment) {
@@ -102,13 +103,28 @@ export class ChartVisualizationView {
 
         // Try to get rendered resources
         let resourceCounts: { [key: string]: number } = {};
+        let namespaceCounts: { [namespace: string]: number } = {};
+        let templateSources: string[] = [];
+        
         try {
             const releaseName = `${chartName}-${environment}`;
             const resources = await renderHelmTemplate(chartPath, environment, releaseName);
             
             resources.forEach(resource => {
+                // Count by resource kind
                 resourceCounts[resource.kind] = (resourceCounts[resource.kind] || 0) + 1;
+                
+                // Count by namespace (if present)
+                const namespace = resource.namespace || ChartVisualizationView.defaultNamespace;
+                namespaceCounts[namespace] = (namespaceCounts[namespace] || 0) + 1;
             });
+            
+            // Get list of template files
+            const templatesDir = path.join(chartPath, 'templates');
+            if (fs.existsSync(templatesDir)) {
+                const files = fs.readdirSync(templatesDir);
+                templateSources = files.filter(f => f.endsWith('.yaml') || f.endsWith('.yml'));
+            }
         } catch (error) {
             console.warn('Could not render templates for visualization:', error);
         }
@@ -119,7 +135,9 @@ export class ChartVisualizationView {
             totalValues,
             overriddenCount,
             overriddenValues: overriddenValues.slice(0, 10), // Top 10 for display
-            resourceCounts
+            resourceCounts,
+            namespaceCounts,
+            templateSources
         };
     }
 
@@ -132,7 +150,7 @@ export class ChartVisualizationView {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${styleNonce}';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; style-src 'nonce-${styleNonce}';">
     <title>Chart Visualization</title>
     <style nonce="${styleNonce}">
         body {
@@ -230,6 +248,20 @@ export class ChartVisualizationView {
             padding: 40px;
             color: var(--vscode-descriptionForeground);
         }
+        .template-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .template-item {
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: var(--vscode-editor-font-family);
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -257,8 +289,31 @@ export class ChartVisualizationView {
 
     ${Object.keys(data.resourceCounts).length > 0 ? `
     <div class="chart-container">
-        <h2>Kubernetes Resources</h2>
+        <h2>Resource Type Distribution</h2>
         <canvas id="resourceChart" class="chart-canvas"></canvas>
+    </div>
+    ` : ''}
+
+    ${data.totalValues > 0 ? `
+    <div class="chart-container">
+        <h2>Values: Overridden vs Base</h2>
+        <canvas id="valuesChart" class="chart-canvas"></canvas>
+    </div>
+    ` : ''}
+
+    ${Object.keys(data.namespaceCounts).length > 1 ? `
+    <div class="chart-container">
+        <h2>Namespace Distribution</h2>
+        <canvas id="namespaceChart" class="chart-canvas"></canvas>
+    </div>
+    ` : ''}
+
+    ${data.templateSources.length > 0 ? `
+    <div class="chart-container">
+        <h2>Template Sources</h2>
+        <div class="template-list">
+            ${data.templateSources.map(t => `<div class="template-item">📄 ${escapeHtml(t)}</div>`).join('')}
+        </div>
     </div>
     ` : ''}
 
@@ -290,55 +345,171 @@ export class ChartVisualizationView {
     </div>
     `}
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" nonce="${nonce}"></script>
     <script nonce="${nonce}">
+        const chartColors = {
+            primary: '#007acc',
+            secondary: '#68217a',
+            success: '#4caf50',
+            warning: '#ff9800',
+            danger: '#f44336',
+            info: '#2196f3',
+            light: '#9e9e9e',
+            dark: '#424242'
+        };
+        
+        const colorPalette = [
+            chartColors.primary,
+            chartColors.secondary,
+            chartColors.success,
+            chartColors.warning,
+            chartColors.info,
+            chartColors.danger,
+            chartColors.light
+        ];
+
+        const chartDefaults = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
+                    },
+                    grid: {
+                        color: 'rgba(128, 128, 128, 0.2)'
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
+                    },
+                    grid: {
+                        color: 'rgba(128, 128, 128, 0.2)'
+                    }
+                }
+            }
+        };
+
         ${Object.keys(data.resourceCounts).length > 0 ? `
-        // Simple bar chart using Canvas API (no external dependencies)
+        // Resource Type Distribution (Bar Chart)
         (function() {
-            const canvas = document.getElementById('resourceChart');
-            if (!canvas) return;
+            const ctx = document.getElementById('resourceChart');
+            if (!ctx) return;
             
-            const ctx = canvas.getContext('2d');
-            const data = ${JSON.stringify(data.resourceCounts)};
+            const resourceData = ${JSON.stringify(data.resourceCounts)};
+            const labels = Object.keys(resourceData);
+            const values = Object.values(resourceData);
             
-            const labels = Object.keys(data);
-            const values = Object.values(data);
-            const maxValue = Math.max(...values);
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Resource Count',
+                        data: values,
+                        backgroundColor: colorPalette.slice(0, labels.length),
+                        borderColor: colorPalette.slice(0, labels.length),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    ...chartDefaults,
+                    plugins: {
+                        ...chartDefaults.plugins,
+                        title: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        })();
+        ` : ''}
+
+        ${data.totalValues > 0 ? `
+        // Overridden vs Base Values (Pie Chart)
+        (function() {
+            const ctx = document.getElementById('valuesChart');
+            if (!ctx) return;
             
-            canvas.width = canvas.offsetWidth;
-            canvas.height = 300;
+            const overriddenCount = ${data.overriddenCount};
+            const baseCount = ${data.totalValues - data.overriddenCount};
             
-            const barWidth = canvas.width / labels.length * 0.8;
-            const barGap = canvas.width / labels.length * 0.2;
-            const chartHeight = canvas.height - 50;
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Overridden Values', 'Base Values'],
+                    datasets: [{
+                        data: [overriddenCount, baseCount],
+                        backgroundColor: [chartColors.warning, chartColors.info],
+                        borderColor: [chartColors.warning, chartColors.info],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const percentage = ((value / ${data.totalValues}) * 100).toFixed(1);
+                                    return label + ': ' + value + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })();
+        ` : ''}
+
+        ${Object.keys(data.namespaceCounts).length > 1 ? `
+        // Namespace Distribution (Doughnut Chart)
+        (function() {
+            const ctx = document.getElementById('namespaceChart');
+            if (!ctx) return;
             
-            // Colors from VS Code theme
-            const barColor = '#007acc';
-            const textColor = getComputedStyle(document.body).getPropertyValue('--vscode-foreground');
+            const namespaceData = ${JSON.stringify(data.namespaceCounts)};
+            const labels = Object.keys(namespaceData);
+            const values = Object.values(namespaceData);
             
-            ctx.fillStyle = textColor;
-            ctx.font = '12px var(--vscode-font-family)';
-            
-            labels.forEach((label, i) => {
-                const barHeight = (values[i] / maxValue) * chartHeight;
-                const x = i * (barWidth + barGap) + barGap;
-                const y = canvas.height - barHeight - 30;
-                
-                // Draw bar
-                ctx.fillStyle = barColor;
-                ctx.fillRect(x, y, barWidth, barHeight);
-                
-                // Draw value on top of bar
-                ctx.fillStyle = textColor;
-                ctx.textAlign = 'center';
-                ctx.fillText(values[i], x + barWidth / 2, y - 5);
-                
-                // Draw label
-                ctx.save();
-                ctx.translate(x + barWidth / 2, canvas.height - 10);
-                ctx.rotate(-Math.PI / 4);
-                ctx.textAlign = 'right';
-                ctx.fillText(label, 0, 0);
-                ctx.restore();
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colorPalette.slice(0, labels.length),
+                        borderColor: colorPalette.slice(0, labels.length),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
+                            }
+                        }
+                    }
+                }
             });
         })();
         ` : ''}
@@ -402,6 +573,8 @@ interface ChartData {
         envValue: any;
     }>;
     resourceCounts: { [key: string]: number };
+    namespaceCounts: { [namespace: string]: number };
+    templateSources: string[];
 }
 
 function getNonce(): string {
