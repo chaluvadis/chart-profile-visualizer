@@ -68,7 +68,7 @@
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
     "test": "echo \"No tests yet\"",
-    "package": "pnpm run compile && vsce package --no-dependencies"
+    "package": "pnpm run compile && pnpm exec vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.x",

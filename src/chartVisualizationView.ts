@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as yaml from 'js-yaml';
 import { ChartTreeItem } from './chartProfilesProvider';
 import { mergeValues } from './valuesMerger';
 import { renderHelmTemplate } from './helmRenderer';
@@ -71,6 +74,10 @@ export class ChartVisualizationView {
         const environment = item.environment!;
         const chartName = item.chart!.name;
 
+        // Load base values separately for comparison
+        const baseValuesPath = path.join(chartPath, 'values.yaml');
+        const baseValues = loadYamlFile(baseValuesPath);
+
         // Merge values to get configuration
         const comparison = mergeValues(chartPath, environment);
         
@@ -79,11 +86,11 @@ export class ChartVisualizationView {
         
         for (const [key, detail] of comparison.details.entries()) {
             if (detail.overridden) {
-                // For overridden values, we need to get the base value separately
-                // The detail.value contains the override value
+                // Get the base value by traversing the base values object
+                const baseValue = getValueByPath(baseValues, key);
                 overriddenValues.push({
                     key,
-                    baseValue: '(base)',  // Placeholder since we don't track it separately
+                    baseValue: baseValue !== undefined ? baseValue : '(not set)',
                     envValue: detail.value
                 });
             }
@@ -117,15 +124,16 @@ export class ChartVisualizationView {
 
     private static getHtmlContent(webview: vscode.Webview, data: ChartData): string {
         const nonce = getNonce();
+        const styleNonce = getNonce();
 
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${styleNonce}';">
     <title>Chart Visualization</title>
-    <style>
+    <style nonce="${styleNonce}">
         body {
             font-family: var(--vscode-font-family);
             color: var(--vscode-foreground);
@@ -405,12 +413,42 @@ function getNonce(): string {
 }
 
 function escapeHtml(text: string): string {
-    const map: { [key: string]: string } = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/**
+ * Get a value from a nested object using a dot-notation path
+ */
+function getValueByPath(obj: any, path: string): any {
+    const parts = path.split('.');
+    let current = obj;
+    
+    for (const part of parts) {
+        if (current === undefined || current === null) {
+            return undefined;
+        }
+        current = current[part];
+    }
+    
+    return current;
+}
+
+/**
+ * Load a YAML file and return its parsed content
+ */
+function loadYamlFile(filePath: string): any {
+    try {
+        if (fs.existsSync(filePath)) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            return yaml.load(content) || {};
+        }
+    } catch (error) {
+        console.error(`Error loading YAML file ${filePath}:`, error);
+    }
+    return {};
 }
