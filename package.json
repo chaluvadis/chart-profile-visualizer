@@ -4,12 +4,24 @@
   "description": "Visualize Helm charts across environments with value merging and template rendering",
   "version": "0.1.0",
   "publisher": "chart-profiles",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaluvadis/chart-profile-visualizer.git"
+  },
   "engines": {
     "vscode": "^1.97.0",
     "node": ">=20.0.0"
   },
   "categories": [
+    "Visualization",
     "Other"
+  ],
+  "keywords": [
+    "helm",
+    "kubernetes",
+    "charts",
+    "visualization",
+    "devops"
   ],
   "activationEvents": [
     "workspaceContains:**/Chart.yaml"
@@ -33,6 +45,11 @@
       {
         "command": "chartProfiles.viewRenderedYaml",
         "title": "View Rendered YAML"
+      },
+      {
+        "command": "chartProfiles.visualizeChart",
+        "title": "Visualize Chart",
+        "icon": "$(graph)"
       }
     ],
     "menus": {
@@ -50,19 +67,21 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
-    "test": "echo \"No tests yet\""
+    "test": "echo \"No tests yet\"",
+    "package": "pnpm run compile && pnpm exec vsce package --no-dependencies"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.x",
     "@types/vscode": "^1.97.0",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "@typescript-eslint/parser": "^8.19.1",
+    "@vscode/vsce": "^3.7.1",
     "eslint": "^9.18.0",
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0",
-    "@types/js-yaml": "^4.0.9"
+    "js-yaml": "^4.1.0"
   },
   "packageManager": "pnpm@10.28.2",
   "license": "MIT"

@@ -4,5 +4,10 @@ src/**
 .gitignore
 .yarnrc
 tsconfig.json
+eslint.config.mjs
 **/*.map
 **/*.ts
+!out/**/*.js
+node_modules/**
+pnpm-lock.yaml
+*.vsix
