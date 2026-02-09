@@ -71,6 +71,7 @@
     "package": "pnpm run compile && pnpm exec vsce package --no-dependencies"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.x",
     "@types/vscode": "^1.97.0",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
@@ -80,7 +81,6 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@types/js-yaml": "^4.0.9",
     "js-yaml": "^4.1.0"
   },
   "packageManager": "pnpm@10.28.2",
