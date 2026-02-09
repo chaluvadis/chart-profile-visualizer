@@ -12,6 +12,7 @@ import { renderHelmTemplate } from './helmRenderer';
  */
 export class ChartVisualizationView {
     private static currentPanel: vscode.WebviewPanel | undefined;
+    private static readonly defaultNamespace = 'default';
 
     public static async show(context: vscode.ExtensionContext, item: ChartTreeItem) {
         if (!item || !item.chart || !item.environment) {
@@ -114,7 +115,7 @@ export class ChartVisualizationView {
                 resourceCounts[resource.kind] = (resourceCounts[resource.kind] || 0) + 1;
                 
                 // Count by namespace (if present)
-                const namespace = resource.namespace || 'default';
+                const namespace = resource.namespace || ChartVisualizationView.defaultNamespace;
                 namespaceCounts[namespace] = (namespaceCounts[namespace] || 0) + 1;
             });
             
@@ -149,7 +150,7 @@ export class ChartVisualizationView {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; style-src 'nonce-${styleNonce}' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; style-src 'nonce-${styleNonce}';">
     <title>Chart Visualization</title>
     <style nonce="${styleNonce}">
         body {
