@@ -8,13 +8,13 @@ importers:
 
   .:
     dependencies:
-      '@types/js-yaml':
-        specifier: ^4.0.9
-        version: 4.0.9
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.1
     devDependencies:
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: ^20.x
         version: 20.19.31
