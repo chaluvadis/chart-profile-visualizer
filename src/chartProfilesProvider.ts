@@ -9,6 +9,10 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 
     constructor(private workspaceRoots: string[]) {}
 
+    updateWorkspaceRoots(newRoots: string[]): void {
+        this.workspaceRoots = newRoots;
+    }
+
     refresh(): void {
         this._onDidChangeTreeData.fire();
     }
@@ -107,6 +111,8 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 }
 
 export class ChartTreeItem extends vscode.TreeItem {
+    private _hasOverrides?: boolean;
+
     constructor(
         public readonly label: string,
         public readonly chartPath: string,
@@ -117,6 +123,11 @@ export class ChartTreeItem extends vscode.TreeItem {
         public readonly action?: 'values' | 'rendered' | 'visualize'
     ) {
         super(label, collapsibleState);
+
+        // Cache hasOverrides calculation for environment nodes
+        if (type === 'environment') {
+            this._hasOverrides = this.calculateHasEnvironmentOverrides();
+        }
 
         this.tooltip = this.getTooltip();
         // Add more specific context values for future context menu support
@@ -145,9 +156,8 @@ export class ChartTreeItem extends vscode.TreeItem {
         if (this.type === 'chart') {
             return 'chart';
         } else if (this.type === 'environment') {
-            // Check if environment has overrides
-            const hasOverrides = this.hasEnvironmentOverrides();
-            return hasOverrides ? 'environment' : 'environment-no-overrides';
+            // Use cached value
+            return this._hasOverrides ? 'environment' : 'environment-no-overrides';
         } else if (this.type === 'action') {
             return `action-${this.action}`;
         }
@@ -155,6 +165,14 @@ export class ChartTreeItem extends vscode.TreeItem {
     }
 
     private hasEnvironmentOverrides(): boolean {
+        // Return cached value if available
+        if (this._hasOverrides !== undefined) {
+            return this._hasOverrides;
+        }
+        return false;
+    }
+
+    private calculateHasEnvironmentOverrides(): boolean {
         if (!this.chart || !this.environment || this.environment === 'default') {
             return false;
         }
@@ -164,10 +182,14 @@ export class ChartTreeItem extends vscode.TreeItem {
             if (fs.existsSync(envValuesPath)) {
                 const content = fs.readFileSync(envValuesPath, 'utf8');
                 // Check if file has meaningful content (not just comments/whitespace)
-                const meaningfulContent = content.split('\n').filter(line => 
-                    line.trim() && !line.trim().startsWith('#')
-                ).join('');
-                return meaningfulContent.length > 0;
+                const lines = content.split('\n');
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (trimmed && !trimmed.startsWith('#')) {
+                        return true;
+                    }
+                }
+                return false;
             }
         } catch (error) {
             console.error(`Error checking overrides for ${envValuesPath}:`, error);

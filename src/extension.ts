@@ -64,14 +64,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Auto-refresh when workspace folders change (multi-root support)
     const workspaceFoldersChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
         const newRoots = vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath) || [];
-        // Update provider with new roots and refresh
-        const newProvider = new ChartProfilesProvider(newRoots);
-        treeView.dispose();
-        const newTreeView = vscode.window.createTreeView('chartProfiles', {
-            treeDataProvider: newProvider,
-            showCollapseAll: true
-        });
-        context.subscriptions.push(newTreeView);
+        chartProfilesProvider.updateWorkspaceRoots(newRoots);
+        chartProfilesProvider.refresh();
     });
     context.subscriptions.push(workspaceFoldersChangeListener);
 }
