@@ -156,20 +156,12 @@ export class ChartTreeItem extends vscode.TreeItem {
         if (this.type === 'chart') {
             return 'chart';
         } else if (this.type === 'environment') {
-            // Use cached value
-            return this._hasOverrides ? 'environment' : 'environment-no-overrides';
+            // Use cached value (should always be defined for environment nodes)
+            return (this._hasOverrides ?? false) ? 'environment' : 'environment-no-overrides';
         } else if (this.type === 'action') {
             return `action-${this.action}`;
         }
         return this.type;
-    }
-
-    private hasEnvironmentOverrides(): boolean {
-        // Return cached value if available
-        if (this._hasOverrides !== undefined) {
-            return this._hasOverrides;
-        }
-        return false;
     }
 
     private calculateHasEnvironmentOverrides(): boolean {
@@ -199,7 +191,8 @@ export class ChartTreeItem extends vscode.TreeItem {
 
     private getDescription(): string | undefined {
         if (this.type === 'environment') {
-            const hasOverrides = this.hasEnvironmentOverrides();
+            // Use cached value
+            const hasOverrides = this._hasOverrides ?? false;
             if (!hasOverrides && this.environment !== 'default') {
                 return '(no overrides)';
             }
@@ -235,7 +228,8 @@ export class ChartTreeItem extends vscode.TreeItem {
                     tooltip.appendMarkdown(`- \`values.yaml\` (base)\n`);
                     tooltip.appendMarkdown(`- \`values-${this.environment}.yaml\` (overrides)\n\n`);
                     
-                    const hasOverrides = this.hasEnvironmentOverrides();
+                    // Use cached value
+                    const hasOverrides = this._hasOverrides ?? false;
                     if (!hasOverrides) {
                         tooltip.appendMarkdown(`⚠️ *Environment file exists but contains no overrides*\n\n`);
                     }
@@ -260,7 +254,7 @@ export class ChartTreeItem extends vscode.TreeItem {
             return new vscode.ThemeIcon('package');
         } else if (this.type === 'environment') {
             // Add visual indicator for environments with no overrides
-            const hasOverrides = this.hasEnvironmentOverrides();
+            const hasOverrides = this._hasOverrides ?? false;
             if (!hasOverrides && this.environment !== 'default') {
                 return new vscode.ThemeIcon('circle-outline'); // hollow icon for no overrides
             }
