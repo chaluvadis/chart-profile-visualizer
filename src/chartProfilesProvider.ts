@@ -7,7 +7,7 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
     private _onDidChangeTreeData: vscode.EventEmitter<ChartTreeItem | undefined | null | void> = new vscode.EventEmitter<ChartTreeItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<ChartTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
-    constructor(private workspaceRoot: string) {}
+    constructor(private workspaceRoots: string[]) {}
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
@@ -18,14 +18,14 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
     }
 
     async getChildren(element?: ChartTreeItem): Promise<ChartTreeItem[]> {
-        if (!this.workspaceRoot) {
+        if (this.workspaceRoots.length === 0) {
             vscode.window.showInformationMessage('No workspace folder open');
             return [];
         }
 
         if (!element) {
-            // Root level: show charts
-            const charts = await findHelmCharts(this.workspaceRoot);
+            // Root level: show charts from all workspace roots
+            const charts = await findHelmCharts(this.workspaceRoots);
             return charts.map(chart => new ChartTreeItem(
                 chart.name,
                 chart.path,
@@ -81,16 +81,25 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
     }
 
     private getEnvironments(chart: HelmChart): string[] {
-        const environments = ['dev', 'qa', 'prod'];
         const foundEnvs: string[] = [];
 
-        // Check which environment-specific values files exist
-        for (const env of environments) {
-            const envValuesPath = path.join(chart.path, `values-${env}.yaml`);
-            if (fs.existsSync(envValuesPath)) {
-                foundEnvs.push(env);
+        try {
+            // Dynamically discover all values-*.yaml files
+            const files = fs.readdirSync(chart.path);
+            const valuesPattern = /^values-(.+)\.ya?ml$/;
+
+            for (const file of files) {
+                const match = file.match(valuesPattern);
+                if (match && match[1]) {
+                    foundEnvs.push(match[1]);
+                }
             }
+        } catch (error) {
+            console.error(`Error reading chart directory ${chart.path}:`, error);
         }
+
+        // Sort environments alphabetically for stable ordering
+        foundEnvs.sort();
 
         // Always include base if no specific environments found
         return foundEnvs.length > 0 ? foundEnvs : ['default'];
@@ -110,8 +119,10 @@ export class ChartTreeItem extends vscode.TreeItem {
         super(label, collapsibleState);
 
         this.tooltip = this.getTooltip();
-        this.contextValue = type;
+        // Add more specific context values for future context menu support
+        this.contextValue = this.getContextValue();
         this.iconPath = this.getIcon();
+        this.description = this.getDescription();
 
         if (type === 'action') {
             if (action === 'visualize') {
@@ -130,17 +141,94 @@ export class ChartTreeItem extends vscode.TreeItem {
         }
     }
 
-    private getTooltip(): string {
+    private getContextValue(): string {
         if (this.type === 'chart') {
-            return `Helm Chart: ${this.label}\nPath: ${this.chartPath}`;
+            return 'chart';
         } else if (this.type === 'environment') {
-            return `Environment: ${this.environment}`;
+            // Check if environment has overrides
+            const hasOverrides = this.hasEnvironmentOverrides();
+            return hasOverrides ? 'environment' : 'environment-no-overrides';
+        } else if (this.type === 'action') {
+            return `action-${this.action}`;
+        }
+        return this.type;
+    }
+
+    private hasEnvironmentOverrides(): boolean {
+        if (!this.chart || !this.environment || this.environment === 'default') {
+            return false;
+        }
+
+        const envValuesPath = path.join(this.chart.path, `values-${this.environment}.yaml`);
+        try {
+            if (fs.existsSync(envValuesPath)) {
+                const content = fs.readFileSync(envValuesPath, 'utf8');
+                // Check if file has meaningful content (not just comments/whitespace)
+                const meaningfulContent = content.split('\n').filter(line => 
+                    line.trim() && !line.trim().startsWith('#')
+                ).join('');
+                return meaningfulContent.length > 0;
+            }
+        } catch (error) {
+            console.error(`Error checking overrides for ${envValuesPath}:`, error);
+        }
+        return false;
+    }
+
+    private getDescription(): string | undefined {
+        if (this.type === 'environment') {
+            const hasOverrides = this.hasEnvironmentOverrides();
+            if (!hasOverrides && this.environment !== 'default') {
+                return '(no overrides)';
+            }
+        }
+        return undefined;
+    }
+
+    private getTooltip(): string | vscode.MarkdownString {
+        if (this.type === 'chart') {
+            const tooltip = new vscode.MarkdownString();
+            tooltip.appendMarkdown(`**Helm Chart:** ${this.label}\n\n`);
+            tooltip.appendMarkdown(`**Path:** \`${this.chartPath}\`\n\n`);
+            if (this.chart?.version) {
+                tooltip.appendMarkdown(`**Version:** ${this.chart.version}\n\n`);
+            }
+            if (this.chart?.description) {
+                tooltip.appendMarkdown(`**Description:** ${this.chart.description}\n\n`);
+            }
+            return tooltip;
+        } else if (this.type === 'environment') {
+            const tooltip = new vscode.MarkdownString();
+            tooltip.appendMarkdown(`**Environment:** ${this.environment}\n\n`);
+            
+            // Show which values file is used
+            if (this.environment === 'default') {
+                tooltip.appendMarkdown(`**Values file:** \`values.yaml\` (base only)\n\n`);
+            } else {
+                const envValuesPath = path.join(this.chartPath, `values-${this.environment}.yaml`);
+                const envValuesExists = fs.existsSync(envValuesPath);
+                
+                if (envValuesExists) {
+                    tooltip.appendMarkdown(`**Values files:**\n`);
+                    tooltip.appendMarkdown(`- \`values.yaml\` (base)\n`);
+                    tooltip.appendMarkdown(`- \`values-${this.environment}.yaml\` (overrides)\n\n`);
+                    
+                    const hasOverrides = this.hasEnvironmentOverrides();
+                    if (!hasOverrides) {
+                        tooltip.appendMarkdown(`⚠️ *Environment file exists but contains no overrides*\n\n`);
+                    }
+                } else {
+                    tooltip.appendMarkdown(`**Values file:** \`values.yaml\` (base only)\n\n`);
+                }
+            }
+            
+            return tooltip;
         } else if (this.action === 'visualize') {
-            return `Visualize chart statistics for ${this.environment} environment`;
+            return `Visualize chart statistics and resource distribution for ${this.environment} environment`;
         } else if (this.action === 'values') {
-            return `View merged values for ${this.environment} environment`;
+            return `View merged values from base and ${this.environment}-specific files`;
         } else if (this.action === 'rendered') {
-            return `View rendered YAML templates for ${this.environment} environment`;
+            return `View rendered YAML templates for ${this.environment} environment using Helm CLI`;
         }
         return this.label;
     }
@@ -149,6 +237,11 @@ export class ChartTreeItem extends vscode.TreeItem {
         if (this.type === 'chart') {
             return new vscode.ThemeIcon('package');
         } else if (this.type === 'environment') {
+            // Add visual indicator for environments with no overrides
+            const hasOverrides = this.hasEnvironmentOverrides();
+            if (!hasOverrides && this.environment !== 'default') {
+                return new vscode.ThemeIcon('circle-outline'); // hollow icon for no overrides
+            }
             return new vscode.ThemeIcon('server-environment');
         } else if (this.action === 'visualize') {
             return new vscode.ThemeIcon('graph');

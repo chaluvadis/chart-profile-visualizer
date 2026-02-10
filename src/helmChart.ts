@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import * as vscode from 'vscode';
 
 export interface HelmChart {
     name: string;
@@ -11,12 +12,15 @@ export interface HelmChart {
 
 /**
  * Finds all Helm charts in the workspace by looking for Chart.yaml files
+ * Supports multiple workspace roots
  */
-export async function findHelmCharts(workspaceRoot: string): Promise<HelmChart[]> {
+export async function findHelmCharts(workspaceRoots: string[]): Promise<HelmChart[]> {
     const charts: HelmChart[] = [];
 
     try {
-        await findChartsRecursive(workspaceRoot, charts);
+        for (const root of workspaceRoots) {
+            await findChartsRecursive(root, charts);
+        }
     } catch (error) {
         console.error('Error finding Helm charts:', error);
     }
@@ -72,7 +76,12 @@ async function parseChartYaml(chartYamlPath: string, chartPath: string): Promise
 }
 
 function shouldSkipDirectory(dirName: string): boolean {
-    const skipDirs = [
+    // Get configured ignore directories from VS Code settings
+    const config = vscode.workspace.getConfiguration('chartProfiles');
+    const userIgnored = config.get<string[]>('ignoredDirectories', []);
+
+    // Default safe directories to always skip
+    const defaultSkipDirs = [
         'node_modules',
         '.git',
         '.vscode',
@@ -81,5 +90,9 @@ function shouldSkipDirectory(dirName: string): boolean {
         'build',
         '.vscode-test'
     ];
+
+    // Merge default and user-configured ignores
+    const skipDirs = [...defaultSkipDirs, ...userIgnored];
+
     return skipDirs.includes(dirName) || dirName.startsWith('.');
 }
