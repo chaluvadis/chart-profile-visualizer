@@ -1,0 +1,18 @@
+# Staging environment configuration
+replicaCount: 2
+
+image:
+  repository: myapp
+  tag: "staging-latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  hosts:
+    - host: staging.example.com
+      paths:
+        - /

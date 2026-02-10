@@ -117,7 +117,7 @@ function parseHelmOutput(output: string, chartPath: string): RenderedResource[] 
 /**
  * Checks if Helm CLI is available
  */
-async function isHelmAvailable(): Promise<boolean> {
+export async function isHelmAvailable(): Promise<boolean> {
     try {
         await exec('helm version --short');
         return true;
