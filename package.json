@@ -33,6 +33,19 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Chart Profiles",
+      "properties": {
+        "chartProfiles.ignoredDirectories": {
+          "type": "array",
+          "default": [],
+          "description": "Additional directories to ignore when discovering Helm charts (e.g., 'vendor', 'tmp'). Default ignored directories (node_modules, .git, etc.) are always included.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "views": {
       "explorer": [
         {
