@@ -4,7 +4,7 @@ import { ChartProfilesProvider } from './chartProfilesProvider';
 import { showRenderedYaml } from './renderedYamlView';
 import { ChartVisualizationView } from './chartVisualizationView';
 import { isHelmAvailable, renderHelmTemplate } from './helmRenderer';
-import { compareEnvironments, formatDiff, EnvironmentComparison } from './environmentDiff';
+import { compareEnvironments, EnvironmentComparison, DiffType } from './environmentDiff';
 
 /**
  * Format environment comparison as markdown
@@ -24,9 +24,9 @@ function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
     lines.push('');
     
     // Group diffs by type
-    const added = comparison.diffs.filter(d => d.diffType === 'Added');
-    const removed = comparison.diffs.filter(d => d.diffType === 'Removed');
-    const modified = comparison.diffs.filter(d => d.diffType === 'Modified');
+    const added = comparison.diffs.filter(d => d.diffType === DiffType.Added);
+    const removed = comparison.diffs.filter(d => d.diffType === DiffType.Removed);
+    const modified = comparison.diffs.filter(d => d.diffType === DiffType.Modified);
     
     if (added.length > 0) {
         lines.push('## Added Resources');

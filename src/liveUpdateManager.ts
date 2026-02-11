@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 
 /**
  * Callback type for live update notifications
@@ -88,7 +87,8 @@ export class LiveUpdateManager {
                     await this.updateCallback();
                 } catch (error) {
                     console.error('Error during live update:', error);
-                    vscode.window.showErrorMessage(`Live update failed: ${error}`);
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    vscode.window.showErrorMessage(`Live update failed: ${errorMessage}`);
                 }
             }
             this.debounceTimer = undefined;

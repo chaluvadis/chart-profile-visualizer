@@ -299,7 +299,13 @@ export function formatDiff(diff: ResourceDiff): string {
         lines.push('### Field Differences');
         if (diff.fieldDiffs && diff.fieldDiffs.length > 0) {
             for (const fieldDiff of diff.fieldDiffs) {
-                lines.push(`- **${fieldDiff.path}**: ${fieldDiff.leftValue} → ${fieldDiff.rightValue}`);
+                const leftVal = typeof fieldDiff.leftValue === 'object' 
+                    ? JSON.stringify(fieldDiff.leftValue) 
+                    : String(fieldDiff.leftValue);
+                const rightVal = typeof fieldDiff.rightValue === 'object' 
+                    ? JSON.stringify(fieldDiff.rightValue) 
+                    : String(fieldDiff.rightValue);
+                lines.push(`- **${fieldDiff.path}**: ${leftVal} → ${rightVal}`);
             }
         }
         lines.push('');

@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { ResourceHierarchy } from './resourceVisualizer';
-import { RenderedResource } from './helmRenderer';
 
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
