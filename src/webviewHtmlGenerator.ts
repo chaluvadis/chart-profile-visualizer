@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 import { ResourceHierarchy } from './resourceVisualizer';
 import { RenderedResource } from './helmRenderer';
 
@@ -728,6 +729,3 @@ function escapeHtml(text: string): string {
 function escapeAttr(text: string): string {
     return text.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
-
-// Re-export crypto for nonce generation
-import * as crypto from 'crypto';

@@ -1,4 +1,5 @@
 import { RenderedResource } from './helmRenderer';
+import * as yaml from 'js-yaml';
 
 /**
  * Resource type categories for color coding and organization
@@ -140,7 +141,6 @@ export function parseResource(resource: RenderedResource): StructuredResource {
     
     try {
         // Parse the YAML string to extract structured data
-        const yaml = require('js-yaml');
         const yamlContent = resource.yaml.replace(/^#.*$/gm, '').trim();
         const parsed = yaml.load(yamlContent) as any;
         

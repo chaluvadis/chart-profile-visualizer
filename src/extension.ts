@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { ChartProfilesProvider } from './chartProfilesProvider';
 import { showRenderedYaml } from './renderedYamlView';
 import { ChartVisualizationView } from './chartVisualizationView';
@@ -115,8 +116,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register compare environments command
     const compareEnvironmentsCommand = vscode.commands.registerCommand('chartProfiles.compareEnvironments', async () => {
+        // Get current workspace roots
+        const currentWorkspaceRoots = vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath) || [];
+        
         // Get all available charts and environments
-        const charts = await import('./helmChart').then(m => m.findHelmCharts(workspaceRoots));
+        const charts = await import('./helmChart').then(m => m.findHelmCharts(currentWorkspaceRoots));
         
         if (charts.length === 0) {
             vscode.window.showErrorMessage('No Helm charts found in workspace');
@@ -135,7 +139,6 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Get available environments for this chart
         const chartPath = selectedChart.chart.path;
-        const fs = require('fs');
         const envFiles = fs.readdirSync(chartPath)
             .filter((f: string) => f.match(/^values-(.+)\.ya?ml$/))
             .map((f: string) => f.match(/^values-(.+)\.ya?ml$/)![1]);
