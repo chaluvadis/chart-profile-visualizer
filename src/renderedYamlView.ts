@@ -4,6 +4,9 @@ import { mergeValues, generateAnnotatedYaml } from './valuesMerger';
 import { renderHelmTemplate, formatRenderedOutput } from './helmRenderer';
 import * as path from 'path';
 
+// WeakMap to store decorations for each editor to avoid using `as any`
+const editorDecorations = new WeakMap<vscode.TextEditor, vscode.TextEditorDecorationType[]>();
+
 /**
  * Shows rendered YAML or merged values in a new editor
  */
@@ -220,13 +223,12 @@ export function highlightValueDifferences(
     editor.setDecorations(additionDecorationType, additionDecorations);
     editor.setDecorations(baseDecorationType, baseDecorations);
 
-    // Store decoration types for cleanup later
-    if (!(editor as any).__chartProfileDecorations) {
-        (editor as any).__chartProfileDecorations = [];
-    }
-    (editor as any).__chartProfileDecorations.push(
+    // Store decoration types for cleanup later using WeakMap
+    const existingDecorations = editorDecorations.get(editor) || [];
+    existingDecorations.push(
         overrideDecorationType,
         additionDecorationType,
         baseDecorationType
     );
+    editorDecorations.set(editor, existingDecorations);
 }

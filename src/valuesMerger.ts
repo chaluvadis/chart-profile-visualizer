@@ -128,9 +128,10 @@ function loadYamlFile(filePath: string): any {
 export function generateAnnotatedYaml(comparison: ValuesComparison): string {
     const lines: string[] = [];
     
-    // Calculate statistics
-    const overridden = Array.from(comparison.details.entries()).filter(([_, v]) => v.overridden);
-    const baseOnly = Array.from(comparison.details.entries()).filter(([_, v]) => !v.overridden);
+    // Calculate statistics - convert to array once and filter twice
+    const allEntries = Array.from(comparison.details.entries());
+    const overridden = allEntries.filter(([_, v]) => v.overridden);
+    const baseOnly = allEntries.filter(([_, v]) => !v.overridden);
     
     // Header with summary
     lines.push('# Merged Values with Source Annotations');
@@ -203,11 +204,7 @@ function annotateYamlLines(yamlLines: string[], details: Map<string, MergedValue
             
             // Check if this is a leaf value (has actual value, not just a key)
             const trimmedValue = value.trim();
-            const isLeafValue = trimmedValue.length > 0 && 
-                               !trimmedValue.startsWith('[') && 
-                               !trimmedValue.startsWith('{') &&
-                               trimmedValue !== '|' &&
-                               trimmedValue !== '>';
+            const isLeafValue = isYamlLeafValue(trimmedValue);
             
             if (isLeafValue && details.has(fullPath)) {
                 const detail = details.get(fullPath)!;
@@ -238,4 +235,23 @@ function annotateYamlLines(yamlLines: string[], details: Map<string, MergedValue
     }
 
     return result;
+}
+
+/**
+ * Determines if a YAML value string represents a leaf value (primitive) or a complex structure.
+ * 
+ * Returns false for:
+ * - Arrays (starting with '[')
+ * - Objects (starting with '{')
+ * - Block scalars (indicated by '|' or '>')
+ * - Empty values
+ * 
+ * Returns true for primitive values like strings, numbers, booleans.
+ */
+function isYamlLeafValue(trimmedValue: string): boolean {
+    return trimmedValue.length > 0 && 
+           !trimmedValue.startsWith('[') &&  // Not an inline array
+           !trimmedValue.startsWith('{') &&  // Not an inline object
+           trimmedValue !== '|' &&            // Not a block literal
+           trimmedValue !== '>';              // Not a block folded
 }

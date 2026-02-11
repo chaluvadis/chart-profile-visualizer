@@ -3,8 +3,17 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { promisify } from 'util';
+import { mergeValues } from './valuesMerger';
 
 const exec = promisify(cp.exec);
+
+// Template variable patterns for substitution
+const TEMPLATE_PATTERNS = {
+    RELEASE_NAME: /\{\{\s*\.Release\.Name\s*\}\}/g,
+    CHART_NAME: /\{\{\s*\.Chart\.Name\s*\}\}/g,
+    CHART_VERSION: /\{\{\s*\.Chart\.Version\s*\}\}/g,
+    VALUES: /\{\{\s*\.Values\.([a-zA-Z0-9_.]+)\s*\}\}/g
+};
 
 export interface RenderedResource {
     kind: string;
@@ -241,13 +250,24 @@ function getPlaceholderResources(chartPath: string, environment: string): Render
         }];
     }
     
-    // Import mergeValues here to avoid circular dependency at module level
-    const { mergeValues } = require('./valuesMerger');
-    
     try {
         // Get merged values for this environment
         const comparison = mergeValues(chartPath, environment);
         const mergedValues = comparison.merged;
+        
+        // Read chart version from Chart.yaml
+        let chartVersion = '0.1.0';
+        try {
+            const chartYamlPath = path.join(chartPath, 'Chart.yaml');
+            if (fs.existsSync(chartYamlPath)) {
+                const chartYaml = yaml.load(fs.readFileSync(chartYamlPath, 'utf8')) as any;
+                if (chartYaml && chartYaml.version) {
+                    chartVersion = chartYaml.version;
+                }
+            }
+        } catch (error) {
+            console.warn('Could not read Chart.yaml version:', error);
+        }
         
         // Read all template files
         const templateFiles = fs.readdirSync(templatesDir)
@@ -261,11 +281,11 @@ function getPlaceholderResources(chartPath: string, environment: string): Render
             // Perform basic Go template variable substitution
             const releaseName = `${chartName}-${environment}`;
             
-            // Replace common template variables
+            // Replace common template variables using defined patterns
             templateContent = templateContent
-                .replace(/\{\{\s*\.Release\.Name\s*\}\}/g, releaseName)
-                .replace(/\{\{\s*\.Chart\.Name\s*\}\}/g, chartName)
-                .replace(/\{\{\s*\.Chart\.Version\s*\}\}/g, '0.1.0');
+                .replace(TEMPLATE_PATTERNS.RELEASE_NAME, releaseName)
+                .replace(TEMPLATE_PATTERNS.CHART_NAME, chartName)
+                .replace(TEMPLATE_PATTERNS.CHART_VERSION, chartVersion);
             
             // Replace .Values.* references with actual values
             templateContent = substituteValues(templateContent, mergedValues);
@@ -354,13 +374,11 @@ function getPlaceholderResources(chartPath: string, environment: string): Render
 /**
  * Substitute .Values.* references with actual values from merged values
  */
-function substituteValues(template: string, values: any, prefix: string = '.Values'): string {
+function substituteValues(template: string, values: any): string {
     let result = template;
     
-    // Match patterns like {{ .Values.key.subkey }}
-    const valuePattern = /\{\{\s*\.Values\.([a-zA-Z0-9_.]+)\s*\}\}/g;
-    
-    result = result.replace(valuePattern, (match, path) => {
+    // Match patterns like {{ .Values.key.subkey }} using the defined pattern
+    result = result.replace(TEMPLATE_PATTERNS.VALUES, (match, path) => {
         const value = getNestedValue(values, path);
         if (value !== undefined && value !== null) {
             // Convert value to YAML-appropriate format
