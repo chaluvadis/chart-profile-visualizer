@@ -4,14 +4,20 @@ A VS Code extension for visualizing Helm charts across multiple environments wit
 
 ## Features
 
-- 📊 **Interactive Chart Visualization** - View resource distribution, value overrides, and chart statistics
-- 🔀 **Environment Comparison** - Compare base and environment-specific values
+- 📊 **Interactive Chart Visualization** - View resource distribution, value overrides, and chart statistics with multiple visualization tabs
+- 🎯 **Resource Explorer** - Browse all Kubernetes resources with full configuration details in a collapsible hierarchy
+- 🔍 **Search & Filter** - Instantly search resources by name, kind, namespace, or labels
+- 🗺️ **Topology View** - Visual graph showing resource relationships with zoom and pan controls
+- 📤 **Export Resources** - Export rendered resources as YAML or JSON files
+- 🔄 **Live Mode** - Auto-refresh visualization when chart files change
+- 🔀 **Environment Comparison** - Compare resources between two environments to see what changed
 - 📝 **Rendered Templates** - View fully rendered Helm templates with merged values
+- 🎨 **Kubernetes Icons** - Official-style icons for all resource types with dark/light theme support
 - 🎯 **Tree View Navigation** - Browse charts, environments, and actions in the Explorer sidebar
-- 🔍 **Value Tracking** - See which values are overridden and their sources
+- 🔐 **Secret Masking** - Automatically masks secret data while showing keys
+- 📋 **Copy to Clipboard** - Quickly copy individual resource YAML to clipboard
 - 🌍 **Dynamic Environment Discovery** - Automatically detects all `values-*.yaml` files
 - 📁 **Multi-Root Workspace Support** - Works seamlessly with multi-root VS Code workspaces
-- ⚙️ **Configurable Ignore Patterns** - Customize which directories to skip during chart discovery
 - 💡 **Enhanced Tooltips** - Rich tooltips showing chart metadata, versions, and values files
 - 🔔 **Helm CLI Status** - Warnings when Helm is not available for template rendering
 
@@ -50,12 +56,37 @@ The extension automatically activates when you open a workspace containing Helm 
 For each environment, you can:
 
 #### 1. Visualize Chart
-- Click "Visualize Chart" to open an interactive dashboard
-- Shows:
+- Click "Visualize Chart" to open an interactive dashboard with three tabs:
+
+**Overview Tab:**
   - Resource type distribution (bar chart)
   - Overridden vs base values (pie chart)
   - Detailed override comparison table
   - Namespace and template statistics
+
+**Resources Tab:**
+  - Complete resource explorer with collapsible hierarchy
+  - All Kubernetes resources grouped by kind
+  - Full configuration details (metadata, spec, status, data)
+  - Color-coded by resource category (workloads, networking, storage, RBAC, etc.)
+  - Kubernetes-style icons for each resource type
+  - Secret data is automatically masked (shows keys, hides values)
+  - Copy individual resources to clipboard
+  - Search functionality to filter resources instantly
+  - Expand/collapse all controls
+
+**Topology Tab:**
+  - Visual graph showing resources as connected nodes
+  - Zoom in/out and pan controls
+  - Interactive SVG-based rendering
+
+**Toolbar Features:**
+  - 📄 **Export YAML** - Save all rendered resources to a YAML file
+  - 📋 **Export JSON** - Save all rendered resources to a JSON file
+  - 🔄 **Live Mode** - Enable auto-refresh when chart files change
+  - ➕ **Expand All** - Expand all resource groups and details
+  - ➖ **Collapse All** - Collapse all resource groups and details
+  - 🔍 **Search Box** - Filter resources by name, kind, namespace, or labels
 
 #### 2. View Merged Values
 - See the final merged values for the environment
@@ -66,6 +97,13 @@ For each environment, you can:
 - View fully rendered Helm templates
 - Requires Helm CLI installed (falls back to placeholder if not available)
 - Shows all Kubernetes resources that would be created
+
+#### 4. Compare Environments (Command Palette)
+- Use Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
+- Search for "Compare Environments"
+- Select chart and two environments to compare
+- View side-by-side diff showing added, removed, and modified resources
+- Field-level change details for modified resources
 
 ## Requirements
 
@@ -122,6 +160,34 @@ my-chart/
 
 **Note:** Any file matching the pattern `values-*.yaml` or `values-*.yml` will be detected as an environment.
 
+## Supported Kubernetes Resources
+
+The extension provides full support for visualizing these Kubernetes resource types with dedicated icons and color coding:
+
+### Workloads (Blue)
+- Deployment, StatefulSet, DaemonSet, ReplicaSet
+- Job, CronJob, Pod
+
+### Networking (Green)
+- Service, Ingress, NetworkPolicy
+
+### Configuration (Orange)
+- ConfigMap, Secret (with automatic data masking)
+
+### Storage (Purple)
+- PersistentVolumeClaim, PersistentVolume
+
+### RBAC (Red)
+- Role, RoleBinding, ClusterRole, ClusterRoleBinding
+- ServiceAccount
+
+### Scaling (Teal)
+- HorizontalPodAutoscaler
+
+### Other (Gray)
+- Namespace
+- Any other Kubernetes resources (will be displayed but may not have dedicated icons)
+
 ## Development
 
 ### Building from Source
@@ -142,13 +208,27 @@ pnpm run package
 ### Project Structure
 ```
 src/
-├── extension.ts                 # Extension entry point
+├── extension.ts                 # Extension entry point & command registration
 ├── chartProfilesProvider.ts     # Tree view provider
-├── chartVisualizationView.ts    # Interactive chart dashboard
+├── chartVisualizationView.ts    # Main visualization view controller
+├── webviewHtmlGenerator.ts      # Enhanced HTML generation for webview
+├── resourceVisualizer.ts        # Resource parsing & hierarchy builder
+├── environmentDiff.ts           # Environment comparison logic
+├── liveUpdateManager.ts         # File watching & auto-refresh
 ├── helmChart.ts                 # Chart discovery
-├── helmRenderer.ts              # Template rendering
+├── helmRenderer.ts              # Template rendering with Helm CLI
 ├── valuesMerger.ts              # Value merging logic
 └── renderedYamlView.ts          # YAML display
+
+images/
+├── icon.svg                     # Extension icon (dark theme)
+├── icon-light.svg               # Extension icon (light theme)
+└── k8s/                         # Kubernetes resource icons
+    ├── deployment-dark.svg
+    ├── deployment-light.svg
+    ├── service-dark.svg
+    ├── service-light.svg
+    └── ... (40+ icons for all resource types)
 ```
 
 ## Troubleshooting

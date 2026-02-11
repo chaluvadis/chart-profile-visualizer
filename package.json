@@ -44,6 +44,20 @@
       {
         "command": "chartProfiles.viewRenderedYaml",
         "title": "View Rendered YAML"
+      },
+      {
+        "command": "chartProfiles.visualizeChart",
+        "title": "Visualize Chart"
+      },
+      {
+        "command": "chartProfiles.compareEnvironments",
+        "title": "Compare Environments",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "chartProfiles.exportResources",
+        "title": "Export Resources",
+        "icon": "$(export)"
       }
     ],
     "menus": {
@@ -52,6 +66,21 @@
           "command": "chartProfiles.refreshCharts",
           "when": "view == chartProfiles",
           "group": "navigation"
+        },
+        {
+          "command": "chartProfiles.compareEnvironments",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "chartProfiles.visualizeChart",
+          "when": "false"
+        },
+        {
+          "command": "chartProfiles.viewRenderedYaml",
+          "when": "false"
         }
       ]
     }

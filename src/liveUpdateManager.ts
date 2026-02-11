@@ -1,0 +1,118 @@
+import * as vscode from 'vscode';
+import * as path from 'path';
+
+/**
+ * Callback type for live update notifications
+ */
+export type UpdateCallback = () => void | Promise<void>;
+
+/**
+ * Manages file watchers and live updates for chart visualization
+ */
+export class LiveUpdateManager {
+    private fileWatcher?: vscode.FileSystemWatcher;
+    private updateCallback?: UpdateCallback;
+    private debounceTimer?: NodeJS.Timeout;
+    private readonly debounceDelay = 1000; // 1 second
+    private isEnabled = false;
+    private chartPath?: string;
+
+    /**
+     * Enable live updates for a specific chart
+     */
+    enable(chartPath: string, callback: UpdateCallback): void {
+        if (this.isEnabled && this.chartPath === chartPath) {
+            return;
+        }
+
+        this.disable();
+
+        this.chartPath = chartPath;
+        this.updateCallback = callback;
+        this.isEnabled = true;
+
+        // Watch for changes in values files and templates
+        const valuesPattern = new vscode.RelativePattern(
+            chartPath,
+            '{values*.yaml,values*.yml,templates/**/*.yaml,templates/**/*.yml}'
+        );
+
+        this.fileWatcher = vscode.workspace.createFileSystemWatcher(valuesPattern);
+
+        this.fileWatcher.onDidCreate(() => this.scheduleUpdate());
+        this.fileWatcher.onDidChange(() => this.scheduleUpdate());
+        this.fileWatcher.onDidDelete(() => this.scheduleUpdate());
+
+        console.log(`Live updates enabled for chart: ${chartPath}`);
+    }
+
+    /**
+     * Disable live updates
+     */
+    disable(): void {
+        if (this.fileWatcher) {
+            this.fileWatcher.dispose();
+            this.fileWatcher = undefined;
+        }
+
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = undefined;
+        }
+
+        this.updateCallback = undefined;
+        this.chartPath = undefined;
+        this.isEnabled = false;
+
+        console.log('Live updates disabled');
+    }
+
+    /**
+     * Schedule an update with debouncing
+     */
+    private scheduleUpdate(): void {
+        if (!this.isEnabled || !this.updateCallback) {
+            return;
+        }
+
+        // Clear existing timer
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+
+        // Schedule new update
+        this.debounceTimer = setTimeout(async () => {
+            if (this.updateCallback) {
+                console.log('Triggering live update...');
+                try {
+                    await this.updateCallback();
+                } catch (error) {
+                    console.error('Error during live update:', error);
+                    vscode.window.showErrorMessage(`Live update failed: ${error}`);
+                }
+            }
+            this.debounceTimer = undefined;
+        }, this.debounceDelay);
+    }
+
+    /**
+     * Check if live updates are enabled
+     */
+    get enabled(): boolean {
+        return this.isEnabled;
+    }
+
+    /**
+     * Get the current chart path being watched
+     */
+    get watchedChartPath(): string | undefined {
+        return this.chartPath;
+    }
+
+    /**
+     * Dispose of resources
+     */
+    dispose(): void {
+        this.disable();
+    }
+}
