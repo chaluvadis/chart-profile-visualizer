@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
+import * as yaml from 'js-yaml';
 import { ResourceHierarchy } from './resourceVisualizer';
 
 /**
@@ -139,11 +140,9 @@ function generateResourceExplorer(hierarchy: ResourceHierarchy, webview: vscode.
     let html = '<div class="resource-explorer">';
     
     for (const [kind, group] of hierarchy.kindGroups) {
-        const iconName = kind.toLowerCase().replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-        
         html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
-            <div class="kind-header" onclick="toggleKindGroup(this)">
+            <div class="kind-header">
                 <span class="expand-icon">▶</span>
                 <span class="kind-name" style="color: ${group.colorCode}">${escapeHtml(kind)} (${group.count})</span>
             </div>
@@ -151,13 +150,37 @@ function generateResourceExplorer(hierarchy: ResourceHierarchy, webview: vscode.
         `;
         
         for (const resource of group.resources) {
+            // For secrets, sanitize the YAML to mask sensitive data
+            let displayYaml = resource.yaml;
+            if (resource.kind === 'Secret') {
+                try {
+                    const yamlObj = yaml.load(resource.yaml.replace(/^#.*$/gm, '').trim()) as any;
+                    if (yamlObj && yamlObj.data) {
+                        yamlObj.data = Object.keys(yamlObj.data).reduce((acc: any, key: string) => {
+                            acc[key] = '***REDACTED***';
+                            return acc;
+                        }, {});
+                    }
+                    if (yamlObj && yamlObj.stringData) {
+                        yamlObj.stringData = Object.keys(yamlObj.stringData).reduce((acc: any, key: string) => {
+                            acc[key] = '***REDACTED***';
+                            return acc;
+                        }, {});
+                    }
+                    displayYaml = yaml.dump(yamlObj);
+                } catch (error) {
+                    // If parsing fails, just hide the whole yaml for secrets
+                    displayYaml = '# Secret data redacted for security';
+                }
+            }
+            
             html += `
-            <div class="resource-card" style="border-left-color: ${group.colorCode}">
-                <div class="resource-header" onclick="toggleResource(this)">
+            <div class="resource-card" style="border-left-color: ${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
+                <div class="resource-header">
                     <span class="expand-icon">▶</span>
                     <strong>${escapeHtml(resource.name)}</strong>
                     ${resource.namespace ? `<span class="namespace-tag">${escapeHtml(resource.namespace)}</span>` : ''}
-                    <button class="copy-btn" onclick="copyResource(event, '${escapeAttr(resource.name)}')">📋</button>
+                    <button class="copy-btn">📋</button>
                 </div>
                 <div class="resource-details" style="display: none;">
                     <div class="detail-section">
@@ -178,7 +201,7 @@ function generateResourceExplorer(hierarchy: ResourceHierarchy, webview: vscode.
                     ` : ''}
                     <div class="detail-section">
                         <h4>Full YAML</h4>
-                        <pre class="yaml-content">${escapeHtml(resource.yaml)}</pre>
+                        <pre class="yaml-content">${escapeHtml(displayYaml)}</pre>
                     </div>
                 </div>
             </div>
@@ -199,9 +222,9 @@ function generateTopologyTab(): string {
     return `
         <div class="topology-view">
             <div class="topology-controls">
-                <button onclick="zoomIn()">🔍+</button>
-                <button onclick="zoomOut()">🔍-</button>
-                <button onclick="resetZoom()">⟲</button>
+                <button id="zoomInBtn">🔍+</button>
+                <button id="zoomOutBtn">🔍-</button>
+                <button id="resetZoomBtn">⟲</button>
             </div>
             <svg id="topologySvg" class="topology-svg">
                 <text x="50%" y="50%" text-anchor="middle" fill="var(--vscode-foreground)">
@@ -475,6 +498,16 @@ function getEnhancedStyles(): string {
 }
 
 function generateJavaScript(data: any): string {
+    // Create a minimal, sanitized dataset for topology - only include kind, name, namespace
+    const topologyResources = data.resources.map((r: any) => ({
+        kind: r.kind || 'Unknown',
+        name: r.name || 'unnamed',
+        namespace: r.namespace || 'default'
+    }));
+    
+    // Escape the JSON to prevent XSS by replacing < with \u003c
+    const safeTopologyData = JSON.stringify(topologyResources).replace(/</g, '\\u003c');
+    
     return `
         const vscode = acquireVsCodeApi();
         let liveMode = false;
@@ -541,27 +574,43 @@ function generateJavaScript(data: any): string {
             });
         });
 
-        // Resource explorer functions
-        function toggleKindGroup(header) {
-            const group = header.parentElement;
-            group.classList.toggle('expanded');
-            const resources = group.querySelector('.kind-resources');
-            resources.style.display = resources.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function toggleResource(header) {
-            const card = header.parentElement;
-            card.classList.toggle('expanded');
-            const details = card.querySelector('.resource-details');
-            details.style.display = details.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function copyResource(event, name) {
-            event.stopPropagation();
-            const card = event.target.closest('.resource-card');
-            const yaml = card.querySelector('.yaml-content').textContent;
-            vscode.postMessage({ type: 'copyResource', yaml });
-        }
+        // Resource explorer event delegation - attach listeners to parent elements
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            
+            // Handle kind group toggle
+            if (target.closest('.kind-header')) {
+                const header = target.closest('.kind-header');
+                const group = header.parentElement;
+                group.classList.toggle('expanded');
+                const resources = group.querySelector('.kind-resources');
+                if (resources) {
+                    resources.style.display = resources.style.display === 'none' ? 'block' : 'none';
+                }
+                return;
+            }
+            
+            // Handle copy button
+            if (target.closest('.copy-btn')) {
+                e.stopPropagation();
+                const card = target.closest('.resource-card');
+                const yaml = card.querySelector('.yaml-content').textContent;
+                vscode.postMessage({ type: 'copyResource', yaml });
+                return;
+            }
+            
+            // Handle resource header toggle (but not if clicking copy button)
+            if (target.closest('.resource-header') && !target.closest('.copy-btn')) {
+                const header = target.closest('.resource-header');
+                const card = header.parentElement;
+                card.classList.toggle('expanded');
+                const details = card.querySelector('.resource-details');
+                if (details) {
+                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
+                }
+                return;
+            }
+        });
 
         // Topology view functions
         function initTopology() {
@@ -569,8 +618,8 @@ function generateJavaScript(data: any): string {
             if (svg.hasAttribute('data-initialized')) return;
             svg.setAttribute('data-initialized', 'true');
             
-            // Simple topology: just show resources as nodes
-            const resources = ${JSON.stringify(data.resources)};
+            // Simple topology: just show resources as nodes (minimal data)
+            const resources = ${safeTopologyData};
             const width = svg.clientWidth;
             const height = svg.clientHeight;
             
@@ -611,25 +660,38 @@ function generateJavaScript(data: any): string {
             });
         }
 
-        function zoomIn() {
-            currentZoom = Math.min(currentZoom + 0.1, 3);
-            updateZoom();
+        // Topology zoom controls - bind event listeners
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const resetZoomBtn = document.getElementById('resetZoomBtn');
+        
+        if (zoomInBtn) {
+            zoomInBtn.addEventListener('click', () => {
+                currentZoom = Math.min(currentZoom + 0.1, 3);
+                updateZoom();
+            });
         }
-
-        function zoomOut() {
-            currentZoom = Math.max(currentZoom - 0.1, 0.5);
-            updateZoom();
+        
+        if (zoomOutBtn) {
+            zoomOutBtn.addEventListener('click', () => {
+                currentZoom = Math.max(currentZoom - 0.1, 0.5);
+                updateZoom();
+            });
         }
-
-        function resetZoom() {
-            currentZoom = 1;
-            updateZoom();
+        
+        if (resetZoomBtn) {
+            resetZoomBtn.addEventListener('click', () => {
+                currentZoom = 1;
+                updateZoom();
+            });
         }
 
         function updateZoom() {
             const svg = document.getElementById('topologySvg');
-            svg.style.transform = \`scale(\${currentZoom})\`;
-            svg.style.transformOrigin = 'center center';
+            if (svg) {
+                svg.style.transform = \`scale(\${currentZoom})\`;
+                svg.style.transformOrigin = 'center center';
+            }
         }
 
         // Chart.js initialization for overview tab
