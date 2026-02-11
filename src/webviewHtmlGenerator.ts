@@ -1,7 +1,52 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
-import * as yaml from 'js-yaml';
+import * as yaml from 'js-yaml'; // Used for Secret sanitization to mask sensitive data
 import { ResourceHierarchy } from './resourceVisualizer';
+
+/**
+ * Interface for Kubernetes Secret object structure
+ */
+interface SecretObject {
+    data?: Record<string, string>;
+    stringData?: Record<string, string>;
+    [key: string]: any;
+}
+
+/**
+ * Sanitize a Secret's YAML content by redacting sensitive data fields
+ */
+function sanitizeSecretYaml(yamlContent: string): string {
+    try {
+        const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, '').trim());
+        
+        // Type guard to ensure we have a valid object
+        if (!yamlObj || typeof yamlObj !== 'object') {
+            return '# Secret data redacted for security';
+        }
+        
+        const secretObj = yamlObj as SecretObject;
+        
+        // Redact sensitive fields by replacing values with placeholders
+        const redactField = (obj: Record<string, string>): Record<string, string> => {
+            return Object.keys(obj).reduce((acc, key) => {
+                acc[key] = '***REDACTED***';
+                return acc;
+            }, {} as Record<string, string>);
+        };
+        
+        if (secretObj.data) {
+            secretObj.data = redactField(secretObj.data);
+        }
+        if (secretObj.stringData) {
+            secretObj.stringData = redactField(secretObj.stringData);
+        }
+        
+        return yaml.dump(secretObj);
+    } catch (error) {
+        // If parsing fails, just hide the whole yaml for secrets
+        return '# Secret data redacted for security';
+    }
+}
 
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
@@ -156,28 +201,9 @@ function generateResourceExplorer(hierarchy: ResourceHierarchy, webview: vscode.
         
         for (const resource of group.resources) {
             // For secrets, sanitize the YAML to mask sensitive data
-            let displayYaml = resource.yaml;
-            if (resource.kind === 'Secret') {
-                try {
-                    const yamlObj = yaml.load(resource.yaml.replace(/^#.*$/gm, '').trim()) as any;
-                    if (yamlObj && yamlObj.data) {
-                        yamlObj.data = Object.keys(yamlObj.data).reduce((acc: any, key: string) => {
-                            acc[key] = '***REDACTED***';
-                            return acc;
-                        }, {});
-                    }
-                    if (yamlObj && yamlObj.stringData) {
-                        yamlObj.stringData = Object.keys(yamlObj.stringData).reduce((acc: any, key: string) => {
-                            acc[key] = '***REDACTED***';
-                            return acc;
-                        }, {});
-                    }
-                    displayYaml = yaml.dump(yamlObj);
-                } catch (error) {
-                    // If parsing fails, just hide the whole yaml for secrets
-                    displayYaml = '# Secret data redacted for security';
-                }
-            }
+            const displayYaml = resource.kind === 'Secret' 
+                ? sanitizeSecretYaml(resource.yaml)
+                : resource.yaml;
             
             html += `
             <div class="resource-card" style="border-left-color: ${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
