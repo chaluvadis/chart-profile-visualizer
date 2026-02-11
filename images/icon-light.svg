@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="#F5F5F5" stroke="#E0E0E0" stroke-width="1"/>
+  
+  <!-- Bar chart bars -->
+  <rect x="20" y="68" width="14" height="30" rx="3" fill="#0078D4"/>
+  <rect x="40" y="50" width="14" height="48" rx="3" fill="#0078D4"/>
+  <rect x="60" y="34" width="14" height="64" rx="3" fill="#0078D4"/>
+  
+  <!-- Helm wheel -->
+  <circle cx="96" cy="42" r="18" stroke="#8B5CF6" stroke-width="3" fill="none"/>
+  <circle cx="96" cy="42" r="5.5" fill="#8B5CF6"/>
+  <line x1="96" y1="24" x2="96" y2="33" stroke="#8B5CF6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="96" y1="51" x2="96" y2="60" stroke="#8B5CF6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="78" y1="42" x2="87" y2="42" stroke="#8B5CF6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="105" y1="42" x2="114" y2="42" stroke="#8B5CF6" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="83.3" y1="29.3" x2="89.5" y2="35.5" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round"/>
+  <line x1="102.5" y1="48.5" x2="108.7" y2="54.7" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round"/>
+  <line x1="108.7" y1="29.3" x2="102.5" y2="35.5" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round"/>
+  <line x1="89.5" y1="48.5" x2="83.3" y2="54.7" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Baseline -->
+  <line x1="16" y1="102" x2="112" y2="102" stroke="#0078D4" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+  
+  <!-- "HELM" text -->
+  <text x="64" y="118" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="4" fill="#8B5CF6">HELM</text>
+</svg>
