@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
-import * as yaml from 'js-yaml'; // Used for Secret sanitization to mask sensitive data
+import * as yaml from 'js-yaml';
 import { ResourceHierarchy } from './resourceVisualizer';
 
 /**
