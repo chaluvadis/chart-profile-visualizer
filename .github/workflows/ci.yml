@@ -1,42 +1,45 @@
 name: CI
 
 on:
-  push:
-    branches: [ main, develop, copilot/** ]
-  pull_request:
-    branches: [ main, develop ]
+  release:
+    types: [created]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         node-version: [24.x]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10
+
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
+        cache: 'pnpm'
+
     - name: Install dependencies
-      run: npm install --legacy-peer-deps
-    
+      run: pnpm install --legacy-peer-deps
+
     - name: Compile TypeScript
-      run: npm run compile
-    
+      run: pnpm run compile
+
     - name: Check for TypeScript errors
       run: npx tsc --noEmit
-    
+
     - name: Package extension
-      run: npm run package
+      run: pnpm run package
       continue-on-error: true
-    
+
     - name: Upload VSIX artifact
       if: success()
       uses: actions/upload-artifact@v4
