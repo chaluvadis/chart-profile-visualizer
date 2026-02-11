@@ -46,13 +46,16 @@ export async function renderHelmTemplate(
         return getPlaceholderResources(chartPath, environment);
     }
 
+    // Declare command outside try block so it's accessible in catch
+    let command = '';
+
     try {
         // Build helm template command
         // helm template [RELEASE_NAME] [CHART] -f values.yaml -f values-<env>.yaml
         const baseValuesPath = path.join(chartPath, 'values.yaml');
         const envValuesPath = path.join(chartPath, `values-${environment}.yaml`);
 
-        let command = `helm template ${releaseName} "${chartPath}"`;
+        command = `helm template ${releaseName} "${chartPath}"`;
         
         if (fs.existsSync(baseValuesPath)) {
             command += ` -f "${baseValuesPath}"`;
@@ -294,6 +297,7 @@ function getPlaceholderResources(chartPath: string, environment: string): Render
             templateContent = substituteValues(templateContent, mergedValues);
             
             // Try to parse the partially rendered YAML to extract metadata
+            // Helm templates may contain multiple YAML documents (separated by ---)
             let kind = 'Unknown';
             let name = 'unnamed';
             let namespace: string | undefined;
@@ -309,13 +313,22 @@ function getPlaceholderResources(chartPath: string, environment: string): Render
                     .replace(/\{\{-?\s*else\s*-?\}\}/g, '')
                     .replace(/\{\{-?\s*toYaml\s+.*?\|\s*nindent\s+\d+\s*-?\}\}/g, '{}');
                 
-                const parsed = yaml.load(simplifiedYaml) as any;
-                if (parsed && typeof parsed === 'object') {
-                    kind = parsed.kind || 'Unknown';
-                    apiVersion = parsed.apiVersion;
-                    if (parsed.metadata) {
-                        name = parsed.metadata.name || 'unnamed';
-                        namespace = parsed.metadata.namespace;
+                // Parse all documents and pick the most appropriate one for metadata
+                const docs: any[] = [];
+                yaml.loadAll(simplifiedYaml, (doc: any) => {
+                    if (doc && typeof doc === 'object') {
+                        docs.push(doc);
+                    }
+                });
+
+                if (docs.length > 0) {
+                    // Prefer the first document that has a kind; otherwise use the first document
+                    const primary = docs.find(d => d && typeof d === 'object' && d.kind) || docs[0];
+                    kind = primary.kind || 'Unknown';
+                    apiVersion = primary.apiVersion;
+                    if (primary.metadata && typeof primary.metadata === 'object') {
+                        name = primary.metadata.name || 'unnamed';
+                        namespace = primary.metadata.namespace;
                     }
                 }
             } catch (parseError) {

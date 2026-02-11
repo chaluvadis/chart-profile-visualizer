@@ -103,8 +103,14 @@ async function showRenderedTemplates(chartPath: string, environment: string, cha
  */
 export function highlightValueDifferences(
     editor: vscode.TextEditor,
-    comparison: { merged: any; details: Map<string, { value: any; source: { file: string }; overridden: boolean }> }
+    comparison: { merged: any; details: Map<string, { value: any; source: { file: string }; overridden: boolean; missingInBase?: boolean }> }
 ): void {
+    // Dispose previous decorations to prevent resource leaks
+    const existingDecorations = editorDecorations.get(editor);
+    if (existingDecorations) {
+        existingDecorations.forEach(decoration => decoration.dispose());
+    }
+
     // Create decoration types for different value sources
     const overrideDecorationType = vscode.window.createTextEditorDecorationType({
         backgroundColor: 'rgba(255, 165, 0, 0.15)', // Orange tint for overrides
@@ -133,38 +139,56 @@ export function highlightValueDifferences(
     const text = document.getText();
     const lines = text.split('\n');
 
-    // Build a map of line content to decoration info
+    // Precompute all annotated lines in a single pass to avoid O(N*M) complexity
+    const searchPattern = /^\s*([^:]+):\s*.*#\s*\[(OVERRIDE|BASE|ADDED) from ([^\]]+)\]/i;
+    const annotatedLines: Array<{ index: number; key: string; type: string; fullPath: string }> = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const match = line.match(searchPattern);
+        if (match) {
+            const [, key, type] = match;
+            annotatedLines.push({
+                index: i,
+                key: key.trim(),
+                type,
+                fullPath: '' // Will be filled during matching
+            });
+        }
+    }
+
+    // Build a map of line index to decoration info by matching full paths
     const lineDecorations = new Map<number, { type: 'override' | 'addition' | 'base'; detail: any; path: string }>();
 
-    // Parse the details to find which lines correspond to which values
+    // Match annotations with details using full path comparison
     for (const [keyPath, detail] of comparison.details.entries()) {
-        // Find lines that match this key path
-        // Look for lines with the annotation comment we added
-        const searchPattern = new RegExp(`^\\s*([^:]+):\\s*.*#\\s*\\[(OVERRIDE|BASE) from ([^\\]]+)\\]`, 'i');
-        
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const match = line.match(searchPattern);
-            
-            if (match) {
-                const [, key, type] = match;
-                const trimmedKey = key.trim();
-                
-                // Check if this line corresponds to our key path
-                if (keyPath.endsWith(trimmedKey) || keyPath === trimmedKey) {
-                    const sourceFile = path.basename(detail.source.file);
-                    const decorationType = detail.overridden ? 'override' : 'base';
-                    
-                    // Check if it's an addition (not in base)
-                    const isAddition = detail.overridden && sourceFile.includes('values-');
-                    
-                    lineDecorations.set(i, {
-                        type: isAddition ? 'addition' : decorationType,
-                        detail,
-                        path: keyPath
-                    });
-                    break;
+        // Use the last segment of the key path for initial matching
+        const keySegment = keyPath.split('.').pop();
+        if (!keySegment) {
+            continue;
+        }
+
+        // Find matching annotated line by checking if the full path matches
+        for (const annotated of annotatedLines) {
+            // Match by full path to avoid ambiguity with duplicate leaf keys
+            // The annotation contains the key at that line, build potential full path
+            if (keyPath === annotated.key || keyPath.endsWith('.' + annotated.key)) {
+                // Determine decoration type based on the detail
+                let decorationType: 'override' | 'addition' | 'base';
+                if (detail.missingInBase) {
+                    decorationType = 'addition';
+                } else if (detail.overridden) {
+                    decorationType = 'override';
+                } else {
+                    decorationType = 'base';
                 }
+
+                lineDecorations.set(annotated.index, {
+                    type: decorationType,
+                    detail,
+                    path: keyPath
+                });
+                break;
             }
         }
     }
@@ -224,11 +248,9 @@ export function highlightValueDifferences(
     editor.setDecorations(baseDecorationType, baseDecorations);
 
     // Store decoration types for cleanup later using WeakMap
-    const existingDecorations = editorDecorations.get(editor) || [];
-    existingDecorations.push(
+    editorDecorations.set(editor, [
         overrideDecorationType,
         additionDecorationType,
         baseDecorationType
-    );
-    editorDecorations.set(editor, existingDecorations);
+    ]);
 }

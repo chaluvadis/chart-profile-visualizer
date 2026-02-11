@@ -11,7 +11,7 @@ export interface MergedValue {
     value: any;
     source: ValueSource;
     overridden: boolean;
-    missing?: boolean;
+    missingInBase?: boolean; // True when value exists only in env file, not in base
 }
 
 export interface ValuesComparison {
@@ -58,7 +58,7 @@ function deepMerge(
     }
 
     if (base === undefined || base === null) {
-        recordValue(path, override, overrideFile, false, details);
+        recordValue(path, override, overrideFile, false, details, true);
         return override;
     }
 
@@ -99,13 +99,15 @@ function recordValue(
     value: any,
     file: string,
     overridden: boolean,
-    details: Map<string, MergedValue>
+    details: Map<string, MergedValue>,
+    missingInBase: boolean = false
 ): void {
     if (path) {
         details.set(path, {
             value,
             source: { file },
-            overridden
+            overridden,
+            missingInBase
         });
     }
 }
@@ -131,8 +133,11 @@ export function generateAnnotatedYaml(comparison: ValuesComparison): string {
     // Calculate statistics efficiently in a single iteration
     let overriddenCount = 0;
     let baseOnlyCount = 0;
+    let envOnlyCount = 0;
     for (const [_, value] of comparison.details.entries()) {
-        if (value.overridden) {
+        if (value.missingInBase) {
+            envOnlyCount++;
+        } else if (value.overridden) {
             overriddenCount++;
         } else {
             baseOnlyCount++;
@@ -144,8 +149,9 @@ export function generateAnnotatedYaml(comparison: ValuesComparison): string {
     lines.push('# Legend:');
     lines.push('#   [BASE from values.yaml] - From base values.yaml');
     lines.push('#   [OVERRIDE from values-*.yaml] - Overridden in environment-specific values file');
+    lines.push('#   [ADDED from values-*.yaml] - Only in environment-specific file (not in base)');
     lines.push('');
-    lines.push(`# Summary: ${overriddenCount} values overridden, ${baseOnlyCount} values from base`);
+    lines.push(`# Summary: ${overriddenCount} values overridden, ${envOnlyCount} values added, ${baseOnlyCount} values from base`);
     lines.push('');
 
     // Dump the merged YAML
@@ -182,11 +188,44 @@ function annotateYamlLines(yamlLines: string[], details: Map<string, MergedValue
         const indent = line.search(/\S/);
         const indentLevel = indent / 2;
 
+        // Check for array items BEFORE key-value pairs to handle "- name: value" correctly
+        if (line.trim().startsWith('-')) {
+            // Array item line
+            // Check if it's an array item with a key-value (e.g., "- name: foo")
+            const arrayItemKeyMatch = line.match(/^(\s*)-\s+([^:]+):\s*(.*)$/);
+            
+            if (arrayItemKeyMatch) {
+                // Array item with key-value pair like "- name: foo"
+                // This is part of an array of objects
+                // We still want to annotate the array itself, not individual object fields
+                result.push(line);
+            } else {
+                // Simple array item like "- value" or "- |"
+                const fullPath = pathStack.join('.');
+                if (details.has(fullPath)) {
+                    const detail = details.get(fullPath)!;
+                    const sourceFile = path.basename(detail.source.file);
+                    let annotation: string;
+                    if (detail.missingInBase) {
+                        annotation = `# [ADDED from ${sourceFile}]`;
+                    } else if (detail.overridden) {
+                        annotation = `# [OVERRIDE from ${sourceFile}]`;
+                    } else {
+                        annotation = `# [BASE from ${sourceFile}]`;
+                    }
+                    result.push(`${line}  ${annotation}`);
+                } else {
+                    result.push(line);
+                }
+            }
+            continue;
+        }
+
         // Parse the line to extract key
         const keyMatch = line.match(/^(\s*)([^:]+):\s*(.*)$/);
         
         if (keyMatch) {
-            const [, spaces, key, value] = keyMatch;
+            const [, , key, value] = keyMatch;
             const trimmedKey = key.trim();
             
             // Adjust path stack based on indentation
@@ -215,22 +254,14 @@ function annotateYamlLines(yamlLines: string[], details: Map<string, MergedValue
             if (isLeafValue && details.has(fullPath)) {
                 const detail = details.get(fullPath)!;
                 const sourceFile = path.basename(detail.source.file);
-                const annotation = detail.overridden 
-                    ? `# [OVERRIDE from ${sourceFile}]`
-                    : `# [BASE from ${sourceFile}]`;
-                result.push(`${line}  ${annotation}`);
-            } else {
-                result.push(line);
-            }
-        } else if (line.trim().startsWith('-')) {
-            // Array item - use parent path for annotation
-            const fullPath = pathStack.join('.');
-            if (details.has(fullPath)) {
-                const detail = details.get(fullPath)!;
-                const sourceFile = path.basename(detail.source.file);
-                const annotation = detail.overridden 
-                    ? `# [OVERRIDE from ${sourceFile}]`
-                    : `# [BASE from ${sourceFile}]`;
+                let annotation: string;
+                if (detail.missingInBase) {
+                    annotation = `# [ADDED from ${sourceFile}]`;
+                } else if (detail.overridden) {
+                    annotation = `# [OVERRIDE from ${sourceFile}]`;
+                } else {
+                    annotation = `# [BASE from ${sourceFile}]`;
+                }
                 result.push(`${line}  ${annotation}`);
             } else {
                 result.push(line);
