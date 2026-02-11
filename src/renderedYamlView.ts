@@ -140,8 +140,8 @@ export function highlightValueDifferences(
     const lines = text.split('\n');
 
     // Precompute all annotated lines in a single pass to avoid O(N*M) complexity
-    const searchPattern = /^\s*([^:]+):\s*.*#\s*\[(OVERRIDE|BASE|ADDED) from ([^\]]+)\]/i;
-    const annotatedLines: Array<{ index: number; key: string; type: string; fullPath: string }> = [];
+    const searchPattern = /^\s*([^:]+):\s*.*#\s*\[(OVERRIDE|BASE|ADDED) from [^\]]+\]/i;
+    const annotatedLines: Array<{ index: number; key: string; type: string }> = [];
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
@@ -151,8 +151,7 @@ export function highlightValueDifferences(
             annotatedLines.push({
                 index: i,
                 key: key.trim(),
-                type,
-                fullPath: '' // Will be filled during matching
+                type
             });
         }
     }
