@@ -44,6 +44,20 @@
       {
         "command": "chartProfiles.viewRenderedYaml",
         "title": "View Rendered YAML"
+      },
+      {
+        "command": "chartProfiles.visualizeChart",
+        "title": "Visualize Chart"
+      },
+      {
+        "command": "chartProfiles.compareEnvironments",
+        "title": "Compare Environments",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "chartProfiles.exportResources",
+        "title": "Export Resources",
+        "icon": "$(export)"
       }
     ],
     "menus": {
@@ -52,27 +66,43 @@
           "command": "chartProfiles.refreshCharts",
           "when": "view == chartProfiles",
           "group": "navigation"
+        },
+        {
+          "command": "chartProfiles.compareEnvironments",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "chartProfiles.visualizeChart",
+          "when": "false"
+        },
+        {
+          "command": "chartProfiles.viewRenderedYaml",
+          "when": "false"
         }
       ]
     }
   },
   "scripts": {
     "compile": "node esbuild.js",
-    "package": "pnpm compile && vsce package --no-dependencies"
+    "package": "npm run compile && vsce package --no-dependencies"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.2.3",
     "@types/vscode": "^1.109.0",
     "@typescript-eslint/eslint-plugin": "^8.55.0",
     "@typescript-eslint/parser": "^8.55.0",
-    "eslint": "^10.0.0",
-    "@types/js-yaml": "^4.0.9",
-    "typescript-eslint": "^8.55.0",
+    "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.3",
+    "eslint": "^10.0.0",
     "typescript": "^5.9.3",
-    "@vscode/vsce": "^3.7.1"
+    "typescript-eslint": "^8.55.0"
   },
   "dependencies": {
+    "chart.js": "^4.5.1",
     "js-yaml": "^4.1.1"
   },
   "license": "MIT"

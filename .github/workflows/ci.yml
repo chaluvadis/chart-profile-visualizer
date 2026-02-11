@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, copilot/** ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [24.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm install --legacy-peer-deps
+    
+    - name: Compile TypeScript
+      run: npm run compile
+    
+    - name: Check for TypeScript errors
+      run: npx tsc --noEmit
+    
+    - name: Package extension
+      run: npm run package
+      continue-on-error: true
+    
+    - name: Upload VSIX artifact
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: vscode-extension
+        path: '*.vsix'
+        retention-days: 7

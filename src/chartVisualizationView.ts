@@ -5,7 +5,10 @@ import * as yaml from 'js-yaml';
 import * as crypto from 'crypto';
 import { ChartTreeItem } from './chartProfilesProvider';
 import { mergeValues } from './valuesMerger';
-import { renderHelmTemplate } from './helmRenderer';
+import { renderHelmTemplate, RenderedResource } from './helmRenderer';
+import { parseResources, ResourceHierarchy } from './resourceVisualizer';
+import { LiveUpdateManager } from './liveUpdateManager';
+import { generateEnhancedHtml } from './webviewHtmlGenerator';
 
 /**
  * Manages the chart visualization webview panel
@@ -13,12 +16,19 @@ import { renderHelmTemplate } from './helmRenderer';
 export class ChartVisualizationView {
     private static currentPanel: vscode.WebviewPanel | undefined;
     private static readonly defaultNamespace = 'default';
+    private static context: vscode.ExtensionContext | undefined;
+    private static currentItem: ChartTreeItem | undefined;
+    private static liveUpdateManager = new LiveUpdateManager();
+    private static renderedResources: RenderedResource[] = [];
 
     public static async show(context: vscode.ExtensionContext, item: ChartTreeItem) {
         if (!item || !item.chart || !item.environment) {
             vscode.window.showErrorMessage('Invalid item selected for visualization');
             return;
         }
+
+        ChartVisualizationView.context = context;
+        ChartVisualizationView.currentItem = item;
 
         const columnToShowIn = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
@@ -34,15 +44,29 @@ export class ChartVisualizationView {
                 {
                     enableScripts: true,
                     retainContextWhenHidden: true,
-                    localResourceRoots: [context.extensionUri]
+                    localResourceRoots: [
+                        context.extensionUri,
+                        vscode.Uri.file(path.join(context.extensionPath, 'images')),
+                        vscode.Uri.file(path.join(context.extensionPath, 'vendor'))
+                    ]
                 }
             );
 
             ChartVisualizationView.currentPanel.onDidDispose(
                 () => {
+                    ChartVisualizationView.liveUpdateManager.disable();
                     ChartVisualizationView.currentPanel = undefined;
                 },
                 null,
+                context.subscriptions
+            );
+
+            // Handle messages from the webview
+            ChartVisualizationView.currentPanel.webview.onDidReceiveMessage(
+                async message => {
+                    await ChartVisualizationView.handleMessage(message);
+                },
+                undefined,
                 context.subscriptions
             );
         }
@@ -64,10 +88,117 @@ export class ChartVisualizationView {
             const chartData = await ChartVisualizationView.collectChartData(item);
 
             // Generate and set HTML content
-            panel.webview.html = ChartVisualizationView.getHtmlContent(panel.webview, chartData);
+            if (ChartVisualizationView.context) {
+                panel.webview.html = generateEnhancedHtml(panel.webview, chartData, ChartVisualizationView.context.extensionUri);
+            } else {
+                // Fallback - should never happen, but handle gracefully
+                panel.webview.html = ChartVisualizationView.getErrorHtml('Extension context not available');
+            }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error loading chart visualization: ${error.message}`);
             panel.webview.html = ChartVisualizationView.getErrorHtml(error.message);
+        }
+    }
+
+    /**
+     * Handle messages from the webview
+     */
+    private static async handleMessage(message: any) {
+        switch (message.type) {
+            case 'exportYaml':
+                await ChartVisualizationView.exportResources('yaml');
+                break;
+            case 'exportJson':
+                await ChartVisualizationView.exportResources('json');
+                break;
+            case 'copyResource':
+                await vscode.env.clipboard.writeText(message.yaml);
+                vscode.window.showInformationMessage('Resource copied to clipboard');
+                break;
+            case 'toggleLiveMode':
+                ChartVisualizationView.toggleLiveMode(message.enabled);
+                break;
+            case 'revealSecret':
+                // Secret reveal would be handled here
+                break;
+        }
+    }
+
+    /**
+     * Toggle live update mode
+     */
+    private static toggleLiveMode(enabled: boolean) {
+        if (!ChartVisualizationView.currentItem) {
+            return;
+        }
+
+        if (enabled) {
+            const chartPath = ChartVisualizationView.currentItem.chart!.path;
+            ChartVisualizationView.liveUpdateManager.enable(chartPath, async () => {
+                if (ChartVisualizationView.currentItem) {
+                    await ChartVisualizationView.update(ChartVisualizationView.currentItem);
+                }
+            });
+            vscode.window.showInformationMessage('Live mode enabled');
+        } else {
+            ChartVisualizationView.liveUpdateManager.disable();
+            vscode.window.showInformationMessage('Live mode disabled');
+        }
+    }
+
+    /**
+     * Export resources to a file
+     */
+    private static async exportResources(format: 'yaml' | 'json') {
+        if (ChartVisualizationView.renderedResources.length === 0) {
+            vscode.window.showWarningMessage('No resources to export');
+            return;
+        }
+
+        const defaultExt = format === 'yaml' ? 'yaml' : 'json';
+        const defaultFileName = `rendered-resources.${defaultExt}`;
+        
+        // Get a sensible default directory
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+        const defaultUri = workspaceFolder 
+            ? vscode.Uri.joinPath(workspaceFolder, defaultFileName)
+            : undefined;
+        
+        const uri = await vscode.window.showSaveDialog({
+            defaultUri,
+            filters: {
+                [format.toUpperCase()]: [defaultExt]
+            }
+        });
+
+        if (!uri) {
+            return;
+        }
+
+        try {
+            let content: string;
+            if (format === 'yaml') {
+                // Export as YAML documents
+                content = ChartVisualizationView.renderedResources
+                    .map(r => r.yaml)
+                    .join('\n---\n');
+            } else {
+                // Export as JSON
+                const jsonData = ChartVisualizationView.renderedResources.map(r => {
+                    try {
+                        const yamlContent = r.yaml.replace(/^#.*$/gm, '').trim();
+                        return yaml.load(yamlContent);
+                    } catch {
+                        return { raw: r.yaml };
+                    }
+                });
+                content = JSON.stringify(jsonData, null, 2);
+            }
+
+            await fs.promises.writeFile(uri.fsPath, content, 'utf8');
+            vscode.window.showInformationMessage(`Resources exported to ${uri.fsPath}`);
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`Export failed: ${error.message}`);
         }
     }
 
@@ -105,10 +236,14 @@ export class ChartVisualizationView {
         let resourceCounts: { [key: string]: number } = {};
         let namespaceCounts: { [namespace: string]: number } = {};
         let templateSources: string[] = [];
+        let resources: RenderedResource[] = [];
         
         try {
             const releaseName = `${chartName}-${environment}`;
-            const resources = await renderHelmTemplate(chartPath, environment, releaseName);
+            resources = await renderHelmTemplate(chartPath, environment, releaseName);
+            
+            // Store resources for export
+            ChartVisualizationView.renderedResources = resources;
             
             resources.forEach(resource => {
                 // Count by resource kind
@@ -137,7 +272,9 @@ export class ChartVisualizationView {
             overriddenValues: overriddenValues.slice(0, 10), // Top 10 for display
             resourceCounts,
             namespaceCounts,
-            templateSources
+            templateSources,
+            resources,
+            resourceHierarchy: parseResources(resources)
         };
     }
 
@@ -575,6 +712,8 @@ interface ChartData {
     resourceCounts: { [key: string]: number };
     namespaceCounts: { [namespace: string]: number };
     templateSources: string[];
+    resources: RenderedResource[];
+    resourceHierarchy: ResourceHierarchy;
 }
 
 function getNonce(): string {
