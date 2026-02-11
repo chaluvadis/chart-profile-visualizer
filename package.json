@@ -1,9 +1,9 @@
 {
-  "name": "chart-profiles",
-  "displayName": "ChartProfiles",
+  "name": "chart-profile-visualizer",
+  "displayName": "Chart Profile Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
-  "version": "0.1.0",
-  "publisher": "chart-profiles",
+  "version": "0.0.1",
+  "publisher": "nomad-in-code",
   "repository": {
     "type": "git",
     "url": "https://github.com/chaluvadis/chart-profile-visualizer.git"
@@ -11,41 +11,22 @@
   "bugs": {
     "url": "https://github.com/chaluvadis/chart-profile-visualizer/issues"
   },
-  "homepage": "https://github.com/chaluvadis/chart-profile-visualizer#readme",
   "engines": {
-    "vscode": "^1.97.0",
-    "node": ">=20.0.0"
+    "vscode": "^1.109.0",
+    "node": ">=24.0.0"
   },
   "categories": [
+    "Other",
     "Visualization",
-    "Other"
-  ],
-  "keywords": [
-    "helm",
-    "kubernetes",
-    "charts",
-    "visualization",
-    "devops",
-    "yaml"
+    "Programming Languages",
+    "Debuggers",
+    "Linters"
   ],
   "activationEvents": [
     "workspaceContains:**/Chart.yaml"
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "configuration": {
-      "title": "Chart Profiles",
-      "properties": {
-        "chartProfiles.ignoredDirectories": {
-          "type": "array",
-          "default": [],
-          "description": "Additional directories to ignore when discovering Helm charts (e.g., 'vendor', 'tmp'). Default ignored directories (node_modules, .git, etc.) are always included.",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "views": {
       "explorer": [
         {
@@ -63,11 +44,6 @@
       {
         "command": "chartProfiles.viewRenderedYaml",
         "title": "View Rendered YAML"
-      },
-      {
-        "command": "chartProfiles.visualizeChart",
-        "title": "Visualize Chart",
-        "icon": "$(graph)"
       }
     ],
     "menus": {
@@ -81,26 +57,23 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts",
-    "test": "echo \"No tests yet\"",
-    "package": "pnpm run compile && pnpm exec vsce package --no-dependencies"
+    "compile": "node esbuild.js",
+    "package": "pnpm compile && vsce package --no-dependencies"
   },
   "devDependencies": {
+    "@types/node": "^25.2.3",
+    "@types/vscode": "^1.109.0",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
+    "eslint": "^10.0.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.x",
-    "@types/vscode": "^1.97.0",
-    "@typescript-eslint/eslint-plugin": "^8.19.1",
-    "@typescript-eslint/parser": "^8.19.1",
-    "@vscode/vsce": "^3.7.1",
-    "eslint": "^9.18.0",
-    "typescript": "^5.7.2"
+    "typescript-eslint": "^8.55.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.3",
+    "@vscode/vsce": "^3.7.1"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.1"
   },
-  "packageManager": "pnpm@10.28.2",
   "license": "MIT"
 }
