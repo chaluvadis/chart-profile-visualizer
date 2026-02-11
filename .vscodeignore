@@ -11,3 +11,6 @@ eslint.config.mjs
 node_modules/**
 pnpm-lock.yaml
 *.vsix
+examples/**
+docs/**
+test/**

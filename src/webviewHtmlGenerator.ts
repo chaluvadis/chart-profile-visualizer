@@ -1,73 +1,82 @@
-import * as vscode from 'vscode';
-import * as crypto from 'crypto';
-import * as yaml from 'js-yaml';
-import { ResourceHierarchy } from './resourceVisualizer';
+import * as vscode from "vscode";
+import * as crypto from "node:crypto";
+import * as yaml from "js-yaml";
+import type { ResourceHierarchy } from "./resourceVisualizer";
 
 /**
  * Interface for Kubernetes Secret object structure
  */
 interface SecretObject {
-    data?: Record<string, string>;
-    stringData?: Record<string, string>;
-    [key: string]: any;
+	data?: Record<string, string>;
+	stringData?: Record<string, string>;
+	[key: string]: any;
 }
 
 /**
  * Sanitize a Secret's YAML content by redacting sensitive data fields
  */
 function sanitizeSecretYaml(yamlContent: string): string {
-    try {
-        const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, '').trim());
-        
-        // Type guard to ensure we have a valid object
-        if (!yamlObj || typeof yamlObj !== 'object') {
-            return '# Secret data redacted for security';
-        }
-        
-        const secretObj = yamlObj as SecretObject;
-        
-        // Redact sensitive fields by replacing values with placeholders
-        const redactField = (obj: Record<string, string>): Record<string, string> => {
-            return Object.keys(obj).reduce((acc, key) => {
-                acc[key] = '***REDACTED***';
-                return acc;
-            }, {} as Record<string, string>);
-        };
-        
-        if (secretObj.data) {
-            secretObj.data = redactField(secretObj.data);
-        }
-        if (secretObj.stringData) {
-            secretObj.stringData = redactField(secretObj.stringData);
-        }
-        
-        return yaml.dump(secretObj);
-    } catch (error) {
-        // If parsing fails, just hide the whole yaml for secrets
-        return '# Secret data redacted for security';
-    }
+	try {
+		const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
+
+		// Type guard to ensure we have a valid object
+		if (!yamlObj || typeof yamlObj !== "object") {
+			return "# Secret data redacted for security";
+		}
+
+		const secretObj = yamlObj as SecretObject;
+
+		// Redact sensitive fields by replacing values with placeholders
+		const redactField = (
+			obj: Record<string, string>,
+		): Record<string, string> => {
+			return Object.keys(obj).reduce(
+				(acc, key) => {
+					acc[key] = "***REDACTED***";
+					return acc;
+				},
+				{} as Record<string, string>,
+			);
+		};
+
+		if (secretObj.data) {
+			secretObj.data = redactField(secretObj.data);
+		}
+		if (secretObj.stringData) {
+			secretObj.stringData = redactField(secretObj.stringData);
+		}
+
+		return yaml.dump(secretObj);
+	} catch (error) {
+		// If parsing fails, just hide the whole yaml for secrets
+		return "# Secret data redacted for security";
+	}
 }
 
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
  */
 export function generateEnhancedHtml(
-    webview: vscode.Webview,
-    data: any,
-    extensionUri: vscode.Uri
+	webview: vscode.Webview,
+	data: any,
+	extensionUri: vscode.Uri,
 ): string {
-    const nonce = getNonce();
-    const styleNonce = getNonce();
+	const nonce = getNonce();
+	const styleNonce = getNonce();
 
-    // Get local Chart.js URI
-    const chartJsUri = webview.asWebviewUri(
-        vscode.Uri.joinPath(extensionUri, 'vendor', 'chart.umd.js')
-    );
+	// Get local Chart.js URI
+	const chartJsUri = webview.asWebviewUri(
+		vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"),
+	);
 
-    // Generate resource explorer HTML
-    const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
+	// Generate resource explorer HTML
+	const resourceExplorerHtml = generateResourceExplorer(
+		data.resourceHierarchy,
+		webview,
+		extensionUri,
+	);
 
-    return `<!DOCTYPE html>
+	return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -115,7 +124,7 @@ export function generateEnhancedHtml(
 }
 
 function generateOverviewTab(data: any): string {
-    return `
+	return `
         <div class="header">
             <h1 class="chart-title">
                 ${escapeHtml(data.chartName)}
@@ -142,21 +151,31 @@ function generateOverviewTab(data: any): string {
             </div>
         </div>
 
-        ${Object.keys(data.resourceCounts).length > 0 ? `
+        ${
+					Object.keys(data.resourceCounts).length > 0
+						? `
         <div class="chart-container">
             <h2>Resource Type Distribution</h2>
             <canvas id="resourceChart" class="chart-canvas"></canvas>
         </div>
-        ` : ''}
+        `
+						: ""
+				}
 
-        ${data.totalValues > 0 ? `
+        ${
+					data.totalValues > 0
+						? `
         <div class="chart-container">
             <h2>Values: Overridden vs Base</h2>
             <canvas id="valuesChart" class="chart-canvas"></canvas>
         </div>
-        ` : ''}
+        `
+						: ""
+				}
 
-        ${data.overriddenValues.length > 0 ? `
+        ${
+					data.overriddenValues.length > 0
+						? `
         <div class="chart-container">
             <h2>Top Overridden Values</h2>
             <table class="values-table">
@@ -168,29 +187,39 @@ function generateOverviewTab(data: any): string {
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.overriddenValues.map((v: any) => `
+                    ${data.overriddenValues
+											.map(
+												(v: any) => `
                         <tr>
                             <td class="value-key">${escapeHtml(v.key)}</td>
                             <td class="value-old">${escapeHtml(String(v.baseValue))}</td>
                             <td class="value-new">${escapeHtml(String(v.envValue))}</td>
                         </tr>
-                    `).join('')}
+                    `,
+											)
+											.join("")}
                 </tbody>
             </table>
         </div>
-        ` : ''}
+        `
+						: ""
+				}
     `;
 }
 
-function generateResourceExplorer(hierarchy: ResourceHierarchy, webview: vscode.Webview, extensionUri: vscode.Uri): string {
-    if (!hierarchy || hierarchy.totalCount === 0) {
-        return '<div class="no-data"><p>No resources found</p></div>';
-    }
+function generateResourceExplorer(
+	hierarchy: ResourceHierarchy,
+	webview: vscode.Webview,
+	extensionUri: vscode.Uri,
+): string {
+	if (!hierarchy || hierarchy.totalCount === 0) {
+		return '<div class="no-data"><p>No resources found</p></div>';
+	}
 
-    let html = '<div class="resource-explorer">';
-    
-    for (const [kind, group] of hierarchy.kindGroups) {
-        html += `
+	let html = '<div class="resource-explorer">';
+
+	for (const [kind, group] of hierarchy.kindGroups) {
+		html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
             <div class="kind-header">
                 <span class="expand-icon">▶</span>
@@ -198,19 +227,20 @@ function generateResourceExplorer(hierarchy: ResourceHierarchy, webview: vscode.
             </div>
             <div class="kind-resources" style="display: none;">
         `;
-        
-        for (const resource of group.resources) {
-            // For secrets, sanitize the YAML to mask sensitive data
-            const displayYaml = resource.kind === 'Secret' 
-                ? sanitizeSecretYaml(resource.yaml)
-                : resource.yaml;
-            
-            html += `
+
+		for (const resource of group.resources) {
+			// For secrets, sanitize the YAML to mask sensitive data
+			const displayYaml =
+				resource.kind === "Secret"
+					? sanitizeSecretYaml(resource.yaml)
+					: resource.yaml;
+
+			html += `
             <div class="resource-card" style="border-left-color: ${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
                 <div class="resource-header">
                     <span class="expand-icon">▶</span>
                     <strong>${escapeHtml(resource.name)}</strong>
-                    ${resource.namespace ? `<span class="namespace-tag">${escapeHtml(resource.namespace)}</span>` : ''}
+                    ${resource.namespace ? `<span class="namespace-tag">${escapeHtml(resource.namespace)}</span>` : ""}
                     <button class="copy-btn">📋</button>
                 </div>
                 <div class="resource-details" style="display: none;">
@@ -218,18 +248,26 @@ function generateResourceExplorer(hierarchy: ResourceHierarchy, webview: vscode.
                         <h4>Metadata</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.metadata, null, 2))}</pre>
                     </div>
-                    ${Object.keys(resource.spec || {}).length > 0 ? `
+                    ${
+											Object.keys(resource.spec || {}).length > 0
+												? `
                     <div class="detail-section">
                         <h4>Spec</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.spec, null, 2))}</pre>
                     </div>
-                    ` : ''}
-                    ${resource.kind === 'Secret' && resource.data ? `
+                    `
+												: ""
+										}
+                    ${
+											resource.kind === "Secret" && resource.data
+												? `
                     <div class="detail-section">
                         <h4>Data (masked)</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.data, null, 2))}</pre>
                     </div>
-                    ` : ''}
+                    `
+												: ""
+										}
                     <div class="detail-section">
                         <h4>Full YAML</h4>
                         <pre class="yaml-content">${escapeHtml(displayYaml)}</pre>
@@ -237,20 +275,20 @@ function generateResourceExplorer(hierarchy: ResourceHierarchy, webview: vscode.
                 </div>
             </div>
             `;
-        }
-        
-        html += `
+		}
+
+		html += `
             </div>
         </div>
         `;
-    }
-    
-    html += '</div>';
-    return html;
+	}
+
+	html += "</div>";
+	return html;
 }
 
 function generateTopologyTab(): string {
-    return `
+	return `
         <div class="topology-view">
             <div class="topology-controls">
                 <button id="zoomInBtn">🔍+</button>
@@ -267,7 +305,7 @@ function generateTopologyTab(): string {
 }
 
 function getEnhancedStyles(): string {
-    return `
+	return `
         body {
             font-family: var(--vscode-font-family);
             color: var(--vscode-foreground);
@@ -532,17 +570,20 @@ function getEnhancedStyles(): string {
 }
 
 function generateJavaScript(data: any): string {
-    // Create a minimal, sanitized dataset for topology - only include kind, name, namespace
-    const topologyResources = data.resources.map((r: any) => ({
-        kind: r.kind || 'Unknown',
-        name: r.name || 'unnamed',
-        namespace: r.namespace || 'default'
-    }));
-    
-    // Escape the JSON to prevent XSS by replacing < with \u003c
-    const safeTopologyData = JSON.stringify(topologyResources).replace(/</g, '\\u003c');
-    
-    return `
+	// Create a minimal, sanitized dataset for topology - only include kind, name, namespace
+	const topologyResources = data.resources.map((r: any) => ({
+		kind: r.kind || "Unknown",
+		name: r.name || "unnamed",
+		namespace: r.namespace || "default",
+	}));
+
+	// Escape the JSON to prevent XSS by replacing < with \u003c
+	const safeTopologyData = JSON.stringify(topologyResources).replace(
+		/</g,
+		"\\u003c",
+	);
+
+	return `
         const vscode = acquireVsCodeApi();
         let liveMode = false;
         let currentZoom = 1;
@@ -555,7 +596,7 @@ function generateJavaScript(data: any): string {
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById(tabName).classList.add('active');
-                
+
                 if (tabName === 'topology') {
                     initTopology();
                 }
@@ -611,7 +652,7 @@ function generateJavaScript(data: any): string {
         // Resource explorer event delegation - attach listeners to parent elements
         document.addEventListener('click', (e) => {
             const target = e.target;
-            
+
             // Handle kind group toggle
             if (target.closest('.kind-header')) {
                 const header = target.closest('.kind-header');
@@ -623,7 +664,7 @@ function generateJavaScript(data: any): string {
                 }
                 return;
             }
-            
+
             // Handle copy button
             if (target.closest('.copy-btn')) {
                 e.stopPropagation();
@@ -632,7 +673,7 @@ function generateJavaScript(data: any): string {
                 vscode.postMessage({ type: 'copyResource', yaml });
                 return;
             }
-            
+
             // Handle resource header toggle (but not if clicking copy button)
             if (target.closest('.resource-header') && !target.closest('.copy-btn')) {
                 const header = target.closest('.resource-header');
@@ -651,19 +692,19 @@ function generateJavaScript(data: any): string {
             const svg = document.getElementById('topologySvg');
             if (svg.hasAttribute('data-initialized')) return;
             svg.setAttribute('data-initialized', 'true');
-            
+
             // Simple topology: just show resources as nodes (minimal data)
             const resources = ${safeTopologyData};
             const width = svg.clientWidth;
             const height = svg.clientHeight;
-            
+
             resources.forEach((resource, i) => {
                 const x = 50 + (i % 5) * 150;
                 const y = 50 + Math.floor(i / 5) * 100;
-                
+
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
-                
+
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 rect.setAttribute('width', '120');
                 rect.setAttribute('height', '60');
@@ -671,7 +712,7 @@ function generateJavaScript(data: any): string {
                 rect.setAttribute('fill', 'var(--vscode-editor-inactiveSelectionBackground)');
                 rect.setAttribute('stroke', 'var(--vscode-panel-border)');
                 g.appendChild(rect);
-                
+
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('x', '60');
                 text.setAttribute('y', '25');
@@ -680,7 +721,7 @@ function generateJavaScript(data: any): string {
                 text.setAttribute('font-size', '12');
                 text.textContent = resource.kind;
                 g.appendChild(text);
-                
+
                 const name = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 name.setAttribute('x', '60');
                 name.setAttribute('y', '45');
@@ -689,7 +730,7 @@ function generateJavaScript(data: any): string {
                 name.setAttribute('font-size', '10');
                 name.textContent = resource.name.substring(0, 15);
                 g.appendChild(name);
-                
+
                 svg.appendChild(g);
             });
         }
@@ -698,21 +739,21 @@ function generateJavaScript(data: any): string {
         const zoomInBtn = document.getElementById('zoomInBtn');
         const zoomOutBtn = document.getElementById('zoomOutBtn');
         const resetZoomBtn = document.getElementById('resetZoomBtn');
-        
+
         if (zoomInBtn) {
             zoomInBtn.addEventListener('click', () => {
                 currentZoom = Math.min(currentZoom + 0.1, 3);
                 updateZoom();
             });
         }
-        
+
         if (zoomOutBtn) {
             zoomOutBtn.addEventListener('click', () => {
                 currentZoom = Math.max(currentZoom - 0.1, 0.5);
                 updateZoom();
             });
         }
-        
+
         if (resetZoomBtn) {
             resetZoomBtn.addEventListener('click', () => {
                 currentZoom = 1;
@@ -734,7 +775,7 @@ function generateJavaScript(data: any): string {
 }
 
 function generateChartJsInit(data: any): string {
-    return `
+	return `
         const chartColors = {
             primary: '#007acc',
             secondary: '#68217a',
@@ -743,7 +784,7 @@ function generateChartJsInit(data: any): string {
             danger: '#f44336',
             info: '#2196f3'
         };
-        
+
         const colorPalette = [
             chartColors.primary,
             chartColors.secondary,
@@ -753,7 +794,9 @@ function generateChartJsInit(data: any): string {
             chartColors.danger
         ];
 
-        ${Object.keys(data.resourceCounts || {}).length > 0 ? `
+        ${
+					Object.keys(data.resourceCounts || {}).length > 0
+						? `
         (function() {
             const canvas = document.getElementById('resourceChart');
             if (!canvas) return;
@@ -814,7 +857,7 @@ function generateChartJsInit(data: any): string {
                         parsing: false,          // bypass parsing overhead
                         interaction: { mode: 'nearest', intersect: false },
                         plugins: {
-                            legend: { 
+                            legend: {
                                 display: false,
                                 labels: { color: foreground }
                             },
@@ -870,13 +913,17 @@ function generateChartJsInit(data: any): string {
                 setTimeout(initChart, 0);
             }
         })();
-        ` : ''}
+        `
+						: ""
+				}
 
-        ${data.totalValues > 0 ? `
+        ${
+					data.totalValues > 0
+						? `
         (function() {
             const ctx = document.getElementById('valuesChart');
             if (!ctx) return;
-            
+
             new Chart(ctx, {
                 type: 'pie',
                 data: {
@@ -892,23 +939,25 @@ function generateChartJsInit(data: any): string {
                 }
             });
         })();
-        ` : ''}
+        `
+						: ""
+				}
     `;
 }
 
 function getNonce(): string {
-    return crypto.randomBytes(16).toString('base64');
+	return crypto.randomBytes(16).toString("base64");
 }
 
 function escapeHtml(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
 }
 
 function escapeAttr(text: string): string {
-    return text.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+	return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }

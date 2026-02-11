@@ -1,4 +1,4 @@
-import { RenderedResource } from './helmRenderer';
+import type { RenderedResource } from './helmRenderer';
 import * as yaml from 'js-yaml';
 
 /**
@@ -98,11 +98,11 @@ const KIND_TO_CATEGORY: Record<string, ResourceCategory> = {
  */
 export function parseResources(resources: RenderedResource[]): ResourceHierarchy {
     const kindGroups = new Map<string, KindGroup>();
-    
+
     for (const resource of resources) {
         const structured = parseResource(resource);
         const kind = structured.kind;
-        
+
         if (!kindGroups.has(kind)) {
             kindGroups.set(kind, {
                 kind,
@@ -113,12 +113,12 @@ export function parseResources(resources: RenderedResource[]): ResourceHierarchy
                 count: 0
             });
         }
-        
+
         const group = kindGroups.get(kind)!;
         group.resources.push(structured);
         group.count++;
     }
-    
+
     return {
         kindGroups,
         totalCount: resources.length
@@ -132,24 +132,24 @@ export function parseResource(resource: RenderedResource): StructuredResource {
     const category = KIND_TO_CATEGORY[resource.kind] || ResourceCategory.Other;
     const colorCode = CATEGORY_COLORS[category];
     const icon = getIconName(resource.kind);
-    
+
     // Parse YAML to extract full configuration
     let spec: any = {};
     let metadata: any = {};
     let status: any = {};
     let data: any = {};
-    
+
     try {
         // Parse the YAML string to extract structured data
         const yamlContent = resource.yaml.replace(/^#.*$/gm, '').trim();
         const parsed = yaml.load(yamlContent) as any;
-        
+
         if (parsed && typeof parsed === 'object') {
             spec = parsed.spec || {};
             metadata = parsed.metadata || {};
             status = parsed.status;
             data = parsed.data;
-            
+
             // Mask secret data
             if (resource.kind === 'Secret' && data) {
                 data = maskSecretData(data);
@@ -158,7 +158,7 @@ export function parseResource(resource: RenderedResource): StructuredResource {
     } catch (error) {
         console.warn(`Error parsing YAML for ${resource.kind}/${resource.name}:`, error);
     }
-    
+
     return {
         kind: resource.kind,
         name: resource.name,
@@ -213,13 +213,13 @@ export function filterResources(
 ): ResourceHierarchy {
     const filtered = new Map<string, KindGroup>();
     let totalCount = 0;
-    
+
     for (const [kind, group] of hierarchy.kindGroups) {
         // Filter by kind
         if (criteria.kinds && criteria.kinds.length > 0 && !criteria.kinds.includes(kind)) {
             continue;
         }
-        
+
         const filteredResources = group.resources.filter(resource => {
             // Filter by search text
             if (criteria.searchText) {
@@ -227,25 +227,25 @@ export function filterResources(
                 const matchesName = resource.name.toLowerCase().includes(search);
                 const matchesKind = resource.kind.toLowerCase().includes(search);
                 const matchesNamespace = resource.namespace?.toLowerCase().includes(search);
-                const matchesLabels = Object.values(resource.labels || {}).some(v => 
+                const matchesLabels = Object.values(resource.labels || {}).some(v =>
                     String(v).toLowerCase().includes(search)
                 );
-                
+
                 if (!matchesName && !matchesKind && !matchesNamespace && !matchesLabels) {
                     return false;
                 }
             }
-            
+
             // Filter by namespace
             if (criteria.namespaces && criteria.namespaces.length > 0) {
                 if (!criteria.namespaces.includes(resource.namespace || 'default')) {
                     return false;
                 }
             }
-            
+
             return true;
         });
-        
+
         if (filteredResources.length > 0) {
             filtered.set(kind, {
                 ...group,
@@ -255,7 +255,7 @@ export function filterResources(
             totalCount += filteredResources.length;
         }
     }
-    
+
     return {
         kindGroups: filtered,
         totalCount
@@ -267,13 +267,13 @@ export function filterResources(
  */
 export function getUniqueNamespaces(hierarchy: ResourceHierarchy): string[] {
     const namespaces = new Set<string>();
-    
+
     for (const group of hierarchy.kindGroups.values()) {
         for (const resource of group.resources) {
             namespaces.add(resource.namespace || 'default');
         }
     }
-    
+
     return Array.from(namespaces).sort();
 }
 
