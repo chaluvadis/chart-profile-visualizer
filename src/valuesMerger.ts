@@ -127,12 +127,28 @@ function loadYamlFile(filePath: string): any {
  */
 export function generateAnnotatedYaml(comparison: ValuesComparison): string {
     const lines: string[] = [];
+    
+    // Calculate statistics efficiently in a single iteration
+    let overriddenCount = 0;
+    let baseOnlyCount = 0;
+    for (const [_, value] of comparison.details.entries()) {
+        if (value.overridden) {
+            overriddenCount++;
+        } else {
+            baseOnlyCount++;
+        }
+    }
+    
+    // Header with summary
     lines.push('# Merged Values with Source Annotations');
     lines.push('# Legend:');
-    lines.push('#   [BASE] - From base values.yaml');
-    lines.push('#   [OVERRIDE] - Overridden in environment-specific values file');
+    lines.push('#   [BASE from values.yaml] - From base values.yaml');
+    lines.push('#   [OVERRIDE from values-*.yaml] - Overridden in environment-specific values file');
+    lines.push('');
+    lines.push(`# Summary: ${overriddenCount} values overridden, ${baseOnlyCount} values from base`);
     lines.push('');
 
+    // Dump the merged YAML
     const yamlString = yaml.dump(comparison.merged, {
         indent: 2,
         lineWidth: -1,
@@ -141,22 +157,107 @@ export function generateAnnotatedYaml(comparison: ValuesComparison): string {
 
     const yamlLines = yamlString.split('\n');
     
-    // Placeholder: In a full implementation, we would parse the YAML structure
-    // and insert comments next to each value based on the details map
-    // For now, we'll append a summary at the top
-    
-    lines.push('# Overridden Values:');
-    const overridden = Array.from(comparison.details.entries()).filter(([_, v]) => v.overridden);
-    if (overridden.length === 0) {
-        lines.push('#   (none)');
-    } else {
-        for (const [key, value] of overridden) {
-            lines.push(`#   ${key}: ${JSON.stringify(value.value)} [from ${path.basename(value.source.file)}]`);
-        }
-    }
-    lines.push('');
-    
-    lines.push(...yamlLines);
+    // Process each line to add inline annotations
+    const annotatedLines = annotateYamlLines(yamlLines, comparison.details);
+    lines.push(...annotatedLines);
 
     return lines.join('\n');
+}
+
+/**
+ * Annotate YAML lines with source information based on the details map
+ */
+function annotateYamlLines(yamlLines: string[], details: Map<string, MergedValue>): string[] {
+    const result: string[] = [];
+    const pathStack: string[] = [];
+    let currentIndent = 0;
+
+    for (const line of yamlLines) {
+        if (!line.trim() || line.trim().startsWith('#')) {
+            result.push(line);
+            continue;
+        }
+
+        // Calculate indentation level
+        const indent = line.search(/\S/);
+        const indentLevel = indent / 2;
+
+        // Parse the line to extract key
+        const keyMatch = line.match(/^(\s*)([^:]+):\s*(.*)$/);
+        
+        if (keyMatch) {
+            const [, spaces, key, value] = keyMatch;
+            const trimmedKey = key.trim();
+            
+            // Adjust path stack based on indentation
+            if (indentLevel < currentIndent) {
+                // Going back up the hierarchy
+                const levelsUp = currentIndent - indentLevel;
+                for (let i = 0; i < levelsUp; i++) {
+                    pathStack.pop();
+                }
+            } else if (indentLevel === currentIndent && pathStack.length > 0) {
+                // Same level, replace last item
+                pathStack.pop();
+            }
+            
+            // Add current key to path
+            pathStack.push(trimmedKey);
+            currentIndent = indentLevel;
+            
+            // Build the full path
+            const fullPath = pathStack.join('.');
+            
+            // Check if this is a leaf value (has actual value, not just a key)
+            const trimmedValue = value.trim();
+            const isLeafValue = isYamlLeafValue(trimmedValue);
+            
+            if (isLeafValue && details.has(fullPath)) {
+                const detail = details.get(fullPath)!;
+                const sourceFile = path.basename(detail.source.file);
+                const annotation = detail.overridden 
+                    ? `# [OVERRIDE from ${sourceFile}]`
+                    : `# [BASE from ${sourceFile}]`;
+                result.push(`${line}  ${annotation}`);
+            } else {
+                result.push(line);
+            }
+        } else if (line.trim().startsWith('-')) {
+            // Array item - use parent path for annotation
+            const fullPath = pathStack.join('.');
+            if (details.has(fullPath)) {
+                const detail = details.get(fullPath)!;
+                const sourceFile = path.basename(detail.source.file);
+                const annotation = detail.overridden 
+                    ? `# [OVERRIDE from ${sourceFile}]`
+                    : `# [BASE from ${sourceFile}]`;
+                result.push(`${line}  ${annotation}`);
+            } else {
+                result.push(line);
+            }
+        } else {
+            result.push(line);
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Determines if a YAML value string represents a leaf value (primitive) or a complex structure.
+ * 
+ * Returns false for:
+ * - Arrays (starting with '[')
+ * - Objects (starting with '{')
+ * - Block scalars (indicated by '|' or '>')
+ * - Empty values
+ * 
+ * Returns true for primitive values like strings, numbers, booleans.
+ */
+function isYamlLeafValue(trimmedValue: string): boolean {
+    return trimmedValue.length > 0 && 
+           !trimmedValue.startsWith('[') &&  // Not an inline array
+           !trimmedValue.startsWith('{') &&  // Not an inline object
+           trimmedValue !== '|' &&            // Not a block literal
+           trimmedValue !== '>';              // Not a block folded
 }
