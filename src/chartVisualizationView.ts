@@ -46,7 +46,8 @@ export class ChartVisualizationView {
                     retainContextWhenHidden: true,
                     localResourceRoots: [
                         context.extensionUri,
-                        vscode.Uri.file(path.join(context.extensionPath, 'images'))
+                        vscode.Uri.file(path.join(context.extensionPath, 'images')),
+                        vscode.Uri.file(path.join(context.extensionPath, 'vendor'))
                     ]
                 }
             );
@@ -90,7 +91,8 @@ export class ChartVisualizationView {
             if (ChartVisualizationView.context) {
                 panel.webview.html = generateEnhancedHtml(panel.webview, chartData, ChartVisualizationView.context.extensionUri);
             } else {
-                panel.webview.html = ChartVisualizationView.getHtmlContent(panel.webview, chartData);
+                // Fallback - should never happen, but handle gracefully
+                panel.webview.html = ChartVisualizationView.getErrorHtml('Extension context not available');
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error loading chart visualization: ${error.message}`);

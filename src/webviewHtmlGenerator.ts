@@ -14,6 +14,11 @@ export function generateEnhancedHtml(
     const nonce = getNonce();
     const styleNonce = getNonce();
 
+    // Get local Chart.js URI
+    const chartJsUri = webview.asWebviewUri(
+        vscode.Uri.joinPath(extensionUri, 'vendor', 'chart.umd.js')
+    );
+
     // Generate resource explorer HTML
     const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
 
@@ -22,7 +27,7 @@ export function generateEnhancedHtml(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; style-src 'nonce-${styleNonce}' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}'; style-src 'nonce-${styleNonce}' 'unsafe-inline';">
     <title>Chart Visualization</title>
     <style nonce="${styleNonce}">
         ${getEnhancedStyles()}
@@ -56,7 +61,7 @@ export function generateEnhancedHtml(
         ${generateTopologyTab()}
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" nonce="${nonce}"></script>
+    <script src="${chartJsUri}" nonce="${nonce}"></script>
     <script nonce="${nonce}">
         ${generateJavaScript(data)}
     </script>
