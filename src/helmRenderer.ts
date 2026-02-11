@@ -15,6 +15,9 @@ const TEMPLATE_PATTERNS = {
     VALUES: /\{\{\s*\.Values\.([a-zA-Z0-9_.]+)\s*\}\}/g
 };
 
+// Default chart version when Chart.yaml cannot be read
+const DEFAULT_CHART_VERSION = '0.1.0';
+
 export interface RenderedResource {
     kind: string;
     name: string;
@@ -256,7 +259,7 @@ function getPlaceholderResources(chartPath: string, environment: string): Render
         const mergedValues = comparison.merged;
         
         // Read chart version from Chart.yaml
-        let chartVersion = '0.1.0';
+        let chartVersion = DEFAULT_CHART_VERSION;
         try {
             const chartYamlPath = path.join(chartPath, 'Chart.yaml');
             if (fs.existsSync(chartYamlPath)) {

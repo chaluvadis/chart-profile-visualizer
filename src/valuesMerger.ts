@@ -128,10 +128,16 @@ function loadYamlFile(filePath: string): any {
 export function generateAnnotatedYaml(comparison: ValuesComparison): string {
     const lines: string[] = [];
     
-    // Calculate statistics - convert to array once and filter twice
-    const allEntries = Array.from(comparison.details.entries());
-    const overridden = allEntries.filter(([_, v]) => v.overridden);
-    const baseOnly = allEntries.filter(([_, v]) => !v.overridden);
+    // Calculate statistics efficiently in a single iteration
+    let overriddenCount = 0;
+    let baseOnlyCount = 0;
+    for (const [_, value] of comparison.details.entries()) {
+        if (value.overridden) {
+            overriddenCount++;
+        } else {
+            baseOnlyCount++;
+        }
+    }
     
     // Header with summary
     lines.push('# Merged Values with Source Annotations');
@@ -139,7 +145,7 @@ export function generateAnnotatedYaml(comparison: ValuesComparison): string {
     lines.push('#   [BASE from values.yaml] - From base values.yaml');
     lines.push('#   [OVERRIDE from values-*.yaml] - Overridden in environment-specific values file');
     lines.push('');
-    lines.push(`# Summary: ${overridden.length} values overridden, ${baseOnly.length} values from base`);
+    lines.push(`# Summary: ${overriddenCount} values overridden, ${baseOnlyCount} values from base`);
     lines.push('');
 
     // Dump the merged YAML
