@@ -378,10 +378,13 @@ function getEnhancedStyles(): string {
             border-radius: 8px;
             padding: 20px;
             margin: 20px 0;
+            max-height: 60vh;
+            overflow: auto;
         }
         .chart-canvas {
+            width: 100%;
             max-width: 100%;
-            height: 300px;
+            /* height will be set dynamically in JS based on bar count */
         }
         .resource-explorer {
             padding: 10px 0;
@@ -752,32 +755,120 @@ function generateChartJsInit(data: any): string {
 
         ${Object.keys(data.resourceCounts || {}).length > 0 ? `
         (function() {
-            const ctx = document.getElementById('resourceChart');
-            if (!ctx) return;
-            
+            const canvas = document.getElementById('resourceChart');
+            if (!canvas) return;
+
             const resourceData = ${JSON.stringify(data.resourceCounts)};
-            const labels = Object.keys(resourceData);
-            const values = Object.values(resourceData);
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Resource Count',
-                        data: values,
-                        backgroundColor: colorPalette.slice(0, labels.length),
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
+            let labels = Object.keys(resourceData);
+            let values = Object.values(resourceData);
+
+            // Aggregate long tail for readability & performance
+            const MAX_BARS = 60;
+            if (labels.length > MAX_BARS) {
+                const pairs = labels.map((l, i) => ({ l, v: Number(values[i]) || 0 }));
+                pairs.sort((a, b) => b.v - a.v);
+                const top = pairs.slice(0, MAX_BARS);
+                const othersTotal = pairs.slice(MAX_BARS).reduce((sum, p) => sum + p.v, 0);
+                labels = top.map(p => p.l).concat('Others');
+                values = top.map(p => p.v).concat(othersTotal);
+            }
+
+            // Decide orientation based on bar count
+            const useHorizontal = labels.length > 20;
+            const indexAxis = useHorizontal ? 'y' : 'x';
+
+            // Dynamic canvas height proportional to bars (kept within viewport)
+            const perBarPx = 24; // bar height when horizontal
+            const basePx = 120;  // padding and legend space
+            const maxPx = Math.round(window.innerHeight * 0.6);
+            const targetHeight = useHorizontal
+                ? Math.min(maxPx, basePx + (labels.length * perBarPx))
+                : 300; // default for vertical
+            canvas.style.height = \`\${targetHeight}px\`;
+
+            const foreground = getComputedStyle(document.body).getPropertyValue('--vscode-foreground');
+            const gridColor = 'rgba(128, 128, 128, 0.2)';
+
+            function initChart() {
+                // Destroy any previous instance to avoid leaks
+                const existing = window.resourceChartInstance;
+                if (existing) { try { existing.destroy(); } catch {} }
+
+                const chart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Resource Count',
+                            data: values,
+                            backgroundColor: colorPalette.slice(0, labels.length),
+                            borderColor: colorPalette.slice(0, labels.length),
+                            borderWidth: 1,
+                        }]
+                    },
+                    options: {
+                        indexAxis,
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,        // faster
+                        parsing: false,          // bypass parsing overhead
+                        interaction: { mode: 'nearest', intersect: false },
+                        plugins: {
+                            legend: { 
+                                display: false,
+                                labels: { color: foreground }
+                            },
+                            title: { display: false },
+                            tooltip: {
+                                enabled: labels.length <= 200 // avoid heavy tooltips for huge sets
+                            }
+                        },
+                        // Reduce event listeners for massive datasets
+                        events: labels.length > 200 ? [] : undefined,
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: foreground,
+                                    autoSkip: true,
+                                    maxRotation: 45,
+                                    sampleSize: 100,
+                                },
+                                grid: { color: gridColor },
+                                beginAtZero: true,
+                            },
+                            y: {
+                                ticks: {
+                                    color: foreground,
+                                    autoSkip: true,
+                                    sampleSize: 100,
+                                },
+                                grid: { color: gridColor },
+                                beginAtZero: true,
+                            }
+                        }
                     }
+                });
+                window.resourceChartInstance = chart;
+
+                // Resize handling for horizontal bars
+                if (useHorizontal && 'ResizeObserver' in window) {
+                    const ro = new ResizeObserver(() => {
+                        const maxPx = Math.round(window.innerHeight * 0.6);
+                        const newHeight = Math.min(maxPx, basePx + (labels.length * perBarPx));
+                        canvas.style.height = \`\${newHeight}px\`;
+                        const inst = window.resourceChartInstance;
+                        if (inst) { try { inst.resize(); } catch {} }
+                    });
+                    ro.observe(document.body);
                 }
-            });
+            }
+
+            // Lazy init to avoid blocking UI
+            if ('requestIdleCallback' in window) {
+                window.requestIdleCallback(initChart, { timeout: 500 });
+            } else {
+                setTimeout(initChart, 0);
+            }
         })();
         ` : ''}
 
