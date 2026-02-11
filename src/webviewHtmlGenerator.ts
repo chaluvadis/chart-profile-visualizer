@@ -1,6 +1,6 @@
-import * as vscode from "vscode";
 import * as crypto from "node:crypto";
 import * as yaml from "js-yaml";
+import * as vscode from "vscode";
 import type { ResourceHierarchy } from "./resourceVisualizer";
 
 /**
@@ -27,15 +27,13 @@ function sanitizeSecretYaml(yamlContent: string): string {
 		const secretObj = yamlObj as SecretObject;
 
 		// Redact sensitive fields by replacing values with placeholders
-		const redactField = (
-			obj: Record<string, string>,
-		): Record<string, string> => {
+		const redactField = (obj: Record<string, string>): Record<string, string> => {
 			return Object.keys(obj).reduce(
 				(acc, key) => {
 					acc[key] = "***REDACTED***";
 					return acc;
 				},
-				{} as Record<string, string>,
+				{} as Record<string, string>
 			);
 		};
 
@@ -56,25 +54,15 @@ function sanitizeSecretYaml(yamlContent: string): string {
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
  */
-export function generateEnhancedHtml(
-	webview: vscode.Webview,
-	data: any,
-	extensionUri: vscode.Uri,
-): string {
+export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensionUri: vscode.Uri): string {
 	const nonce = getNonce();
 	const styleNonce = getNonce();
 
 	// Get local Chart.js URI
-	const chartJsUri = webview.asWebviewUri(
-		vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"),
-	);
+	const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
 
 	// Generate resource explorer HTML
-	const resourceExplorerHtml = generateResourceExplorer(
-		data.resourceHierarchy,
-		webview,
-		extensionUri,
-	);
+	const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -152,30 +140,30 @@ function generateOverviewTab(data: any): string {
         </div>
 
         ${
-					Object.keys(data.resourceCounts).length > 0
-						? `
+			Object.keys(data.resourceCounts).length > 0
+				? `
         <div class="chart-container">
             <h2>Resource Type Distribution</h2>
             <canvas id="resourceChart" class="chart-canvas"></canvas>
         </div>
         `
-						: ""
-				}
+				: ""
+		}
 
         ${
-					data.totalValues > 0
-						? `
+			data.totalValues > 0
+				? `
         <div class="chart-container">
             <h2>Values: Overridden vs Base</h2>
             <canvas id="valuesChart" class="chart-canvas"></canvas>
         </div>
         `
-						: ""
-				}
+				: ""
+		}
 
         ${
-					data.overriddenValues.length > 0
-						? `
+			data.overriddenValues.length > 0
+				? `
         <div class="chart-container">
             <h2>Top Overridden Values</h2>
             <table class="values-table">
@@ -188,29 +176,29 @@ function generateOverviewTab(data: any): string {
                 </thead>
                 <tbody>
                     ${data.overriddenValues
-											.map(
-												(v: any) => `
+						.map(
+							(v: any) => `
                         <tr>
                             <td class="value-key">${escapeHtml(v.key)}</td>
                             <td class="value-old">${escapeHtml(String(v.baseValue))}</td>
                             <td class="value-new">${escapeHtml(String(v.envValue))}</td>
                         </tr>
-                    `,
-											)
-											.join("")}
+                    `
+						)
+						.join("")}
                 </tbody>
             </table>
         </div>
         `
-						: ""
-				}
+				: ""
+		}
     `;
 }
 
 function generateResourceExplorer(
 	hierarchy: ResourceHierarchy,
 	webview: vscode.Webview,
-	extensionUri: vscode.Uri,
+	extensionUri: vscode.Uri
 ): string {
 	if (!hierarchy || hierarchy.totalCount === 0) {
 		return '<div class="no-data"><p>No resources found</p></div>';
@@ -230,10 +218,7 @@ function generateResourceExplorer(
 
 		for (const resource of group.resources) {
 			// For secrets, sanitize the YAML to mask sensitive data
-			const displayYaml =
-				resource.kind === "Secret"
-					? sanitizeSecretYaml(resource.yaml)
-					: resource.yaml;
+			const displayYaml = resource.kind === "Secret" ? sanitizeSecretYaml(resource.yaml) : resource.yaml;
 
 			html += `
             <div class="resource-card" style="border-left-color: ${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
@@ -249,25 +234,25 @@ function generateResourceExplorer(
                         <pre>${escapeHtml(JSON.stringify(resource.metadata, null, 2))}</pre>
                     </div>
                     ${
-											Object.keys(resource.spec || {}).length > 0
-												? `
+						Object.keys(resource.spec || {}).length > 0
+							? `
                     <div class="detail-section">
                         <h4>Spec</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.spec, null, 2))}</pre>
                     </div>
                     `
-												: ""
-										}
+							: ""
+					}
                     ${
-											resource.kind === "Secret" && resource.data
-												? `
+						resource.kind === "Secret" && resource.data
+							? `
                     <div class="detail-section">
                         <h4>Data (masked)</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.data, null, 2))}</pre>
                     </div>
                     `
-												: ""
-										}
+							: ""
+					}
                     <div class="detail-section">
                         <h4>Full YAML</h4>
                         <pre class="yaml-content">${escapeHtml(displayYaml)}</pre>
@@ -578,10 +563,7 @@ function generateJavaScript(data: any): string {
 	}));
 
 	// Escape the JSON to prevent XSS by replacing < with \u003c
-	const safeTopologyData = JSON.stringify(topologyResources).replace(
-		/</g,
-		"\\u003c",
-	);
+	const safeTopologyData = JSON.stringify(topologyResources).replace(/</g, "\\u003c");
 
 	return `
         const vscode = acquireVsCodeApi();
@@ -795,8 +777,8 @@ function generateChartJsInit(data: any): string {
         ];
 
         ${
-					Object.keys(data.resourceCounts || {}).length > 0
-						? `
+			Object.keys(data.resourceCounts || {}).length > 0
+				? `
         (function() {
             const canvas = document.getElementById('resourceChart');
             if (!canvas) return;
@@ -914,12 +896,12 @@ function generateChartJsInit(data: any): string {
             }
         })();
         `
-						: ""
-				}
+				: ""
+		}
 
         ${
-					data.totalValues > 0
-						? `
+			data.totalValues > 0
+				? `
         (function() {
             const ctx = document.getElementById('valuesChart');
             if (!ctx) return;
@@ -940,8 +922,8 @@ function generateChartJsInit(data: any): string {
             });
         })();
         `
-						: ""
-				}
+				: ""
+		}
     `;
 }
 

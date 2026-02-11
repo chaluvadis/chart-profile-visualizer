@@ -22,7 +22,7 @@ export class LiveUpdateManager {
 		// Watch for changes in values files and templates
 		const valuesPattern = new vscode.RelativePattern(
 			chartPath,
-			"{values*.yaml,values*.yml,templates/**/*.yaml,templates/**/*.yml}",
+			"{values*.yaml,values*.yml,templates/**/*.yaml,templates/**/*.yml}"
 		);
 
 		this.fileWatcher = vscode.workspace.createFileSystemWatcher(valuesPattern);
@@ -70,8 +70,7 @@ export class LiveUpdateManager {
 					await this.updateCallback();
 				} catch (error) {
 					console.error("Error during live update:", error);
-					const errorMessage =
-						error instanceof Error ? error.message : String(error);
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					vscode.window.showErrorMessage(`Live update failed: ${errorMessage}`);
 				}
 			}

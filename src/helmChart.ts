@@ -14,9 +14,7 @@ export interface HelmChart {
  * Finds all Helm charts in the workspace by looking for Chart.yaml files
  * Supports multiple workspace roots
  */
-export async function findHelmCharts(
-	workspaceRoots: string[],
-): Promise<HelmChart[]> {
+export async function findHelmCharts(workspaceRoots: string[]): Promise<HelmChart[]> {
 	const charts: HelmChart[] = [];
 
 	try {
@@ -30,10 +28,7 @@ export async function findHelmCharts(
 	return charts;
 }
 
-async function findChartsRecursive(
-	dirPath: string,
-	charts: HelmChart[],
-): Promise<void> {
+async function findChartsRecursive(dirPath: string, charts: HelmChart[]): Promise<void> {
 	try {
 		const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
@@ -63,10 +58,7 @@ async function findChartsRecursive(
 	}
 }
 
-async function parseChartYaml(
-	chartYamlPath: string,
-	chartPath: string,
-): Promise<HelmChart | null> {
+async function parseChartYaml(chartYamlPath: string, chartPath: string): Promise<HelmChart | null> {
 	try {
 		const content = fs.readFileSync(chartYamlPath, "utf8");
 		const chartData = yaml.load(content) as any;
@@ -89,15 +81,7 @@ function shouldSkipDirectory(dirName: string): boolean {
 	const userIgnored = config.get<string[]>("ignoredDirectories", []);
 
 	// Default safe directories to always skip
-	const defaultSkipDirs = [
-		"node_modules",
-		".git",
-		".vscode",
-		"dist",
-		"out",
-		"build",
-		".vscode-test",
-	];
+	const defaultSkipDirs = ["node_modules", ".git", ".vscode", "dist", "out", "build", ".vscode-test"];
 
 	// Merge default and user-configured ignores
 	const skipDirs = [...defaultSkipDirs, ...userIgnored];

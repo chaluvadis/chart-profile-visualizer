@@ -1,13 +1,13 @@
-import * as vscode from "vscode";
-import * as path from "node:path";
-import * as fs from "node:fs";
-import * as yaml from "js-yaml";
 import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as yaml from "js-yaml";
+import * as vscode from "vscode";
 import type { ChartTreeItem } from "./chartProfilesProvider";
-import { mergeValues } from "./valuesMerger";
-import { renderHelmTemplate, type RenderedResource } from "./helmRenderer";
-import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
+import { type RenderedResource, renderHelmTemplate } from "./helmRenderer";
 import { LiveUpdateManager } from "./liveUpdateManager";
+import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
+import { mergeValues } from "./valuesMerger";
 import { generateEnhancedHtml } from "./webviewHtmlGenerator";
 
 // Module-level state (singleton pattern for VSCode extension)
@@ -19,10 +19,7 @@ let renderedResources: RenderedResource[] = [];
 
 const defaultNamespace = "default";
 
-export async function show(
-	context: vscode.ExtensionContext,
-	item: ChartTreeItem,
-) {
+export async function show(context: vscode.ExtensionContext, item: ChartTreeItem) {
 	if (!item || !item.chart || !item.environment) {
 		vscode.window.showErrorMessage("Invalid item selected for visualization");
 		return;
@@ -31,9 +28,7 @@ export async function show(
 	currentContext = context;
 	currentItem = item;
 
-	const columnToShowIn = vscode.window.activeTextEditor
-		? vscode.window.activeTextEditor.viewColumn
-		: undefined;
+	const columnToShowIn = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
 
 	if (currentPanel) {
 		currentPanel.reveal(columnToShowIn);
@@ -50,7 +45,7 @@ export async function show(
 					vscode.Uri.file(path.join(context.extensionPath, "images")),
 					vscode.Uri.file(path.join(context.extensionPath, "vendor")),
 				],
-			},
+			}
 		);
 
 		currentPanel.onDidDispose(
@@ -59,7 +54,7 @@ export async function show(
 				currentPanel = undefined;
 			},
 			null,
-			context.subscriptions,
+			context.subscriptions
 		);
 
 		// Handle messages from the webview
@@ -68,7 +63,7 @@ export async function show(
 				await handleMessage(message);
 			},
 			undefined,
-			context.subscriptions,
+			context.subscriptions
 		);
 	}
 
@@ -90,19 +85,13 @@ async function updatePanel(item: ChartTreeItem) {
 
 		// Generate and set HTML content
 		if (currentContext) {
-			panel.webview.html = generateEnhancedHtml(
-				panel.webview,
-				chartData,
-				currentContext.extensionUri,
-			);
+			panel.webview.html = generateEnhancedHtml(panel.webview, chartData, currentContext.extensionUri);
 		} else {
 			// Fallback - should never happen, but handle gracefully
 			panel.webview.html = getErrorHtml("Extension context not available");
 		}
 	} catch (error: any) {
-		vscode.window.showErrorMessage(
-			`Error loading chart visualization: ${error.message}`,
-		);
+		vscode.window.showErrorMessage(`Error loading chart visualization: ${error.message}`);
 		panel.webview.html = getErrorHtml(error.message);
 	}
 }
@@ -142,9 +131,7 @@ function toggleLiveMode(enabled: boolean) {
 	if (enabled) {
 		const chartPath = currentItem.chart?.path;
 		if (!chartPath) {
-			vscode.window.showErrorMessage(
-				"Chart path not available for live updates",
-			);
+			vscode.window.showErrorMessage("Chart path not available for live updates");
 			return;
 		}
 		liveUpdateManager.enable(chartPath, async () => {
@@ -173,9 +160,7 @@ async function exportResources(format: "yaml" | "json") {
 
 	// Get a sensible default directory
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
-	const defaultUri = workspaceFolder
-		? vscode.Uri.joinPath(workspaceFolder, defaultFileName)
-		: undefined;
+	const defaultUri = workspaceFolder ? vscode.Uri.joinPath(workspaceFolder, defaultFileName) : undefined;
 
 	const uri = await vscode.window.showSaveDialog({
 		defaultUri,
@@ -255,8 +240,8 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	const overriddenCount = overriddenValues.length;
 
 	// Try to get rendered resources
-	let resourceCounts: { [key: string]: number } = {};
-	let namespaceCounts: { [namespace: string]: number } = {};
+	const resourceCounts: { [key: string]: number } = {};
+	const namespaceCounts: { [namespace: string]: number } = {};
 	let templateSources: string[] = [];
 	let resources: RenderedResource[] = [];
 
@@ -280,9 +265,7 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		const templatesDir = path.join(chartPath, "templates");
 		if (fs.existsSync(templatesDir)) {
 			const files = fs.readdirSync(templatesDir);
-			templateSources = files.filter(
-				(f) => f.endsWith(".yaml") || f.endsWith(".yml"),
-			);
+			templateSources = files.filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"));
 		}
 	} catch (error) {
 		console.warn("Could not render templates for visualization:", error);
@@ -452,41 +435,41 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
     </div>
 
     ${
-			Object.keys(data.resourceCounts).length > 0
-				? `
+		Object.keys(data.resourceCounts).length > 0
+			? `
     <div class="chart-container">
         <h2>Resource Type Distribution</h2>
         <canvas id="resourceChart" class="chart-canvas"></canvas>
     </div>
     `
-				: ""
-		}
+			: ""
+	}
 
     ${
-			data.totalValues > 0
-				? `
+		data.totalValues > 0
+			? `
     <div class="chart-container">
         <h2>Values: Overridden vs Base</h2>
         <canvas id="valuesChart" class="chart-canvas"></canvas>
     </div>
     `
-				: ""
-		}
+			: ""
+	}
 
     ${
-			Object.keys(data.namespaceCounts).length > 1
-				? `
+		Object.keys(data.namespaceCounts).length > 1
+			? `
     <div class="chart-container">
         <h2>Namespace Distribution</h2>
         <canvas id="namespaceChart" class="chart-canvas"></canvas>
     </div>
     `
-				: ""
-		}
+			: ""
+	}
 
     ${
-			data.templateSources.length > 0
-				? `
+		data.templateSources.length > 0
+			? `
     <div class="chart-container">
         <h2>Template Sources</h2>
         <div class="template-list">
@@ -494,12 +477,12 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
         </div>
     </div>
     `
-				: ""
-		}
+			: ""
+	}
 
     ${
-			data.overriddenValues.length > 0
-				? `
+		data.overriddenValues.length > 0
+			? `
     <div class="chart-container">
         <h2>Top Overridden Values</h2>
         <table class="values-table">
@@ -512,26 +495,26 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
             </thead>
             <tbody>
                 ${data.overriddenValues
-									.map(
-										(v) => `
+					.map(
+						(v) => `
                     <tr>
                         <td class="value-key">${escapeHtml(v.key)}</td>
                         <td class="value-old">${escapeHtml(String(v.baseValue))}</td>
                         <td class="value-new">${escapeHtml(String(v.envValue))}</td>
                     </tr>
-                `,
-									)
-									.join("")}
+                `
+					)
+					.join("")}
             </tbody>
         </table>
     </div>
     `
-				: `
+			: `
     <div class="no-data">
         <p>No value overrides found for this environment.</p>
     </div>
     `
-		}
+	}
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" nonce="${nonce}"></script>
     <script nonce="${nonce}">
@@ -587,8 +570,8 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
         };
 
         ${
-					Object.keys(data.resourceCounts).length > 0
-						? `
+			Object.keys(data.resourceCounts).length > 0
+				? `
         // Resource Type Distribution (Bar Chart)
         (function() {
             const canvas = document.getElementById('resourceChart');
@@ -707,12 +690,12 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
             }
         })();
         `
-						: ""
-				}
+				: ""
+		}
 
         ${
-					data.totalValues > 0
-						? `
+			data.totalValues > 0
+				? `
         // Overridden vs Base Values (Pie Chart)
         (function() {
             const ctx = document.getElementById('valuesChart');
@@ -756,12 +739,12 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
             });
         })();
         `
-						: ""
-				}
+				: ""
+		}
 
         ${
-					Object.keys(data.namespaceCounts).length > 1
-						? `
+			Object.keys(data.namespaceCounts).length > 1
+				? `
         // Namespace Distribution (Doughnut Chart)
         (function() {
             const ctx = document.getElementById('namespaceChart');
@@ -796,8 +779,8 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
             });
         })();
         `
-						: ""
-				}
+				: ""
+		}
     </script>
 </body>
 </html>`;

@@ -1,18 +1,14 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ChartTreeItem } from "./chartProfilesProvider";
-import { mergeValues, generateAnnotatedYaml } from "./valuesMerger";
-import { renderHelmTemplate, formatRenderedOutput } from "./helmRenderer";
-import * as path from "node:path";
+import { formatRenderedOutput, renderHelmTemplate } from "./helmRenderer";
+import { generateAnnotatedYaml, mergeValues } from "./valuesMerger";
 
 // WeakMap to store decorations for each editor to avoid using `as any`
-const editorDecorations = new WeakMap<
-	vscode.TextEditor,
-	vscode.TextEditorDecorationType[]
->();
+const editorDecorations = new WeakMap<vscode.TextEditor, vscode.TextEditorDecorationType[]>();
 
 // Regex pattern for matching annotation comments in YAML
-const ANNOTATION_PATTERN =
-	/^\s*([^:]+):\s*.*#\s*\[(OVERRIDE|BASE|ADDED) from [^\]]+\]/i;
+const ANNOTATION_PATTERN = /^\s*([^:]+):\s*.*#\s*\[(OVERRIDE|BASE|ADDED) from [^\]]+\]/i;
 
 /**
  * Shows rendered YAML or merged values in a new editor
@@ -39,11 +35,7 @@ export async function showRenderedYaml(item: ChartTreeItem): Promise<void> {
 	}
 }
 
-async function showMergedValues(
-	chartPath: string,
-	environment: string,
-	chartName: string,
-): Promise<void> {
+async function showMergedValues(chartPath: string, environment: string, chartName: string): Promise<void> {
 	// Merge values and generate annotated output
 	const comparison = mergeValues(chartPath, environment);
 	const annotatedYaml = generateAnnotatedYaml(comparison);
@@ -63,19 +55,13 @@ async function showMergedValues(
 	highlightValueDifferences(editor, comparison);
 
 	// Show summary
-	const overriddenCount = Array.from(comparison.details.values()).filter(
-		(v) => v.overridden,
-	).length;
+	const overriddenCount = Array.from(comparison.details.values()).filter((v) => v.overridden).length;
 	vscode.window.showInformationMessage(
-		`Merged values for ${chartName} (${environment}): ${overriddenCount} overridden values`,
+		`Merged values for ${chartName} (${environment}): ${overriddenCount} overridden values`
 	);
 }
 
-async function showRenderedTemplates(
-	chartPath: string,
-	environment: string,
-	chartName: string,
-): Promise<void> {
+async function showRenderedTemplates(chartPath: string, environment: string, chartName: string): Promise<void> {
 	// Show progress
 	await vscode.window.withProgress(
 		{
@@ -88,11 +74,7 @@ async function showRenderedTemplates(
 
 			// Render templates
 			const releaseName = `${chartName}-${environment}`;
-			const resources = await renderHelmTemplate(
-				chartPath,
-				environment,
-				releaseName,
-			);
+			const resources = await renderHelmTemplate(chartPath, environment, releaseName);
 
 			progress.report({ increment: 50 });
 
@@ -115,12 +97,10 @@ async function showRenderedTemplates(
 			progress.report({ increment: 100 });
 
 			return resources;
-		},
+		}
 	);
 
-	vscode.window.showInformationMessage(
-		`Rendered templates for ${chartName} (${environment})`,
-	);
+	vscode.window.showInformationMessage(`Rendered templates for ${chartName} (${environment})`);
 }
 
 /**
@@ -140,7 +120,7 @@ export function highlightValueDifferences(
 				missingInBase?: boolean;
 			}
 		>;
-	},
+	}
 ): void {
 	// Dispose previous decorations to prevent resource leaks
 	const existingDecorations = editorDecorations.get(editor);
@@ -155,7 +135,7 @@ export function highlightValueDifferences(
 		backgroundColor: "rgba(255, 165, 0, 0.15)", // Orange tint for overrides
 		border: "3px solid rgba(255, 165, 0, 0.8)",
 		gutterIconPath: vscode.Uri.parse(
-			"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjYiIGZpbGw9IiNGRkE1MDAiLz48L3N2Zz4=",
+			"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjYiIGZpbGw9IiNGRkE1MDAiLz48L3N2Zz4="
 		),
 		gutterIconSize: "contain",
 	});
@@ -164,7 +144,7 @@ export function highlightValueDifferences(
 		backgroundColor: "rgba(0, 255, 0, 0.1)", // Green tint for additions
 		border: "3px solid rgba(0, 255, 0, 0.6)",
 		gutterIconPath: vscode.Uri.parse(
-			"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjYiIGZpbGw9IiMwMEZGMDAiLz48L3N2Zz4=",
+			"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjYiIGZpbGw9IiMwMEZGMDAiLz48L3N2Zz4="
 		),
 		gutterIconSize: "contain",
 	});
@@ -183,8 +163,7 @@ export function highlightValueDifferences(
 	const lines = text.split("\n");
 
 	// Precompute all annotated lines in a single pass to avoid O(N*M) complexity
-	const annotatedLines: Array<{ index: number; key: string; type: string }> =
-		[];
+	const annotatedLines: Array<{ index: number; key: string; type: string }> = [];
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
@@ -200,10 +179,7 @@ export function highlightValueDifferences(
 	}
 
 	// Build a map of line index to decoration info by matching full paths
-	const lineDecorations = new Map<
-		number,
-		{ type: "override" | "addition" | "base"; detail: any; path: string }
-	>();
+	const lineDecorations = new Map<number, { type: "override" | "addition" | "base"; detail: any; path: string }>();
 
 	// Match annotations with details using path comparison
 	// Note: This uses suffix matching which can have false positives when multiple paths
@@ -262,9 +238,7 @@ export function highlightValueDifferences(
 			hoverMessage.appendMarkdown(`- **Source:** \`${sourceFile}\`\n`);
 			hoverMessage.appendMarkdown(`- **Path:** \`${info.path}\`\n`);
 			hoverMessage.appendMarkdown(`- **Value:** \`${valueStr}\`\n\n`);
-			hoverMessage.appendMarkdown(
-				`This value overrides the base value from \`values.yaml\``,
-			);
+			hoverMessage.appendMarkdown(`This value overrides the base value from \`values.yaml\``);
 
 			overrideDecorations.push({
 				range,
@@ -276,9 +250,7 @@ export function highlightValueDifferences(
 			hoverMessage.appendMarkdown(`- **Source:** \`${sourceFile}\`\n`);
 			hoverMessage.appendMarkdown(`- **Path:** \`${info.path}\`\n`);
 			hoverMessage.appendMarkdown(`- **Value:** \`${valueStr}\`\n\n`);
-			hoverMessage.appendMarkdown(
-				`This value is only defined in the environment-specific file`,
-			);
+			hoverMessage.appendMarkdown(`This value is only defined in the environment-specific file`);
 
 			additionDecorations.push({
 				range,
@@ -290,9 +262,7 @@ export function highlightValueDifferences(
 			hoverMessage.appendMarkdown(`- **Source:** \`${sourceFile}\`\n`);
 			hoverMessage.appendMarkdown(`- **Path:** \`${info.path}\`\n`);
 			hoverMessage.appendMarkdown(`- **Value:** \`${valueStr}\`\n\n`);
-			hoverMessage.appendMarkdown(
-				`This value is from the base \`values.yaml\` file`,
-			);
+			hoverMessage.appendMarkdown(`This value is from the base \`values.yaml\` file`);
 
 			baseDecorations.push({
 				range,
@@ -307,9 +277,5 @@ export function highlightValueDifferences(
 	editor.setDecorations(baseDecorationType, baseDecorations);
 
 	// Store decoration types for cleanup later using WeakMap
-	editorDecorations.set(editor, [
-		overrideDecorationType,
-		additionDecorationType,
-		baseDecorationType,
-	]);
+	editorDecorations.set(editor, [overrideDecorationType, additionDecorationType, baseDecorationType]);
 }

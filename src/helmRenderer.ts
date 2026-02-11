@@ -1,8 +1,8 @@
 import * as cp from "node:child_process";
-import * as path from "node:path";
 import * as fs from "node:fs";
-import * as yaml from "js-yaml";
+import * as path from "node:path";
 import { promisify } from "node:util";
+import * as yaml from "js-yaml";
 import { mergeValues } from "./valuesMerger";
 
 const exec = promisify(cp.exec);
@@ -36,7 +36,7 @@ export interface RenderedResource {
 export async function renderHelmTemplate(
 	chartPath: string,
 	environment: string,
-	releaseName: string = "release",
+	releaseName = "release"
 ): Promise<RenderedResource[]> {
 	// Check if helm is available
 	const helmAvailable = await isHelmAvailable();
@@ -87,17 +87,10 @@ export async function renderHelmTemplate(
 		let remediation = "Check the error message for details.";
 
 		// Identify common Helm errors
-		if (
-			errorMessage.includes("Error: INSTALLATION FAILED") ||
-			errorMessage.includes("chart not found")
-		) {
+		if (errorMessage.includes("Error: INSTALLATION FAILED") || errorMessage.includes("chart not found")) {
 			errorType = "Chart Not Found";
-			remediation =
-				"Verify that the chart path is correct and Chart.yaml exists.";
-		} else if (
-			errorMessage.includes("parse error") ||
-			errorMessage.includes("yaml:")
-		) {
+			remediation = "Verify that the chart path is correct and Chart.yaml exists.";
+		} else if (errorMessage.includes("parse error") || errorMessage.includes("yaml:")) {
 			errorType = "YAML Syntax Error";
 			remediation = "Check your values files for YAML syntax errors.";
 		} else if (
@@ -105,22 +98,13 @@ export async function renderHelmTemplate(
 			errorMessage.includes("required value not found")
 		) {
 			errorType = "Missing Required Value";
-			remediation =
-				"Ensure all required values are defined in values.yaml or values-<env>.yaml.";
-		} else if (
-			errorMessage.includes("timeout") ||
-			errorMessage.includes("ETIMEDOUT")
-		) {
+			remediation = "Ensure all required values are defined in values.yaml or values-<env>.yaml.";
+		} else if (errorMessage.includes("timeout") || errorMessage.includes("ETIMEDOUT")) {
 			errorType = "Timeout";
-			remediation =
-				"The rendering took too long. Try simplifying your templates or increase timeout.";
-		} else if (
-			errorMessage.includes("maxBuffer") ||
-			errorMessage.includes("stdout maxBuffer")
-		) {
+			remediation = "The rendering took too long. Try simplifying your templates or increase timeout.";
+		} else if (errorMessage.includes("maxBuffer") || errorMessage.includes("stdout maxBuffer")) {
 			errorType = "Output Too Large";
-			remediation =
-				"The rendered output exceeds buffer size. Consider splitting your chart.";
+			remediation = "The rendered output exceeds buffer size. Consider splitting your chart.";
 		}
 
 		// Build structured error output
@@ -171,10 +155,7 @@ export async function renderHelmTemplate(
  * Parses helm template output into individual resources
  * Tracks the origin of each resource and extracts metadata
  */
-function parseHelmOutput(
-	output: string,
-	chartPath: string,
-): RenderedResource[] {
+function parseHelmOutput(output: string, chartPath: string): RenderedResource[] {
 	const resources: RenderedResource[] = [];
 
 	// Split by YAML document separator
@@ -263,10 +244,7 @@ export async function isHelmAvailable(): Promise<boolean> {
 /**
  * Returns fallback resources when Helm is not available by reading and partially rendering template files
  */
-function getPlaceholderResources(
-	chartPath: string,
-	environment: string,
-): RenderedResource[] {
+function getPlaceholderResources(chartPath: string, environment: string): RenderedResource[] {
 	const chartName = path.basename(chartPath);
 	const templatesDir = path.join(chartPath, "templates");
 	const resources: RenderedResource[] = [];
@@ -295,9 +273,7 @@ function getPlaceholderResources(
 		try {
 			const chartYamlPath = path.join(chartPath, "Chart.yaml");
 			if (fs.existsSync(chartYamlPath)) {
-				const chartYaml = yaml.load(
-					fs.readFileSync(chartYamlPath, "utf8"),
-				) as any;
+				const chartYaml = yaml.load(fs.readFileSync(chartYamlPath, "utf8")) as any;
 				if (chartYaml && chartYaml.version) {
 					chartVersion = chartYaml.version;
 				}
@@ -355,8 +331,7 @@ function getPlaceholderResources(
 
 				if (docs.length > 0) {
 					// Prefer the first document that has a kind; otherwise use the first document
-					const primary =
-						docs.find((d) => d && typeof d === "object" && d.kind) || docs[0];
+					const primary = docs.find((d) => d && typeof d === "object" && d.kind) || docs[0];
 					kind = primary.kind || "Unknown";
 					apiVersion = primary.apiVersion;
 					if (primary.metadata && typeof primary.metadata === "object") {
@@ -371,9 +346,7 @@ function getPlaceholderResources(
 				const apiVersionMatch = templateContent.match(/^apiVersion:\s*(.+)$/m);
 
 				kind = kindMatch ? kindMatch[1].trim() : "Unknown";
-				name = nameMatch
-					? nameMatch[1].trim()
-					: templateFile.replace(/\.(yaml|yml)$/, "");
+				name = nameMatch ? nameMatch[1].trim() : templateFile.replace(/\.(yaml|yml)$/, "");
 				apiVersion = apiVersionMatch ? apiVersionMatch[1].trim() : undefined;
 			}
 

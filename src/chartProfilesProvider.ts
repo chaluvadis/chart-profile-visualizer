@@ -1,16 +1,13 @@
-import * as vscode from "vscode";
-import * as path from "node:path";
 import * as fs from "node:fs";
-import { type HelmChart, findHelmCharts } from "./helmChart";
+import * as path from "node:path";
+import * as vscode from "vscode";
+import { findHelmCharts, type HelmChart } from "./helmChart";
 
-export class ChartProfilesProvider
-	implements vscode.TreeDataProvider<ChartTreeItem>
-{
-	private _onDidChangeTreeData: vscode.EventEmitter<
+export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeItem> {
+	private _onDidChangeTreeData: vscode.EventEmitter<ChartTreeItem | undefined | null> = new vscode.EventEmitter<
 		ChartTreeItem | undefined | null
-	> = new vscode.EventEmitter<ChartTreeItem | undefined | null>();
-	readonly onDidChangeTreeData: vscode.Event<ChartTreeItem | undefined | null> =
-		this._onDidChangeTreeData.event;
+	>();
+	readonly onDidChangeTreeData: vscode.Event<ChartTreeItem | undefined | null> = this._onDidChangeTreeData.event;
 
 	constructor(private workspaceRoots: string[]) {}
 
@@ -37,13 +34,7 @@ export class ChartProfilesProvider
 			const charts = await findHelmCharts(this.workspaceRoots);
 			return charts.map(
 				(chart) =>
-					new ChartTreeItem(
-						chart.name,
-						chart.path,
-						vscode.TreeItemCollapsibleState.Expanded,
-						"chart",
-						chart,
-					),
+					new ChartTreeItem(chart.name, chart.path, vscode.TreeItemCollapsibleState.Expanded, "chart", chart)
 			);
 		} else if (element.type === "chart") {
 			// Chart level: show environments
@@ -56,8 +47,8 @@ export class ChartProfilesProvider
 						vscode.TreeItemCollapsibleState.Collapsed,
 						"environment",
 						element.chart,
-						env,
-					),
+						env
+					)
 			);
 		} else if (element.type === "environment") {
 			// Environment level: show actions
@@ -69,7 +60,7 @@ export class ChartProfilesProvider
 					"action",
 					element.chart,
 					element.environment,
-					"visualize",
+					"visualize"
 				),
 				new ChartTreeItem(
 					"View Merged Values",
@@ -78,7 +69,7 @@ export class ChartProfilesProvider
 					"action",
 					element.chart,
 					element.environment,
-					"values",
+					"values"
 				),
 				new ChartTreeItem(
 					"View Rendered YAML",
@@ -87,7 +78,7 @@ export class ChartProfilesProvider
 					"action",
 					element.chart,
 					element.environment,
-					"rendered",
+					"rendered"
 				),
 			];
 		}
@@ -131,7 +122,7 @@ export class ChartTreeItem extends vscode.TreeItem {
 		public readonly type: "chart" | "environment" | "action",
 		public readonly chart?: HelmChart,
 		public readonly environment?: string,
-		public readonly action?: "values" | "rendered" | "visualize",
+		public readonly action?: "values" | "rendered" | "visualize"
 	) {
 		super(label, collapsibleState);
 
@@ -168,9 +159,7 @@ export class ChartTreeItem extends vscode.TreeItem {
 			return "chart";
 		} else if (this.type === "environment") {
 			// Use cached value (should always be defined for environment nodes)
-			return (this._hasOverrides ?? false)
-				? "environment"
-				: "environment-no-overrides";
+			return (this._hasOverrides ?? false) ? "environment" : "environment-no-overrides";
 		} else if (this.type === "action") {
 			return `action-${this.action}`;
 		}
@@ -182,10 +171,7 @@ export class ChartTreeItem extends vscode.TreeItem {
 			return false;
 		}
 
-		const envValuesPath = path.join(
-			this.chart.path,
-			`values-${this.environment}.yaml`,
-		);
+		const envValuesPath = path.join(this.chart.path, `values-${this.environment}.yaml`);
 		try {
 			if (fs.existsSync(envValuesPath)) {
 				const content = fs.readFileSync(envValuesPath, "utf8");
@@ -225,9 +211,7 @@ export class ChartTreeItem extends vscode.TreeItem {
 				tooltip.appendMarkdown(`**Version:** ${this.chart.version}\n\n`);
 			}
 			if (this.chart?.description) {
-				tooltip.appendMarkdown(
-					`**Description:** ${this.chart.description}\n\n`,
-				);
+				tooltip.appendMarkdown(`**Description:** ${this.chart.description}\n\n`);
 			}
 			return tooltip;
 		} else if (this.type === "environment") {
@@ -236,34 +220,23 @@ export class ChartTreeItem extends vscode.TreeItem {
 
 			// Show which values file is used
 			if (this.environment === "default") {
-				tooltip.appendMarkdown(
-					`**Values file:** \`values.yaml\` (base only)\n\n`,
-				);
+				tooltip.appendMarkdown(`**Values file:** \`values.yaml\` (base only)\n\n`);
 			} else {
-				const envValuesPath = path.join(
-					this.chartPath,
-					`values-${this.environment}.yaml`,
-				);
+				const envValuesPath = path.join(this.chartPath, `values-${this.environment}.yaml`);
 				const envValuesExists = fs.existsSync(envValuesPath);
 
 				if (envValuesExists) {
 					tooltip.appendMarkdown(`**Values files:**\n`);
 					tooltip.appendMarkdown(`- \`values.yaml\` (base)\n`);
-					tooltip.appendMarkdown(
-						`- \`values-${this.environment}.yaml\` (overrides)\n\n`,
-					);
+					tooltip.appendMarkdown(`- \`values-${this.environment}.yaml\` (overrides)\n\n`);
 
 					// Use cached value
 					const hasOverrides = this._hasOverrides ?? false;
 					if (!hasOverrides) {
-						tooltip.appendMarkdown(
-							`⚠️ *Environment file exists but contains no overrides*\n\n`,
-						);
+						tooltip.appendMarkdown(`⚠️ *Environment file exists but contains no overrides*\n\n`);
 					}
 				} else {
-					tooltip.appendMarkdown(
-						`**Values file:** \`values.yaml\` (base only)\n\n`,
-					);
+					tooltip.appendMarkdown(`**Values file:** \`values.yaml\` (base only)\n\n`);
 				}
 			}
 

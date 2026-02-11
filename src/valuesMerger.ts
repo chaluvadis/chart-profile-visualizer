@@ -23,10 +23,7 @@ export interface ValuesComparison {
  * Merges base values.yaml with environment-specific values-<env>.yaml
  * Tracks which values were overridden and their sources
  */
-export function mergeValues(
-	chartPath: string,
-	environment: string,
-): ValuesComparison {
+export function mergeValues(chartPath: string, environment: string): ValuesComparison {
 	const baseValuesPath = path.join(chartPath, "values.yaml");
 	const envValuesPath = path.join(chartPath, `values-${environment}.yaml`);
 
@@ -34,14 +31,7 @@ export function mergeValues(
 	const envValues = loadYamlFile(envValuesPath);
 
 	const details = new Map<string, MergedValue>();
-	const merged = deepMerge(
-		baseValues,
-		envValues,
-		"",
-		details,
-		baseValuesPath,
-		envValuesPath,
-	);
+	const merged = deepMerge(baseValues, envValues, "", details, baseValuesPath, envValuesPath);
 
 	return {
 		merged,
@@ -58,7 +48,7 @@ function deepMerge(
 	path: string,
 	details: Map<string, MergedValue>,
 	baseFile: string,
-	overrideFile: string,
+	overrideFile: string
 ): any {
 	if (override === undefined || override === null) {
 		if (base !== undefined && base !== null) {
@@ -94,14 +84,7 @@ function deepMerge(
 		const overrideValue = override[key];
 
 		if (overrideValue !== undefined) {
-			result[key] = deepMerge(
-				baseValue,
-				overrideValue,
-				newPath,
-				details,
-				baseFile,
-				overrideFile,
-			);
+			result[key] = deepMerge(baseValue, overrideValue, newPath, details, baseFile, overrideFile);
 		} else if (baseValue !== undefined) {
 			result[key] = baseValue;
 			recordValue(newPath, baseValue, baseFile, false, details);
@@ -117,7 +100,7 @@ function recordValue(
 	file: string,
 	overridden: boolean,
 	details: Map<string, MergedValue>,
-	missingInBase: boolean = false,
+	missingInBase = false
 ): void {
 	if (path) {
 		details.set(path, {
@@ -165,15 +148,11 @@ export function generateAnnotatedYaml(comparison: ValuesComparison): string {
 	lines.push("# Merged Values with Source Annotations");
 	lines.push("# Legend:");
 	lines.push("#   [BASE from values.yaml] - From base values.yaml");
-	lines.push(
-		"#   [OVERRIDE from values-*.yaml] - Overridden in environment-specific values file",
-	);
-	lines.push(
-		"#   [ADDED from values-*.yaml] - Only in environment-specific file (not in base)",
-	);
+	lines.push("#   [OVERRIDE from values-*.yaml] - Overridden in environment-specific values file");
+	lines.push("#   [ADDED from values-*.yaml] - Only in environment-specific file (not in base)");
 	lines.push("");
 	lines.push(
-		`# Summary: ${overriddenCount} values overridden, ${envOnlyCount} values added, ${baseOnlyCount} values from base`,
+		`# Summary: ${overriddenCount} values overridden, ${envOnlyCount} values added, ${baseOnlyCount} values from base`
 	);
 	lines.push("");
 
@@ -196,10 +175,7 @@ export function generateAnnotatedYaml(comparison: ValuesComparison): string {
 /**
  * Annotate YAML lines with source information based on the details map
  */
-function annotateYamlLines(
-	yamlLines: string[],
-	details: Map<string, MergedValue>,
-): string[] {
+function annotateYamlLines(yamlLines: string[], details: Map<string, MergedValue>): string[] {
 	const result: string[] = [];
 	const pathStack: string[] = [];
 	let currentIndent = 0;

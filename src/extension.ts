@@ -1,21 +1,15 @@
-import * as vscode from "vscode";
 import * as fs from "node:fs";
+import * as vscode from "vscode";
 import { ChartProfilesProvider } from "./chartProfilesProvider";
-import { showRenderedYaml } from "./renderedYamlView";
 import { show as showChartVisualization } from "./chartVisualizationView";
+import { compareEnvironments, DiffType, type EnvironmentComparison } from "./environmentDiff";
 import { isHelmAvailable, renderHelmTemplate } from "./helmRenderer";
-import {
-	compareEnvironments,
-	DiffType,
-	type EnvironmentComparison,
-} from "./environmentDiff";
+import { showRenderedYaml } from "./renderedYamlView";
 
 function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
 	const lines: string[] = [];
 
-	lines.push(
-		`# Environment Comparison: ${comparison.leftEnv} vs ${comparison.rightEnv}`,
-	);
+	lines.push(`# Environment Comparison: ${comparison.leftEnv} vs ${comparison.rightEnv}`);
 	lines.push(`## Chart: ${comparison.chartName}`);
 	lines.push("");
 	lines.push("## Summary");
@@ -28,19 +22,13 @@ function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
 
 	// Group diffs by type
 	const added = comparison.diffs.filter((d) => d.diffType === DiffType.Added);
-	const removed = comparison.diffs.filter(
-		(d) => d.diffType === DiffType.Removed,
-	);
-	const modified = comparison.diffs.filter(
-		(d) => d.diffType === DiffType.Modified,
-	);
+	const removed = comparison.diffs.filter((d) => d.diffType === DiffType.Removed);
+	const modified = comparison.diffs.filter((d) => d.diffType === DiffType.Modified);
 
 	if (added.length > 0) {
 		lines.push("## Added Resources");
 		for (const diff of added) {
-			lines.push(
-				`- **${diff.kind}/${diff.name}** ${diff.namespace ? `(${diff.namespace})` : ""}`,
-			);
+			lines.push(`- **${diff.kind}/${diff.name}** ${diff.namespace ? `(${diff.namespace})` : ""}`);
 		}
 		lines.push("");
 	}
@@ -48,9 +36,7 @@ function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
 	if (removed.length > 0) {
 		lines.push("## Removed Resources");
 		for (const diff of removed) {
-			lines.push(
-				`- **${diff.kind}/${diff.name}** ${diff.namespace ? `(${diff.namespace})` : ""}`,
-			);
+			lines.push(`- **${diff.kind}/${diff.name}** ${diff.namespace ? `(${diff.namespace})` : ""}`);
 		}
 		lines.push("");
 	}
@@ -58,9 +44,7 @@ function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
 	if (modified.length > 0) {
 		lines.push("## Modified Resources");
 		for (const diff of modified) {
-			lines.push(
-				`### ${diff.kind}/${diff.name} ${diff.namespace ? `(${diff.namespace})` : ""}`,
-			);
+			lines.push(`### ${diff.kind}/${diff.name} ${diff.namespace ? `(${diff.namespace})` : ""}`);
 			if (diff.fieldDiffs && diff.fieldDiffs.length > 0) {
 				lines.push("**Changes:**");
 				for (const fieldDiff of diff.fieldDiffs.slice(0, 10)) {
@@ -84,8 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log("ChartProfiles extension is now active");
 
 	// Get all workspace folders for multi-root support
-	const workspaceRoots =
-		vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) || [];
+	const workspaceRoots = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) || [];
 
 	// Create tree view provider
 	const chartProfilesProvider = new ChartProfilesProvider(workspaceRoots);
@@ -97,62 +80,47 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	// Register refresh command
-	const refreshCommand = vscode.commands.registerCommand(
-		"chartProfiles.refreshCharts",
-		() => {
-			chartProfilesProvider.refresh();
-			vscode.window.showInformationMessage("Charts refreshed");
-		},
-	);
+	const refreshCommand = vscode.commands.registerCommand("chartProfiles.refreshCharts", () => {
+		chartProfilesProvider.refresh();
+		vscode.window.showInformationMessage("Charts refreshed");
+	});
 
 	// Register view rendered YAML command
-	const viewRenderedCommand = vscode.commands.registerCommand(
-		"chartProfiles.viewRenderedYaml",
-		async (item: any) => {
-			// Check Helm availability before attempting to render
-			const helmAvailable = await isHelmAvailable();
-			if (!helmAvailable && item?.action === "rendered") {
-				const result = await vscode.window.showWarningMessage(
-					"Helm CLI is not installed or not in PATH. Rendered YAML will show placeholder content.",
-					"Continue Anyway",
-					"Learn More",
-				);
+	const viewRenderedCommand = vscode.commands.registerCommand("chartProfiles.viewRenderedYaml", async (item: any) => {
+		// Check Helm availability before attempting to render
+		const helmAvailable = await isHelmAvailable();
+		if (!helmAvailable && item?.action === "rendered") {
+			const result = await vscode.window.showWarningMessage(
+				"Helm CLI is not installed or not in PATH. Rendered YAML will show placeholder content.",
+				"Continue Anyway",
+				"Learn More"
+			);
 
-				if (result === "Learn More") {
-					vscode.env.openExternal(
-						vscode.Uri.parse("https://helm.sh/docs/intro/install/"),
-					);
-					return;
-				} else if (result !== "Continue Anyway") {
-					return;
-				}
+			if (result === "Learn More") {
+				vscode.env.openExternal(vscode.Uri.parse("https://helm.sh/docs/intro/install/"));
+				return;
+			} else if (result !== "Continue Anyway") {
+				return;
 			}
+		}
 
-			await showRenderedYaml(item);
-		},
-	);
+		await showRenderedYaml(item);
+	});
 
 	// Register visualize chart command
-	const visualizeChartCommand = vscode.commands.registerCommand(
-		"chartProfiles.visualizeChart",
-		async (item: any) => {
-			await showChartVisualization(context, item);
-		},
-	);
+	const visualizeChartCommand = vscode.commands.registerCommand("chartProfiles.visualizeChart", async (item: any) => {
+		await showChartVisualization(context, item);
+	});
 
 	// Register compare environments command
 	const compareEnvironmentsCommand = vscode.commands.registerCommand(
 		"chartProfiles.compareEnvironments",
 		async () => {
 			// Get current workspace roots
-			const currentWorkspaceRoots =
-				vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ||
-				[];
+			const currentWorkspaceRoots = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) || [];
 
 			// Get all available charts and environments
-			const charts = await import("./helmChart").then((m) =>
-				m.findHelmCharts(currentWorkspaceRoots),
-			);
+			const charts = await import("./helmChart").then((m) => m.findHelmCharts(currentWorkspaceRoots));
 
 			if (charts.length === 0) {
 				vscode.window.showErrorMessage("No Helm charts found in workspace");
@@ -177,9 +145,7 @@ export function activate(context: vscode.ExtensionContext) {
 				.map((f: string) => f.match(/^values-(.+)\.ya?ml$/)![1]);
 
 			if (envFiles.length < 2) {
-				vscode.window.showErrorMessage(
-					"Need at least 2 environments to compare",
-				);
+				vscode.window.showErrorMessage("Need at least 2 environments to compare");
 				return;
 			}
 
@@ -196,7 +162,7 @@ export function activate(context: vscode.ExtensionContext) {
 				envFiles.filter((e) => e !== env1),
 				{
 					placeHolder: "Select second environment",
-				},
+				}
 			);
 
 			if (!env2) {
@@ -210,24 +176,10 @@ export function activate(context: vscode.ExtensionContext) {
 				const releaseName1 = `${selectedChart.chart.name}-${env1}`;
 				const releaseName2 = `${selectedChart.chart.name}-${env2}`;
 
-				const resources1 = await renderHelmTemplate(
-					chartPath,
-					env1,
-					releaseName1,
-				);
-				const resources2 = await renderHelmTemplate(
-					chartPath,
-					env2,
-					releaseName2,
-				);
+				const resources1 = await renderHelmTemplate(chartPath, env1, releaseName1);
+				const resources2 = await renderHelmTemplate(chartPath, env2, releaseName2);
 
-				const comparison = compareEnvironments(
-					env1,
-					resources1,
-					env2,
-					resources2,
-					selectedChart.chart.name,
-				);
+				const comparison = compareEnvironments(env1, resources1, env2, resources2, selectedChart.chart.name);
 
 				// Display comparison in new document
 				const doc = await vscode.workspace.openTextDocument({
@@ -239,18 +191,13 @@ export function activate(context: vscode.ExtensionContext) {
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Comparison failed: ${error.message}`);
 			}
-		},
+		}
 	);
 
 	// Register export resources command (placeholder - actual export handled in webview)
-	const exportResourcesCommand = vscode.commands.registerCommand(
-		"chartProfiles.exportResources",
-		async () => {
-			vscode.window.showInformationMessage(
-				"Use the Export buttons in the visualization view",
-			);
-		},
-	);
+	const exportResourcesCommand = vscode.commands.registerCommand("chartProfiles.exportResources", async () => {
+		vscode.window.showInformationMessage("Use the Export buttons in the visualization view");
+	});
 
 	context.subscriptions.push(
 		treeView,
@@ -258,27 +205,22 @@ export function activate(context: vscode.ExtensionContext) {
 		viewRenderedCommand,
 		visualizeChartCommand,
 		compareEnvironmentsCommand,
-		exportResourcesCommand,
+		exportResourcesCommand
 	);
 
 	// Auto-refresh when workspace files change
-	const fileWatcher = vscode.workspace.createFileSystemWatcher(
-		"**/{Chart.yaml,values*.yaml}",
-	);
+	const fileWatcher = vscode.workspace.createFileSystemWatcher("**/{Chart.yaml,values*.yaml}");
 	fileWatcher.onDidCreate(() => chartProfilesProvider.refresh());
 	fileWatcher.onDidChange(() => chartProfilesProvider.refresh());
 	fileWatcher.onDidDelete(() => chartProfilesProvider.refresh());
 	context.subscriptions.push(fileWatcher);
 
 	// Auto-refresh when workspace folders change (multi-root support)
-	const workspaceFoldersChangeListener =
-		vscode.workspace.onDidChangeWorkspaceFolders(() => {
-			const newRoots =
-				vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ||
-				[];
-			chartProfilesProvider.updateWorkspaceRoots(newRoots);
-			chartProfilesProvider.refresh();
-		});
+	const workspaceFoldersChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+		const newRoots = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) || [];
+		chartProfilesProvider.updateWorkspaceRoots(newRoots);
+		chartProfilesProvider.refresh();
+	});
 	context.subscriptions.push(workspaceFoldersChangeListener);
 }
 
