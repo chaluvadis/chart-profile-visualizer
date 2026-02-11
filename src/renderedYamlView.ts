@@ -7,6 +7,9 @@ import * as path from 'path';
 // WeakMap to store decorations for each editor to avoid using `as any`
 const editorDecorations = new WeakMap<vscode.TextEditor, vscode.TextEditorDecorationType[]>();
 
+// Regex pattern for matching annotation comments in YAML
+const ANNOTATION_PATTERN = /^\s*([^:]+):\s*.*#\s*\[(OVERRIDE|BASE|ADDED) from [^\]]+\]/i;
+
 /**
  * Shows rendered YAML or merged values in a new editor
  */
@@ -140,12 +143,11 @@ export function highlightValueDifferences(
     const lines = text.split('\n');
 
     // Precompute all annotated lines in a single pass to avoid O(N*M) complexity
-    const searchPattern = /^\s*([^:]+):\s*.*#\s*\[(OVERRIDE|BASE|ADDED) from [^\]]+\]/i;
     const annotatedLines: Array<{ index: number; key: string; type: string }> = [];
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        const match = line.match(searchPattern);
+        const match = line.match(ANNOTATION_PATTERN);
         if (match) {
             const [, key, type] = match;
             annotatedLines.push({
@@ -159,7 +161,9 @@ export function highlightValueDifferences(
     // Build a map of line index to decoration info by matching full paths
     const lineDecorations = new Map<number, { type: 'override' | 'addition' | 'base'; detail: any; path: string }>();
 
-    // Match annotations with details using full path comparison
+    // Match annotations with details using path comparison
+    // Note: This uses suffix matching which can have false positives when multiple paths
+    // share the same leaf key. A more robust solution would build paths from YAML structure.
     for (const [keyPath, detail] of comparison.details.entries()) {
         // Use the last segment of the key path for initial matching
         const keySegment = keyPath.split('.').pop();
@@ -169,9 +173,15 @@ export function highlightValueDifferences(
 
         // Find matching annotated line by checking if the full path matches
         for (const annotated of annotatedLines) {
-            // Match by full path to avoid ambiguity with duplicate leaf keys
-            // The annotation contains the key at that line, build potential full path
+            // Match by checking if keyPath ends with the annotated key
+            // For exact match: keyPath === annotated.key
+            // For nested match: keyPath ends with '.' + annotated.key
             if (keyPath === annotated.key || keyPath.endsWith('.' + annotated.key)) {
+                // Skip if this line already has a decoration (prefer exact matches)
+                if (lineDecorations.has(annotated.index)) {
+                    continue;
+                }
+                
                 // Determine decoration type based on the detail
                 let decorationType: 'override' | 'addition' | 'base';
                 if (detail.missingInBase) {
