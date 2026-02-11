@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 import { ChartTreeItem } from './chartProfilesProvider';
 import { mergeValues } from './valuesMerger';
 import { renderHelmTemplate, RenderedResource } from './helmRenderer';
-import { parseResources, filterResources, SearchCriteria, ResourceHierarchy } from './resourceVisualizer';
+import { parseResources, ResourceHierarchy } from './resourceVisualizer';
 import { LiveUpdateManager } from './liveUpdateManager';
 import { generateEnhancedHtml } from './webviewHtmlGenerator';
 
@@ -46,7 +46,8 @@ export class ChartVisualizationView {
                     retainContextWhenHidden: true,
                     localResourceRoots: [
                         context.extensionUri,
-                        vscode.Uri.file(path.join(context.extensionPath, 'images'))
+                        vscode.Uri.file(path.join(context.extensionPath, 'images')),
+                        vscode.Uri.file(path.join(context.extensionPath, 'vendor'))
                     ]
                 }
             );
@@ -90,7 +91,8 @@ export class ChartVisualizationView {
             if (ChartVisualizationView.context) {
                 panel.webview.html = generateEnhancedHtml(panel.webview, chartData, ChartVisualizationView.context.extensionUri);
             } else {
-                panel.webview.html = ChartVisualizationView.getHtmlContent(panel.webview, chartData);
+                // Fallback - should never happen, but handle gracefully
+                panel.webview.html = ChartVisualizationView.getErrorHtml('Extension context not available');
             }
         } catch (error: any) {
             vscode.window.showErrorMessage(`Error loading chart visualization: ${error.message}`);
@@ -135,7 +137,6 @@ export class ChartVisualizationView {
             ChartVisualizationView.liveUpdateManager.enable(chartPath, async () => {
                 if (ChartVisualizationView.currentItem) {
                     await ChartVisualizationView.update(ChartVisualizationView.currentItem);
-                    vscode.window.showInformationMessage('Chart visualization updated');
                 }
             });
             vscode.window.showInformationMessage('Live mode enabled');
@@ -155,8 +156,16 @@ export class ChartVisualizationView {
         }
 
         const defaultExt = format === 'yaml' ? 'yaml' : 'json';
+        const defaultFileName = `rendered-resources.${defaultExt}`;
+        
+        // Get a sensible default directory
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+        const defaultUri = workspaceFolder 
+            ? vscode.Uri.joinPath(workspaceFolder, defaultFileName)
+            : undefined;
+        
         const uri = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file(`rendered-resources.${defaultExt}`),
+            defaultUri,
             filters: {
                 [format.toUpperCase()]: [defaultExt]
             }

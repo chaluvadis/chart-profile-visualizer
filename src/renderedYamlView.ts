@@ -117,21 +117,21 @@ export function highlightValueDifferences(
     // Create decoration types for different value sources
     const overrideDecorationType = vscode.window.createTextEditorDecorationType({
         backgroundColor: 'rgba(255, 165, 0, 0.15)', // Orange tint for overrides
-        borderLeft: '3px solid rgba(255, 165, 0, 0.8)',
+        border: '3px solid rgba(255, 165, 0, 0.8)',
         gutterIconPath: vscode.Uri.parse('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjYiIGZpbGw9IiNGRkE1MDAiLz48L3N2Zz4='),
         gutterIconSize: 'contain'
     });
 
     const additionDecorationType = vscode.window.createTextEditorDecorationType({
         backgroundColor: 'rgba(0, 255, 0, 0.1)', // Green tint for additions
-        borderLeft: '3px solid rgba(0, 255, 0, 0.6)',
+        border: '3px solid rgba(0, 255, 0, 0.6)',
         gutterIconPath: vscode.Uri.parse('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjYiIGZpbGw9IiMwMEZGMDAiLz48L3N2Zz4='),
         gutterIconSize: 'contain'
     });
 
     const baseDecorationType = vscode.window.createTextEditorDecorationType({
         backgroundColor: 'rgba(135, 206, 250, 0.08)', // Light blue tint for base
-        borderLeft: '2px solid rgba(135, 206, 250, 0.4)'
+        border: '2px solid rgba(135, 206, 250, 0.4)'
     });
 
     const overrideDecorations: vscode.DecorationOptions[] = [];
