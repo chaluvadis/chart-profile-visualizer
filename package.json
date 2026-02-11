@@ -87,7 +87,7 @@
   },
   "scripts": {
     "compile": "node esbuild.js",
-    "package": "pnpm compile && vsce package --no-dependencies"
+    "package": "npm run compile && vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

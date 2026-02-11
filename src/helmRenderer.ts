@@ -117,7 +117,7 @@ export async function renderHelmTemplate(
             `# ${command}`,
             '',
             '# Error Message:',
-            ...errorMessage.split('\n').map(line => `# ${line}`),
+            ...errorMessage.split('\n').map((line: string) => `# ${line}`),
             '',
             '# Remediation:',
             `# ${remediation}`,
