@@ -7,78 +7,64 @@ import type { ResourceHierarchy } from "./resourceVisualizer";
  * Interface for Kubernetes Secret object structure
  */
 interface SecretObject {
-  data?: Record<string, string>;
-  stringData?: Record<string, string>;
-  [key: string]: any;
+	data?: Record<string, string>;
+	stringData?: Record<string, string>;
+	[key: string]: any;
 }
 
 /**
  * Sanitize a Secret's YAML content by redacting sensitive data fields
  */
 function sanitizeSecretYaml(yamlContent: string): string {
-  try {
-    const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
+	try {
+		const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
 
-    // Type guard to ensure we have a valid object
-    if (!yamlObj || typeof yamlObj !== "object") {
-      return "# Secret data redacted for security";
-    }
+		// Type guard to ensure we have a valid object
+		if (!yamlObj || typeof yamlObj !== "object") {
+			return "# Secret data redacted for security";
+		}
 
-    const secretObj = yamlObj as SecretObject;
+		const secretObj = yamlObj as SecretObject;
 
-    // Redact sensitive fields by replacing values with placeholders
-    const redactField = (
-      obj: Record<string, string>,
-    ): Record<string, string> => {
-      return Object.keys(obj).reduce(
-        (acc, key) => {
-          acc[key] = "***REDACTED***";
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
-    };
+		// Redact sensitive fields by replacing values with placeholders
+		const redactField = (obj: Record<string, string>): Record<string, string> => {
+			return Object.keys(obj).reduce(
+				(acc, key) => {
+					acc[key] = "***REDACTED***";
+					return acc;
+				},
+				{} as Record<string, string>
+			);
+		};
 
-    if (secretObj.data) {
-      secretObj.data = redactField(secretObj.data);
-    }
-    if (secretObj.stringData) {
-      secretObj.stringData = redactField(secretObj.stringData);
-    }
+		if (secretObj.data) {
+			secretObj.data = redactField(secretObj.data);
+		}
+		if (secretObj.stringData) {
+			secretObj.stringData = redactField(secretObj.stringData);
+		}
 
-    return yaml.dump(secretObj);
-  } catch (error) {
-    // If parsing fails, just hide the whole yaml for secrets
-    return "# Secret data redacted for security";
-  }
+		return yaml.dump(secretObj);
+	} catch (error) {
+		// If parsing fails, just hide the whole yaml for secrets
+		return "# Secret data redacted for security";
+	}
 }
 
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
  */
-export function generateEnhancedHtml(
-  webview: vscode.Webview,
-  data: any,
-  extensionUri: vscode.Uri,
-): string {
-  const nonce = getNonce();
+export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensionUri: vscode.Uri): string {
+	const nonce = getNonce();
 
-  // Get local Chart.js and CSS URIs
-  const chartJsUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"),
-  );
-  const stylesUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, "out", "styles.css"),
-  );
+	// Get local Chart.js and CSS URIs
+	const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
+	const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "styles.css"));
 
-  // Generate resource explorer HTML
-  const resourceExplorerHtml = generateResourceExplorer(
-    data.resourceHierarchy,
-    webview,
-    extensionUri,
-  );
+	// Generate resource explorer HTML
+	const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
 
-  return `<!DOCTYPE html>
+	return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -124,7 +110,7 @@ export function generateEnhancedHtml(
 }
 
 function generateOverviewTab(data: any): string {
-  return `
+	return `
         <div class="header">
             <h1 class="chart-title">
                 ${escapeHtml(data.chartName)}
@@ -152,8 +138,8 @@ function generateOverviewTab(data: any): string {
         </div>
 
         ${
-          data.architectureNodes && data.architectureNodes.length > 0
-            ? `
+			data.architectureNodes && data.architectureNodes.length > 0
+				? `
         <div class="chart-container">
             <h2>High-Level Architecture
                 <span class="help-tooltip" title="Shows the main components and their connections. Different shapes represent resource types: rounded rectangles (workloads), hexagons (networking), cylinders (storage), documents (configuration), shields (RBAC). Arrows indicate relationships and data flow. Larger nodes are more central to the system.">ⓘ</span>
@@ -172,14 +158,14 @@ function generateOverviewTab(data: any): string {
             <div id="architectureDiagram" class="architecture-diagram"></div>
         </div>
         `
-            : ""
-        }
+				: ""
+		}
 
 
 
         ${
-          data.overriddenValues.length > 0
-            ? `
+			data.overriddenValues.length > 0
+				? `
         <div class="chart-container">
             <h2>Top Overridden Values</h2>
             <table class="values-table">
@@ -192,38 +178,38 @@ function generateOverviewTab(data: any): string {
                 </thead>
                 <tbody>
                     ${data.overriddenValues
-                      .map(
-                        (v: any) => `
+						.map(
+							(v: any) => `
                         <tr>
                             <td class="value-key">${escapeHtml(v.key)}</td>
                             <td class="value-old">${escapeHtml(String(v.baseValue))}</td>
                             <td class="value-new">${escapeHtml(String(v.envValue))}</td>
                         </tr>
-                    `,
-                      )
-                      .join("")}
+                    `
+						)
+						.join("")}
                 </tbody>
             </table>
         </div>
         `
-            : ""
-        }
+				: ""
+		}
     `;
 }
 
 function generateResourceExplorer(
-  hierarchy: ResourceHierarchy,
-  webview: vscode.Webview,
-  extensionUri: vscode.Uri,
+	hierarchy: ResourceHierarchy,
+	webview: vscode.Webview,
+	extensionUri: vscode.Uri
 ): string {
-  if (!hierarchy || hierarchy.totalCount === 0) {
-    return '<div class="no-data"><p>No resources found</p></div>';
-  }
+	if (!hierarchy || hierarchy.totalCount === 0) {
+		return '<div class="no-data"><p>No resources found</p></div>';
+	}
 
-  let html = '<div class="resource-explorer">';
+	let html = '<div class="resource-explorer">';
 
-  for (const [kind, group] of hierarchy.kindGroups) {
-    html += `
+	for (const [kind, group] of hierarchy.kindGroups) {
+		html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
             <div class="kind-header">
                 <span class="expand-icon">▶</span>
@@ -232,14 +218,11 @@ function generateResourceExplorer(
             <div class="kind-resources" data-collapsed="true">
         `;
 
-    for (const resource of group.resources) {
-      // For secrets, sanitize the YAML to mask sensitive data
-      const displayYaml =
-        resource.kind === "Secret"
-          ? sanitizeSecretYaml(resource.yaml)
-          : resource.yaml;
+		for (const resource of group.resources) {
+			// For secrets, sanitize the YAML to mask sensitive data
+			const displayYaml = resource.kind === "Secret" ? sanitizeSecretYaml(resource.yaml) : resource.yaml;
 
-      html += `
+			html += `
             <div class="resource-card" data-color="${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
                 <div class="resource-header">
                     <span class="expand-icon">▶</span>
@@ -253,25 +236,25 @@ function generateResourceExplorer(
                         <pre>${escapeHtml(JSON.stringify(resource.metadata, null, 2))}</pre>
                     </div>
                     ${
-                      Object.keys(resource.spec || {}).length > 0
-                        ? `
+						Object.keys(resource.spec || {}).length > 0
+							? `
                     <div class="detail-section">
                         <h4>Spec</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.spec, null, 2))}</pre>
                     </div>
                     `
-                        : ""
-                    }
+							: ""
+					}
                     ${
-                      resource.kind === "Secret" && resource.data
-                        ? `
+						resource.kind === "Secret" && resource.data
+							? `
                     <div class="detail-section">
                         <h4>Data (masked)</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.data, null, 2))}</pre>
                     </div>
                     `
-                        : ""
-                    }
+							: ""
+					}
                     <div class="detail-section">
                         <h4>Full YAML</h4>
                         <pre class="yaml-content">${escapeHtml(displayYaml)}</pre>
@@ -279,20 +262,20 @@ function generateResourceExplorer(
                 </div>
             </div>
             `;
-    }
+		}
 
-    html += `
+		html += `
             </div>
         </div>
         `;
-  }
+	}
 
-  html += "</div>";
-  return html;
+	html += "</div>";
+	return html;
 }
 
 function generateTopologyTab(): string {
-  return `
+	return `
         <div class="topology-view">
             <div class="topology-header">
                 <div class="topology-title-section">
@@ -423,32 +406,23 @@ function generateTopologyTab(): string {
 }
 
 function generateJavaScript(data: any): string {
-  // Create a minimal, sanitized dataset for topology - only include kind, name, namespace
-  const topologyResources = data.resources.map((r: any) => ({
-    kind: r.kind || "Unknown",
-    name: r.name || "unnamed",
-    namespace: r.namespace || "default",
-  }));
+	// Create a minimal, sanitized dataset for topology - only include kind, name, namespace
+	const topologyResources = data.resources.map((r: any) => ({
+		kind: r.kind || "Unknown",
+		name: r.name || "unnamed",
+		namespace: r.namespace || "default",
+	}));
 
-  // Escape the JSON to prevent XSS by replacing < with \u003c
-  const safeTopologyData = JSON.stringify(topologyResources).replace(
-    /</g,
-    "\\u003c",
-  );
+	// Escape the JSON to prevent XSS by replacing < with \u003c
+	const safeTopologyData = JSON.stringify(topologyResources).replace(/</g, "\\u003c");
 
-  // Pass architecture data safely
-  const architectureNodes = data.architectureNodes || [];
-  const relationships = data.relationships || [];
-  const safeArchNodes = JSON.stringify(architectureNodes).replace(
-    /</g,
-    "\\u003c",
-  );
-  const safeRelationships = JSON.stringify(relationships).replace(
-    /</g,
-    "\\u003c",
-  );
+	// Pass architecture data safely
+	const architectureNodes = data.architectureNodes || [];
+	const relationships = data.relationships || [];
+	const safeArchNodes = JSON.stringify(architectureNodes).replace(/</g, "\\u003c");
+	const safeRelationships = JSON.stringify(relationships).replace(/</g, "\\u003c");
 
-  return `
+	return `
         const vscode = acquireVsCodeApi();
         let liveMode = false;
         let currentZoom = 1;
@@ -1090,18 +1064,52 @@ function generateJavaScript(data: any): string {
                     g.appendChild(connBadge);
                 }
 
-                // Node labels with better positioning
+                // Node labels with smart truncation to fit within node bounds
+                // Text is dynamically measured and truncated with ellipsis if needed
+                // to ensure labels always stay within the node box boundaries
+                const textPadding = 16; // 8px padding on each side
+                const maxTextWidth = nodeWidth - textPadding;
+                const ELLIPSIS = '...';
+                
+                // Helper function to truncate text to fit within available width
+                // Uses SVG's getComputedTextLength() for accurate measurement
+                // Note: Uses linear truncation (O(n)) which is sufficient for typical K8s
+                // resource names (10-30 chars). Binary search could optimize to O(log n)
+                // but adds complexity with minimal benefit for this use case.
+                const truncateText = (text: string, maxWidth: number, element: SVGTextElement): string => {
+                    element.textContent = text;
+                    let textWidth = element.getComputedTextLength();
+                    
+                    // If text fits, no truncation needed
+                    if (textWidth <= maxWidth) {
+                        return text;
+                    }
+                    
+                    // Truncate text to fit with ellipsis
+                    let truncated = text;
+                    while (textWidth > maxWidth && truncated.length > 0) {
+                        truncated = truncated.slice(0, -1);
+                        element.textContent = truncated + ELLIPSIS;
+                        textWidth = element.getComputedTextLength();
+                    }
+                    
+                    // If we had to truncate, return with ellipsis
+                    return truncated.length > 0 ? truncated + ELLIPSIS : ELLIPSIS;
+                };
+                
+                // Kind label (top)
                 const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 kindText.setAttribute('class', 'topo-label');
                 kindText.setAttribute('y', '-2');
-                kindText.textContent = node.kind.substring(0, 14);
                 g.appendChild(kindText);
+                kindText.textContent = truncateText(node.kind, maxTextWidth, kindText);
 
+                // Name label (bottom)
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 nameText.setAttribute('class', 'topo-label name');
                 nameText.setAttribute('y', '10');
-                nameText.textContent = node.name.substring(0, 16);
                 g.appendChild(nameText);
+                nameText.textContent = truncateText(node.name, maxTextWidth, nameText);
 
                 // Enhanced tooltip
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
@@ -1262,7 +1270,7 @@ function generateJavaScript(data: any): string {
 }
 
 function generateChartJsInit(data: any): string {
-  return `
+	return `
         const chartColors = {
             primary: '#007acc',
             secondary: '#68217a',
@@ -1282,8 +1290,8 @@ function generateChartJsInit(data: any): string {
         ];
 
         ${
-          Object.keys(data.resourceCounts || {}).length > 0
-            ? `
+			Object.keys(data.resourceCounts || {}).length > 0
+				? `
         (function() {
             const canvas = document.getElementById('resourceChart');
             if (!canvas) return;
@@ -1401,12 +1409,12 @@ function generateChartJsInit(data: any): string {
             }
         })();
         `
-            : ""
-        }
+				: ""
+		}
 
         ${
-          data.totalValues > 0
-            ? `
+			data.totalValues > 0
+				? `
         (function() {
             const ctx = document.getElementById('valuesChart');
             if (!ctx) return;
@@ -1427,24 +1435,24 @@ function generateChartJsInit(data: any): string {
             });
         })();
         `
-            : ""
-        }
+				: ""
+		}
     `;
 }
 
 function getNonce(): string {
-  return crypto.randomBytes(16).toString("base64");
+	return crypto.randomBytes(16).toString("base64");
 }
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
 }
 
 function escapeAttr(text: string): string {
-  return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+	return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
