@@ -739,34 +739,34 @@ function getEnhancedStyles(): string {
             flex-wrap: wrap;
             font-size: 11px;
         }
-        .legend-section {
+        .topology-legend .legend-section {
             display: flex;
             gap: 12px;
             align-items: center;
         }
-        .legend-label {
+        .topology-legend .legend-label {
             font-weight: 600;
             color: var(--vscode-descriptionForeground);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .legend-items {
+        .topology-legend .legend-items {
             display: flex;
             gap: 16px;
             flex-wrap: wrap;
         }
-        .legend-item {
+        .topology-legend .legend-item {
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        .legend-color {
+        .topology-legend .legend-color {
             width: 16px;
             height: 16px;
             border-radius: 3px;
             border: 1px solid var(--vscode-panel-border);
         }
-        .legend-badge {
+        .topology-legend .legend-badge {
             min-width: 24px;
             height: 18px;
             border-radius: 3px;
@@ -777,11 +777,11 @@ function getEnhancedStyles(): string {
             font-weight: bold;
             padding: 0 4px;
         }
-        .legend-badge.critical {
+        .topology-legend .legend-badge.critical {
             background-color: #ffa500;
             color: #000;
         }
-        .legend-badge.connectivity {
+        .topology-legend .legend-badge.connectivity {
             background-color: #0078d4;
             color: #fff;
         }
@@ -944,7 +944,6 @@ function getEnhancedStyles(): string {
             font-weight: 400;
         }
         .topo-tier-bg {
-            fill: var(--vscode-editor-inactiveSelectionBackground);
             stroke: var(--vscode-panel-border);
             stroke-width: 1;
             stroke-dasharray: 4,4;
@@ -957,7 +956,6 @@ function getEnhancedStyles(): string {
         .topo-tier-label {
             font-size: 13px;
             font-weight: 600;
-            fill: var(--vscode-descriptionForeground);
             text-anchor: start;
             letter-spacing: 0.5px;
             text-transform: uppercase;
@@ -1555,7 +1553,6 @@ function generateJavaScript(data: any): string {
                 // Use smooth cubic bezier curves for better aesthetics
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 const dx = target.x - source.x;
-                const dy = target.y - source.y;
                 const controlPointOffset = Math.abs(dx) * 0.5;
                 
                 const d = \`M\${source.x},\${source.y} C\${source.x + controlPointOffset},\${source.y} \${target.x - controlPointOffset},\${target.y} \${target.x},\${target.y}\`;

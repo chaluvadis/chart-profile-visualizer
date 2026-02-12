@@ -270,10 +270,10 @@ The topology tab has been completely redesigned with a modern, intuitive interfa
 - Smooth show/hide transitions
 
 **Performance Optimizations:**
-- Efficient SVG rendering with requestIdleCallback
-- Transition animations use hardware-accelerated properties
-- Event delegation for better performance with many nodes
-- Lazy initialization when tab becomes active
+- Efficient SVG rendering tuned for typical topology sizes
+- Transition animations use CSS transforms for smooth updates
+- Per-node event listeners, appropriate for current node counts
+- Initialization occurs when the topology view is opened
 
 ## Security Features
 
