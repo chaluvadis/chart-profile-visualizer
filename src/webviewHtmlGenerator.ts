@@ -1065,19 +1065,23 @@ function generateJavaScript(data: any): string {
                 }
 
                 // Node labels with smart truncation to fit within node bounds
+                // Text is dynamically measured and truncated with ellipsis if needed
+                // to ensure labels always stay within the node box boundaries
                 const textPadding = 16; // 8px padding on each side
                 const maxTextWidth = nodeWidth - textPadding;
                 
                 // Helper function to truncate text to fit within available width
+                // Uses SVG's getComputedTextLength() for accurate measurement
                 const truncateText = (text, maxWidth, element) => {
                     element.textContent = text;
                     let textWidth = element.getComputedTextLength();
                     
+                    // If text fits, no truncation needed
                     if (textWidth <= maxWidth) {
                         return text;
                     }
                     
-                    // Binary search for the right truncation point
+                    // Truncate text to fit with ellipsis
                     let truncated = text;
                     while (textWidth > maxWidth && truncated.length > 0) {
                         truncated = truncated.slice(0, -1);
@@ -1085,7 +1089,8 @@ function generateJavaScript(data: any): string {
                         textWidth = element.getComputedTextLength();
                     }
                     
-                    return truncated + '...';
+                    // If we had to truncate, return with ellipsis
+                    return truncated.length > 0 ? truncated + '...' : '...';
                 };
                 
                 // Kind label (top)
