@@ -881,6 +881,9 @@ function getEnhancedStyles(): string {
             cursor: pointer;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
+        .topo-node[data-filtered="hidden"] {
+            display: none;
+        }
         .topo-node:hover {
             filter: brightness(1.15) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
             transform: translateY(-2px);
@@ -906,6 +909,9 @@ function getEnhancedStyles(): string {
             opacity: 0.25;
             marker-end: url(#arrowhead);
             transition: all 0.25s ease;
+        }
+        .topo-edge[data-filtered="hidden"] {
+            display: none;
         }
         .topo-edge.highlighted {
             opacity: 0.9;
@@ -945,13 +951,19 @@ function getEnhancedStyles(): string {
             rx: 8;
             opacity: 0.4;
         }
+        .topo-tier-bg[data-filtered="hidden"] {
+            display: none;
+        }
         .topo-tier-label {
             font-size: 13px;
             font-weight: 600;
             fill: var(--vscode-descriptionForeground);
-            text-anchor: middle;
+            text-anchor: start;
             letter-spacing: 0.5px;
             text-transform: uppercase;
+        }
+        .topo-tier-label[data-filtered="hidden"] {
+            display: none;
         }
         .connectivity-badge {
             cursor: help;
@@ -1393,7 +1405,7 @@ function generateJavaScript(data: any): string {
                 'Workload': { nodes: [], color: '#0078d4', label: 'Workloads', icon: '⚙' },
                 'Networking': { nodes: [], color: '#107c10', label: 'Networking', icon: '🌐' },
                 'Storage': { nodes: [], color: '#8661c5', label: 'Storage', icon: '💾' },
-                'Configuration': { nodes: [], color: '#d83b01', label: 'Configuration', icon: '⚙' },
+                'Configuration': { nodes: [], color: '#d83b01', label: 'Configuration', icon: '📝' },
                 'RBAC': { nodes: [], color: '#e81123', label: 'RBAC', icon: '🔒' },
                 'Scaling': { nodes: [], color: '#008272', label: 'Scaling', icon: '📊' },
                 'Other': { nodes: [], color: '#737373', label: 'Other', icon: '📦' }
@@ -1448,31 +1460,31 @@ function generateJavaScript(data: any): string {
                 const allTierLabels = container.querySelectorAll('.topo-tier-label');
                 
                 if (filterTier === 'all') {
-                    allNodes.forEach(n => n.style.display = '');
-                    allEdges.forEach(e => e.style.display = '');
-                    allTierBgs.forEach(b => b.style.display = '');
-                    allTierLabels.forEach(l => l.style.display = '');
+                    allNodes.forEach(n => n.removeAttribute('data-filtered'));
+                    allEdges.forEach(e => e.removeAttribute('data-filtered'));
+                    allTierBgs.forEach(b => b.removeAttribute('data-filtered'));
+                    allTierLabels.forEach(l => l.removeAttribute('data-filtered'));
                 } else {
                     // Hide all first
-                    allNodes.forEach(n => n.style.display = 'none');
-                    allEdges.forEach(e => e.style.display = 'none');
-                    allTierBgs.forEach(b => b.style.display = 'none');
-                    allTierLabels.forEach(l => l.style.display = 'none');
+                    allNodes.forEach(n => n.setAttribute('data-filtered', 'hidden'));
+                    allEdges.forEach(e => e.setAttribute('data-filtered', 'hidden'));
+                    allTierBgs.forEach(b => b.setAttribute('data-filtered', 'hidden'));
+                    allTierLabels.forEach(l => l.setAttribute('data-filtered', 'hidden'));
                     
                     // Show selected tier
                     allNodes.forEach(n => {
                         if (n.getAttribute('data-tier') === filterTier) {
-                            n.style.display = '';
+                            n.removeAttribute('data-filtered');
                         }
                     });
                     allTierBgs.forEach(b => {
                         if (b.getAttribute('data-tier') === filterTier) {
-                            b.style.display = '';
+                            b.removeAttribute('data-filtered');
                         }
                     });
                     allTierLabels.forEach(l => {
                         if (l.getAttribute('data-tier') === filterTier) {
-                            l.style.display = '';
+                            l.removeAttribute('data-filtered');
                         }
                     });
                     
@@ -1483,8 +1495,8 @@ function generateJavaScript(data: any): string {
                         const sourceNode = container.querySelector(\`.topo-node[data-node-id="\${sourceId}"]\`);
                         const targetNode = container.querySelector(\`.topo-node[data-node-id="\${targetId}"]\`);
                         
-                        if (sourceNode?.style.display !== 'none' && targetNode?.style.display !== 'none') {
-                            edge.style.display = '';
+                        if (!sourceNode?.hasAttribute('data-filtered') && !targetNode?.hasAttribute('data-filtered')) {
+                            edge.removeAttribute('data-filtered');
                         }
                     });
                 }
@@ -1520,6 +1532,8 @@ function generateJavaScript(data: any): string {
                 
                 // Position nodes horizontally within this tier
                 const nodeCount = tier.nodes.length;
+                if (nodeCount === 0) continue; // Skip empty tiers
+                
                 const availableWidth = width - 2 * margin - 40;
                 const spacing = nodeCount > 1 ? Math.min(nodeSpacing, availableWidth / (nodeCount - 1)) : 0;
                 const startX = margin + 20 + (availableWidth - (nodeCount - 1) * spacing) / 2;
