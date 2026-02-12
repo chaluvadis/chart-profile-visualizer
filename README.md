@@ -4,10 +4,12 @@ A VS Code extension for visualizing Helm charts across multiple environments wit
 
 ## Features
 
-- 📊 **Interactive Chart Visualization** - View resource distribution, value overrides, and chart statistics with multiple visualization tabs
+- 🏗️ **High-Level Architecture Diagram** - Visualize system architecture with nodes and edges showing module connections and data flow
+- 🗺️ **Enhanced Topology View** - Interactive graph with meaningful groupings, relationship detection, and critical path highlighting
+- 📊 **Interactive Chart Visualization** - View value overrides and chart statistics with multiple visualization tabs
 - 🎯 **Resource Explorer** - Browse all Kubernetes resources with full configuration details in a collapsible hierarchy
 - 🔍 **Search & Filter** - Instantly search resources by name, kind, namespace, or labels
-- 🗺️ **Topology View** - Visual graph showing resource relationships with zoom and pan controls
+- 🔗 **Relationship Detection** - Automatically detect and visualize connections between resources (Services, Ingress, ConfigMaps, Secrets, etc.)
 - 📤 **Export Resources** - Export rendered resources as YAML or JSON files
 - 🔄 **Live Mode** - Auto-refresh visualization when chart files change
 - 🔀 **Environment Comparison** - Compare resources between two environments to see what changed
@@ -59,7 +61,12 @@ For each environment, you can:
 - Click "Visualize Chart" to open an interactive dashboard with three tabs:
 
 **Overview Tab:**
-  - Resource type distribution (bar chart)
+  - **High-Level Architecture Diagram** - Node-and-edge visualization showing:
+    - Main components/modules in the system
+    - Connections and relationships between resources
+    - Data flow direction (via arrows)
+    - Critical nodes highlighted (based on connectivity)
+    - Resources grouped by category with color coding
   - Overridden vs base values (pie chart)
   - Detailed override comparison table
   - Namespace and template statistics
@@ -76,9 +83,20 @@ For each environment, you can:
   - Expand/collapse all controls
 
 **Topology Tab:**
-  - Visual graph showing resources as connected nodes
-  - Zoom in/out and pan controls
-  - Interactive SVG-based rendering
+  - **Enhanced System Topology** with actionable insights:
+    - Resources organized by namespace and category
+    - Relationship edges showing connections (Services → Deployments, Ingress → Services, etc.)
+    - Critical nodes emphasized with thicker borders
+    - Interactive tooltips with resource details
+    - Zoom, pan, and fit-to-screen controls
+    - Color-coded by resource type for quick identification
+  - Relationships detected:
+    - Service selectors to workloads
+    - Ingress routing to services
+    - ConfigMap and Secret references
+    - Volume claims and mounts
+    - RBAC bindings
+    - Owner references
 
 **Toolbar Features:**
   - 📄 **Export YAML** - Save all rendered resources to a YAML file
@@ -213,6 +231,7 @@ src/
 ├── chartVisualizationView.ts    # Main visualization view controller
 ├── webviewHtmlGenerator.ts      # Enhanced HTML generation for webview
 ├── resourceVisualizer.ts        # Resource parsing & hierarchy builder
+├── relationshipDetector.ts      # Resource relationship detection & architecture nodes
 ├── environmentDiff.ts           # Environment comparison logic
 ├── liveUpdateManager.ts         # File watching & auto-refresh
 ├── helmChart.ts                 # Chart discovery

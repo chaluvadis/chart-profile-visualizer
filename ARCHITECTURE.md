@@ -32,19 +32,19 @@
 │  │  • Live Update Management                                 │   │
 │  └──────────────┬───────────────────────────────────────────┘   │
 │                 │                                                 │
-│        ┌────────┴────────┬─────────────┬──────────────┐         │
-│        │                 │             │              │          │
-│  ┌─────▼─────┐  ┌───────▼──────┐  ┌──▼────────┐  ┌──▼────────┐│
-│  │helmRenderer│  │resourceVisual│  │environment│  │liveUpdate ││
-│  │   .ts      │  │   izer.ts    │  │  Diff.ts  │  │Manager.ts ││
-│  │            │  │              │  │           │  │           ││
-│  │• Run helm  │  │• Parse       │  │• Compare  │  │• Watch    ││
-│  │  template  │  │  resources   │  │  envs     │  │  files    ││
-│  │• Parse     │  │• Classify    │  │• Field    │  │• Debounce ││
-│  │  YAML      │  │• Mask secrets│  │  diffs    │  │• Trigger  ││
-│  │            │  │• Filter/     │  │           │  │  refresh  ││
-│  │            │  │  search      │  │           │  │           ││
-│  └────────────┘  └──────────────┘  └───────────┘  └───────────┘│
+│        ┌────────┴────────┬─────────────┬──────────────┬──────────────┐
+│        │                 │             │              │              │
+│  ┌─────▼─────┐  ┌───────▼──────┐  ┌──▼────────┐  ┌──▼────────┐ ┌──▼────────┐
+│  │helmRenderer│  │resourceVisual│  │environment│  │liveUpdate │ │relationship│
+│  │   .ts      │  │   izer.ts    │  │  Diff.ts  │  │Manager.ts │ │Detector.ts │
+│  │            │  │              │  │           │  │           │ │            │
+│  │• Run helm  │  │• Parse       │  │• Compare  │  │• Watch    │ │• Detect    │
+│  │  template  │  │  resources   │  │  envs     │  │  files    │ │  edges     │
+│  │• Parse     │  │• Classify    │  │• Field    │  │• Debounce │ │• Build     │
+│  │  YAML      │  │• Mask secrets│  │  diffs    │  │• Trigger  │ │  arch nodes│
+│  │            │  │• Filter/     │  │           │  │  refresh  │ │• Metrics   │
+│  │            │  │  search      │  │           │  │           │ │            │
+│  └────────────┘  └──────────────┘  └───────────┘  └───────────┘ └────────────┘
 │                                                                   │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │      webviewHtmlGenerator.ts (UI Generator)               │  │
@@ -75,7 +75,11 @@
 │  │                                                           │   │
 │  │  Overview Tab:                                           │   │
 │  │    • Stats Cards (Total Values, Overrides, Resources)    │   │
-│  │    • Chart.js Bar Chart (Resource Distribution)          │   │
+│  │    • High-Level Architecture Diagram (SVG)               │   │
+│  │      - Nodes representing modules/components             │   │
+│  │      - Edges showing relationships and data flow         │   │
+│  │      - Critical nodes highlighted                        │   │
+│  │      - Hierarchical layout by category                   │   │
 │  │    • Chart.js Pie Chart (Override Rate)                  │   │
 │  │    • Override Values Table                               │   │
 │  │                                                           │   │
@@ -95,9 +99,18 @@
 │  │    └──────────────────────────────────────────┘          │   │
 │  │                                                           │   │
 │  │  Topology Tab:                                           │   │
-│  │    • SVG Graph with Resource Nodes                       │   │
-│  │    • Zoom/Pan Controls                                   │   │
-│  │    • Connected Resources                                 │   │
+│  │    • Enhanced SVG Graph with:                            │   │
+│  │      - Resources grouped by namespace & category         │   │
+│  │      - Relationship edges (Services→Pods, etc.)          │   │
+│  │      - Critical nodes emphasized                         │   │
+│  │      - Interactive tooltips on hover                     │   │
+│  │    • Zoom/Pan/Fit Controls                               │   │
+│  │    • Relationship Detection:                             │   │
+│  │      - Service selectors                                 │   │
+│  │      - Ingress routing                                   │   │
+│  │      - ConfigMap/Secret references                       │   │
+│  │      - Volume claims                                     │   │
+│  │      - RBAC bindings                                     │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                   │
 │  Message Passing:                                                │
@@ -112,17 +125,20 @@
 2. Extension collects chart data:
    - Runs `helm template` via helmRenderer
    - Parses resources via resourceVisualizer
+   - Detects relationships via relationshipDetector
+   - Builds architecture nodes with connectivity metrics
    - Builds hierarchy with color coding and icons
 3. Extension generates HTML via webviewHtmlGenerator
 4. Webview displays:
-   - Overview tab with Chart.js visualizations
+   - Overview tab with architecture diagram and Chart.js visualizations
    - Resources tab with collapsible hierarchy
-   - Topology tab with SVG graph
+   - Topology tab with enhanced SVG graph showing relationships
 5. User interactions:
    - Search: JavaScript filters resources client-side
    - Export: Webview sends message → Extension saves file
    - Live Mode: Extension watches files → Auto-refresh
    - Compare: Command palette → Extension renders diff
+   - Architecture/Topology: Interactive SVG with zoom/pan
 
 ## Icon System
 
@@ -142,6 +158,40 @@ Resources are color-coded by category:
 - RBAC → Red (#f44336)
 - Scaling → Teal (#00bcd4)
 - Other → Gray (#9e9e9e)
+
+## Architecture Visualization
+
+### Relationship Detection
+
+The extension automatically detects relationships between Kubernetes resources:
+
+1. **Owner References** - Parent-child relationships (e.g., ReplicaSet owns Pods)
+2. **Service Selectors** - Services route to Deployments/StatefulSets/Pods via label selectors
+3. **Ingress Routing** - Ingress resources route to Services
+4. **ConfigMap/Secret References** - Workloads mount or use ConfigMaps and Secrets
+5. **Volume Claims** - PersistentVolumeClaim usage
+6. **ServiceAccount References** - Workloads using ServiceAccounts
+7. **RBAC Bindings** - RoleBindings connect Roles to ServiceAccounts
+
+### High-Level Architecture Diagram
+
+The architecture diagram in the Overview tab provides:
+
+- **Hierarchical Layout** - Resources grouped by category (Workloads, Networking, Configuration, etc.)
+- **Node Sizing** - Node size based on connectivity (in-degree + out-degree)
+- **Critical Node Detection** - Nodes with above-average connectivity highlighted
+- **Directed Edges** - Arrows showing relationships and data flow direction
+- **Interactive Tooltips** - Hover to see resource details and connection metrics
+
+### Enhanced Topology Tab
+
+The topology tab offers an actionable system view:
+
+- **Namespace Grouping** - Resources organized by namespace and category
+- **Relationship Edges** - Visual connections between related resources
+- **Critical Emphasis** - Important nodes shown with thicker borders
+- **Zoom/Pan Controls** - Navigate large topologies easily
+- **Fit to Screen** - Auto-adjust view to show all resources
 
 ## Security Features
 
