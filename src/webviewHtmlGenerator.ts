@@ -1495,7 +1495,7 @@ function generateJavaScript(data: any): string {
                         const sourceNode = container.querySelector(\`.topo-node[data-node-id="\${sourceId}"]\`);
                         const targetNode = container.querySelector(\`.topo-node[data-node-id="\${targetId}"]\`);
                         
-                        if (!sourceNode?.hasAttribute('data-filtered') && !targetNode?.hasAttribute('data-filtered')) {
+                        if (sourceNode?.getAttribute('data-filtered') !== 'hidden' && targetNode?.getAttribute('data-filtered') !== 'hidden') {
                             edge.removeAttribute('data-filtered');
                         }
                     });
@@ -1531,12 +1531,12 @@ function generateJavaScript(data: any): string {
                 container.appendChild(tierLabel);
                 
                 // Position nodes horizontally within this tier
-                const nodeCount = tier.nodes.length;
-                if (nodeCount === 0) continue; // Skip empty tiers
+                const tierNodeCount = tier.nodes.length;
+                if (tierNodeCount === 0) continue; // Skip empty tiers
                 
                 const availableWidth = width - 2 * margin - 40;
-                const spacing = nodeCount > 1 ? Math.min(nodeSpacing, availableWidth / (nodeCount - 1)) : 0;
-                const startX = margin + 20 + (availableWidth - (nodeCount - 1) * spacing) / 2;
+                const spacing = tierNodeCount > 1 ? Math.min(nodeSpacing, availableWidth / (tierNodeCount - 1)) : 0;
+                const startX = margin + 20 + (availableWidth - (tierNodeCount - 1) * spacing) / 2;
                 
                 tier.nodes.forEach((node, i) => {
                     const x = startX + i * spacing;
