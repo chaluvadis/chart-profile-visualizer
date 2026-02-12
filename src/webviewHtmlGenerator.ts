@@ -1069,10 +1069,11 @@ function generateJavaScript(data: any): string {
                 // to ensure labels always stay within the node box boundaries
                 const textPadding = 16; // 8px padding on each side
                 const maxTextWidth = nodeWidth - textPadding;
+                const ELLIPSIS = '...';
                 
                 // Helper function to truncate text to fit within available width
                 // Uses SVG's getComputedTextLength() for accurate measurement
-                const truncateText = (text, maxWidth, element) => {
+                const truncateText = (text: string, maxWidth: number, element: SVGTextElement): string => {
                     element.textContent = text;
                     let textWidth = element.getComputedTextLength();
                     
@@ -1085,12 +1086,12 @@ function generateJavaScript(data: any): string {
                     let truncated = text;
                     while (textWidth > maxWidth && truncated.length > 0) {
                         truncated = truncated.slice(0, -1);
-                        element.textContent = truncated + '...';
+                        element.textContent = truncated + ELLIPSIS;
                         textWidth = element.getComputedTextLength();
                     }
                     
                     // If we had to truncate, return with ellipsis
-                    return truncated.length > 0 ? truncated + '...' : '...';
+                    return truncated.length > 0 ? truncated + ELLIPSIS : ELLIPSIS;
                 };
                 
                 // Kind label (top)
