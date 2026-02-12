@@ -1269,27 +1269,34 @@ function generateJavaScript(data: any): string {
                  * Each node is a rectangle from y=-nodeSize/2 to y=nodeSize/2 (height = nodeSize)
                  * where nodeSize = baseSize (20) + connectivityBonus (0-16), typically 20-36px
                  * 
+                 * For minimum size (20px): box bounds are y=-10 to y=10
+                 * For maximum size (36px): box bounds are y=-18 to y=18
+                 * 
                  * Labels are positioned to be INSIDE the box:
                  * - Kind label: y=-5 (upper portion, above center line at y=0)
                  * - Name label: y=7 (lower portion, below center line at y=0)
+                 * 
+                 * These positions work for all node sizes:
+                 * - Minimum (20px): -5 and 7 are within [-10, 10] bounds
+                 * - Typical/Maximum (36px): -5 and 7 are comfortably within [-18, 18] bounds
                  * 
                  * Both use text-anchor="middle" (set in CSS) to horizontally center at x=0
                  * Font sizes are kept small (9px, 8px) to fit within the node width
                  * Text is truncated to prevent overflow (kind: 10 chars, name: 12 chars)
                  * 
-                 * This ensures labels are always visible inside their boxes and don't
-                 * extend beyond the node boundaries even at minimum node size (20px).
+                 * Note: Labels are positioned close to edges on minimum-sized nodes but
+                 * remain fully visible. Larger nodes have more comfortable spacing.
                  */
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('class', 'topo-label');
-                text.setAttribute('y', '-5');  // Position above center, within box bounds
+                text.setAttribute('y', '-5');  // Position above center, within box bounds for all node sizes
                 text.setAttribute('font-size', '9');
                 text.textContent = node.kind.substring(0, 10);
                 g.appendChild(text);
 
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 nameText.setAttribute('class', 'topo-label');
-                nameText.setAttribute('y', '7');  // Position below center, within box bounds
+                nameText.setAttribute('y', '7');  // Position below center, within box bounds for all node sizes
                 nameText.setAttribute('font-size', '8');
                 nameText.setAttribute('opacity', '0.8');
                 nameText.textContent = node.name.substring(0, 12);
@@ -1361,7 +1368,7 @@ function generateJavaScript(data: any): string {
              * This works in conjunction with the .topology-view CSS flexbox centering
              * to ensure the graph is centered both at the container and content level.
              */
-            const contentBounds = container.getBBox ? container.getBBox() : { x: 0, y: 0, width: width, height: height };
+            const contentBounds = typeof container.getBBox === 'function' ? container.getBBox() : { x: 0, y: 0, width: width, height: height };
             const centerX = (width - contentBounds.width) / 2 - contentBounds.x;
             const centerY = (height - contentBounds.height) / 2 - contentBounds.y;
             topologyPanX = centerX;
