@@ -1532,7 +1532,8 @@ function generateJavaScript(data: any): string {
                 
                 // Position nodes horizontally within this tier
                 const tierNodeCount = tier.nodes.length;
-                if (tierNodeCount === 0) continue; // Skip empty tiers
+                // Skip empty tiers to prevent division by zero in spacing calculation
+                if (tierNodeCount === 0) continue;
                 
                 const availableWidth = width - 2 * margin - 40;
                 const spacing = tierNodeCount > 1 ? Math.min(nodeSpacing, availableWidth / (tierNodeCount - 1)) : 0;
@@ -1566,7 +1567,7 @@ function generateJavaScript(data: any): string {
                 path.setAttribute('stroke', edge.type === 'ownership' ? '#ffa500' : 'var(--vscode-foreground)');
                 
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = \`\${edge.source} → \${edge.target}\\nType: \${edge.type || 'connection'}\${edge.label ? '\\n' + edge.label : ''}\`;
+                title.textContent = \`\${edge.source} → \${edge.target}\\nType: \${edge.type || 'connection'}\${edge.label ? \`\\n\${edge.label}\` : ''}\`;
                 path.appendChild(title);
                 
                 container.appendChild(path);
@@ -1675,7 +1676,7 @@ function generateJavaScript(data: any): string {
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
                 const criticalStr = node.isCritical ? ' [CRITICAL]' : '';
                 const connectionsStr = \`Connections: \${totalConnections} (In: \${node.inDegree}, Out: \${node.outDegree})\`;
-                title.textContent = \`\${node.kind}: \${node.name}\${criticalStr}\\n\${node.namespace ? 'Namespace: ' + node.namespace + '\\n' : ''}Category: \${node.category}\\n\${connectionsStr}\`;
+                title.textContent = \`\${node.kind}: \${node.name}\${criticalStr}\${node.namespace ? \`\\nNamespace: \${node.namespace}\` : ''}\\nCategory: \${node.category}\\n\${connectionsStr}\`;
                 g.appendChild(title);
                 
                 // Interactive click handler
