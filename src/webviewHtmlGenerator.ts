@@ -539,6 +539,9 @@ function getEnhancedStyles(): string {
         .topology-view {
             position: relative;
             height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .topology-controls {
             position: absolute;
@@ -1119,16 +1122,18 @@ function generateJavaScript(data: any): string {
             const activeTiers = tierOrder.filter(t => tiers[t].nodes.length > 0);
             
             // Layout in columns (swimlanes) by tier
-            const columnWidth = width / (activeTiers.length + 1);
+            // Calculate equal-width columns with proper spacing for alignment
+            const columnWidth = width / activeTiers.length;
             const nodeSpacing = 70;
             const startY = 80;
             
             activeTiers.forEach((tierName, tierIndex) => {
                 const tier = tiers[tierName];
-                const x = (tierIndex + 0.8) * columnWidth;
+                // Center nodes within each column for proper alignment
+                const x = (tierIndex + 0.5) * columnWidth;
                 let y = startY;
                 
-                // Draw tier background rectangle
+                // Draw tier background rectangle aligned with column
                 const tierGroup = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 tierGroup.setAttribute('class', 'topo-tier-bg');
                 tierGroup.setAttribute('x', tierIndex * columnWidth + 20);
@@ -1143,7 +1148,7 @@ function generateJavaScript(data: any): string {
                 tierGroup.setAttribute('rx', '10');
                 container.appendChild(tierGroup);
                 
-                // Tier label
+                // Tier label centered within column
                 const tierLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 tierLabel.setAttribute('x', x);
                 tierLabel.setAttribute('y', 50);
@@ -1242,16 +1247,18 @@ function generateJavaScript(data: any): string {
                     g.appendChild(badgeText);
                 }
 
+                // Position text labels inside the node box with proper vertical centering
+                // Node box is from y=-nodeSize/2 to y=nodeSize/2
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('class', 'topo-label');
-                text.setAttribute('y', '-2');
+                text.setAttribute('y', '-5');  // Position above center, within box bounds
                 text.setAttribute('font-size', '9');
                 text.textContent = node.kind.substring(0, 10);
                 g.appendChild(text);
 
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 nameText.setAttribute('class', 'topo-label');
-                nameText.setAttribute('y', '10');
+                nameText.setAttribute('y', '7');  // Position below center, within box bounds
                 nameText.setAttribute('font-size', '8');
                 nameText.setAttribute('opacity', '0.8');
                 nameText.textContent = node.name.substring(0, 12);
@@ -1304,6 +1311,14 @@ function generateJavaScript(data: any): string {
                 selectedNode = null;
             });
 
+            // Center the graph content within the SVG viewport
+            // Calculate content bounds and apply centering transform
+            const contentBounds = container.getBBox ? container.getBBox() : { x: 0, y: 0, width: width, height: height };
+            const centerX = (width - contentBounds.width) / 2 - contentBounds.x;
+            const centerY = (height - contentBounds.height) / 2 - contentBounds.y;
+            topologyPanX = centerX;
+            topologyPanY = centerY;
+            
             updateTopologyZoom();
         }
 
