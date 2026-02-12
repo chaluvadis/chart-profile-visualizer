@@ -1381,8 +1381,8 @@ function generateJavaScript(data: any): string {
             const centerX = (width - contentBounds.width) / 2 - contentBounds.x;
             const centerY = (height - contentBounds.height) / 2 - contentBounds.y;
             // Store the initially computed centered pan so Reset / Fit can restore this view
-            var defaultTopologyPanX = centerX;
-            var defaultTopologyPanY = centerY;
+            const defaultTopologyPanX = centerX;
+            const defaultTopologyPanY = centerY;
             topologyPanX = centerX;
             topologyPanY = centerY;
             
