@@ -7,9 +7,9 @@ import type { ChartTreeItem } from "./chartProfilesProvider";
 import { type RenderedResource, renderHelmTemplate } from "./helmRenderer";
 import { LiveUpdateManager } from "./liveUpdateManager";
 import {
+	type ArchitectureNode,
 	buildArchitectureNodes,
 	detectRelationships,
-	type ArchitectureNode,
 	type ResourceRelationship,
 } from "./relationshipDetector";
 import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
@@ -281,9 +281,7 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	const resourceHierarchy = parseResources(resources);
 
 	// Detect relationships and build architecture
-	const structuredResources = Array.from(resourceHierarchy.kindGroups.values()).flatMap(
-		(group) => group.resources
-	);
+	const structuredResources = Array.from(resourceHierarchy.kindGroups.values()).flatMap((group) => group.resources);
 	const relationships = detectRelationships(structuredResources);
 	const architectureNodes = buildArchitectureNodes(structuredResources, relationships);
 

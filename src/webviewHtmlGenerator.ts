@@ -881,13 +881,18 @@ function generateJavaScript(data: any): string {
 
             // Draw edges first (so they appear behind nodes)
             const edgesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            
+            // Control point offset for quadratic bezier curve - creates a gentle arc between nodes
+            // Negative offset creates an upward curve, making edge direction clearer
+            const CURVE_OFFSET = 30;
+            
             edges.forEach(edge => {
                 const source = nodePositions.get(edge.source);
                 const target = nodePositions.get(edge.target);
                 if (!source || !target) return;
 
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                const d = \`M\${source.x},\${source.y} Q\${(source.x + target.x)/2},\${(source.y + target.y)/2 - 30} \${target.x},\${target.y}\`;
+                const d = \`M\${source.x},\${source.y} Q\${(source.x + target.x)/2},\${(source.y + target.y)/2 - CURVE_OFFSET} \${target.x},\${target.y}\`;
                 path.setAttribute('d', d);
                 path.setAttribute('class', 'arch-edge');
                 path.setAttribute('marker-end', 'url(#arrowhead)');
@@ -945,8 +950,13 @@ function generateJavaScript(data: any): string {
         }
 
         // Initialize architecture diagram when overview tab is loaded
+        // Use requestIdleCallback if available (modern browsers), otherwise fall back to setTimeout
         if (document.getElementById('architectureDiagram')) {
-            requestIdleCallback ? requestIdleCallback(initArchitectureDiagram) : setTimeout(initArchitectureDiagram, 0);
+            if (typeof requestIdleCallback !== 'undefined') {
+                requestIdleCallback(initArchitectureDiagram, { timeout: 500 });
+            } else {
+                setTimeout(initArchitectureDiagram, 0);
+            }
         }
 
         // Enhanced Topology view with relationships

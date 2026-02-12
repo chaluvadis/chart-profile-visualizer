@@ -163,8 +163,7 @@ export function detectRelationships(resources: StructuredResource[]): ResourceRe
 
 		// 7. ServiceAccount references
 		if (resource.spec?.template?.spec?.serviceAccountName || resource.spec?.serviceAccountName) {
-			const saName =
-				resource.spec.template?.spec?.serviceAccountName || resource.spec.serviceAccountName;
+			const saName = resource.spec.template?.spec?.serviceAccountName || resource.spec.serviceAccountName;
 			relationships.push({
 				source: `${resource.kind}/${resource.name}`,
 				target: `ServiceAccount/${saName}`,
@@ -239,12 +238,19 @@ export function buildArchitectureNodes(
 
 	// Identify critical nodes (high centrality)
 	const nodeArray = Array.from(nodes.values());
+
+	// Critical node threshold: nodes with connectivity 1.5x above average are considered critical
+	// This helps identify key components like API gateways, shared services, etc.
+	const CRITICAL_NODE_THRESHOLD = 1.5;
+
+	// Calculate average degree (handle empty array case)
 	const avgDegree =
-		nodeArray.reduce((sum, n) => sum + n.inDegree + n.outDegree, 0) / nodeArray.length;
+		nodeArray.length > 0 ? nodeArray.reduce((sum, n) => sum + n.inDegree + n.outDegree, 0) / nodeArray.length : 0;
+
 	for (const node of nodeArray) {
 		const totalDegree = node.inDegree + node.outDegree;
 		// Critical if above average connectivity
-		node.isCritical = totalDegree > avgDegree * 1.5;
+		node.isCritical = totalDegree > avgDegree * CRITICAL_NODE_THRESHOLD;
 	}
 
 	return nodeArray;
