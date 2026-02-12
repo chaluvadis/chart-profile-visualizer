@@ -98,13 +98,23 @@
 │  │    │    • Data: { key1: ••••••••, key2: •••• }│          │   │
 │  │    └──────────────────────────────────────────┘          │   │
 │  │                                                           │   │
-│  │  Topology Tab:                                           │   │
-│  │    • Enhanced SVG Graph with:                            │   │
-│  │      - Resources grouped by namespace & category         │   │
-│  │      - Relationship edges (Services→Pods, etc.)          │   │
-│  │      - Critical nodes emphasized                         │   │
-│  │      - Interactive tooltips on hover                     │   │
-│  │    • Zoom/Pan/Fit Controls                               │   │
+│  │  Topology Tab (Redesigned):                             │   │
+│  │    • Modern horizontal tier layout with:                │   │
+│  │      - Resources in horizontal bands by category        │   │
+│  │      - Card-based nodes with gradients & shadows        │   │
+│  │      - Interactive legend and tier filtering            │   │
+│  │      - Resource and connection statistics in header     │   │
+│  │    • Enhanced node design:                              │   │
+│  │      - Critical badges (⚠) for important resources      │   │
+│  │      - Connectivity badges (count) for busy nodes       │   │
+│  │      - Smooth animations and transitions                │   │
+│  │      - Modern color scheme aligned with VSCode themes   │   │
+│  │    • Improved interactions:                             │   │
+│  │      - Click to highlight relationships                 │   │
+│  │      - Mouse drag to pan, wheel to zoom                 │   │
+│  │      - Tier filter dropdown                             │   │
+│  │    • Advanced Controls:                                 │   │
+│  │      - Zoom in/out, Reset view, Fit to screen          │   │
 │  │    • Relationship Detection:                             │   │
 │  │      - Service selectors                                 │   │
 │  │      - Ingress routing                                   │   │
@@ -150,14 +160,14 @@ Icons are loaded via webview.asWebviewUri() and switched based on theme.
 
 ## Color Coding
 
-Resources are color-coded by category:
-- Workloads → Blue (#007acc)
-- Networking → Green (#4caf50)
-- Configuration → Orange (#ff9800)
-- Storage → Purple (#9c27b0)
-- RBAC → Red (#f44336)
-- Scaling → Teal (#00bcd4)
-- Other → Gray (#9e9e9e)
+Resources are color-coded by category using modern, accessible colors:
+- Workloads → Blue (#0078d4)
+- Networking → Green (#107c10)
+- Storage → Purple (#8661c5)
+- Configuration → Orange (#d83b01)
+- RBAC → Red (#e81123)
+- Scaling → Teal (#008272)
+- Other → Gray (#737373)
 
 ## Architecture Visualization
 
@@ -191,20 +201,79 @@ The architecture diagram in the Overview tab provides:
 - **Directed Arrows** - Curved edges with arrowheads showing relationships and data flow direction
 - **Interactive Tooltips** - Hover to see resource details, category, and connection metrics
 
-### Enhanced Topology Tab
+### Redesigned Topology Tab
 
-The topology tab offers a detailed structural view with actionable insights:
+The topology tab has been completely redesigned with a modern, intuitive interface:
 
-- **Tier-Based Swimlanes** - Resources organized in vertical columns by category
-- **Visual Tier Boundaries** - Color-coded backgrounds with dashed borders for each tier
-- **Tier Labels** - Clear headers identifying each category column
-- **Relationship Edges** - Curved paths with directional arrows showing connection types
-- **Critical Node Highlighting** - Important nodes with glowing effects and special borders
-- **Connectivity Badges** - Orange badges on high-traffic nodes showing connection count
-- **Click-to-Highlight** - Click nodes to highlight all their relationships
-- **Enhanced Tooltips** - Detailed metadata including namespace, category, and connection counts
-- **Zoom/Pan Controls** - Navigate large topologies easily
-- **Fit to Screen** - Auto-adjust view to show all resources
+**Layout Architecture:**
+- **Horizontal Tier Layout** - Resources organized in horizontal bands (rows) instead of vertical columns
+  - Each tier (Workload, Networking, Storage, etc.) gets a horizontal band across the canvas
+  - Nodes within each tier are distributed horizontally for better space utilization
+  - More intuitive left-to-right flow, especially on widescreen displays
+  
+**Visual Design:**
+- **Modern Node Cards** - Card-based design with:
+  - Gradient overlays for visual depth
+  - Drop shadows for elevation (filter: url(#dropShadow))
+  - Smooth rounded corners (rx: 6)
+  - Dynamic sizing based on connectivity (larger nodes = more connections)
+  - Color-coded by tier with modern, accessible color palette
+  
+- **Smart Badges:**
+  - **Critical Badge (⚠)** - Orange warning badge on critical resources
+    - Positioned at top-right corner
+    - Pulsing glow animation for attention
+    - Indicates high importance in system architecture
+  - **Connectivity Badge** - Blue circular badge showing connection count
+    - Appears on nodes with 5+ connections
+    - Positioned at top-left corner
+    - Shows exact number of total connections
+    
+**Enhanced Header:**
+- Resource and connection statistics
+- Tier filter dropdown to focus on specific categories
+- Modern control buttons with improved styling
+
+**Interactive Features:**
+- **Click Selection** - Click nodes to highlight their relationships
+  - Selected node gets brighter with blue glow effect
+  - Connected edges highlighted in blue with increased thickness
+  - Smooth transitions (0.25s cubic-bezier easing)
+- **Pan and Zoom:**
+  - Mouse drag to pan the view
+  - Mouse wheel to zoom in/out
+  - Zoom buttons: +/− for precise control
+  - Reset button to return to default view
+  - Fit-to-screen automatically calculates optimal zoom and centering
+  
+**Edge Rendering:**
+- **Smooth Cubic Bezier Curves** - More aesthetically pleasing than straight lines
+  - Formula: C[source.x + offset], [source.y] [target.x - offset], [target.y] [target.x], [target.y]
+  - Control point offset = 50% of horizontal distance
+  - Creates natural flowing connections
+- **Edge Types:**
+  - Regular connections: subtle gray, low opacity (0.25)
+  - Critical paths (ownership): orange, medium opacity (0.6)
+  - Highlighted edges: bright blue, high opacity (0.9)
+- **Directional Arrows** - Markers showing relationship direction
+
+**Legend System:**
+- Two-section legend showing:
+  1. **Resource Tiers** - Color swatches for each category
+  2. **Indicators** - Badge examples (critical, connectivity)
+- Compact design that doesn't clutter the interface
+
+**Tier Filtering:**
+- Dropdown to filter view by specific tier
+- "All Tiers" shows complete topology
+- Selecting a tier hides other tiers and shows only relevant connections
+- Smooth show/hide transitions
+
+**Performance Optimizations:**
+- Efficient SVG rendering with requestIdleCallback
+- Transition animations use hardware-accelerated properties
+- Event delegation for better performance with many nodes
+- Lazy initialization when tab becomes active
 
 ## Security Features
 

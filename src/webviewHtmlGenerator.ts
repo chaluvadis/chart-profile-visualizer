@@ -280,25 +280,126 @@ function generateTopologyTab(): string {
 	return `
         <div class="topology-view">
             <div class="topology-header">
-                <h2>System Topology
-                    <span class="help-tooltip" title="Detailed system structure organized by tiers (swimlanes). Resources are grouped by category with visual highlighting of critical components. Click nodes to highlight relationships. Orange badges show high connectivity. Critical nodes have glowing indicators. Arrows show relationship direction and type.">ⓘ</span>
-                </h2>
+                <div class="topology-title-section">
+                    <h2>System Topology
+                        <span class="help-tooltip" title="Interactive system architecture view organized by resource tiers. Click nodes to highlight relationships. Use controls to zoom, pan, and filter. Critical nodes are marked with badges. Connection counts show integration complexity.">ⓘ</span>
+                    </h2>
+                    <div class="topology-info">
+                        <span id="nodeCount" class="topology-stat">0 resources</span>
+                        <span class="topology-separator">•</span>
+                        <span id="edgeCount" class="topology-stat">0 connections</span>
+                    </div>
+                </div>
+                <div class="topology-controls">
+                    <div class="control-group">
+                        <button id="zoomInBtn" class="topology-btn" title="Zoom In">
+                            <span class="btn-icon">➕</span>
+                        </button>
+                        <button id="zoomOutBtn" class="topology-btn" title="Zoom Out">
+                            <span class="btn-icon">➖</span>
+                        </button>
+                        <button id="resetZoomBtn" class="topology-btn" title="Reset View">
+                            <span class="btn-icon">⟲</span>
+                        </button>
+                        <button id="fitToScreen" class="topology-btn" title="Fit to Screen">
+                            <span class="btn-icon">⛶</span>
+                        </button>
+                    </div>
+                    <div class="control-group">
+                        <select id="tierFilter" class="topology-select" title="Filter by tier">
+                            <option value="all">All Tiers</option>
+                            <option value="Workload">Workloads</option>
+                            <option value="Networking">Networking</option>
+                            <option value="Storage">Storage</option>
+                            <option value="Configuration">Configuration</option>
+                            <option value="RBAC">RBAC</option>
+                            <option value="Scaling">Scaling</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="topology-controls">
-                <button id="zoomInBtn" class="topology-btn" title="Zoom In">🔍+</button>
-                <button id="zoomOutBtn" class="topology-btn" title="Zoom Out">🔍-</button>
-                <button id="resetZoomBtn" class="topology-btn" title="Reset View">⟲</button>
-                <button id="fitToScreen" class="topology-btn" title="Fit to Screen">⛶</button>
+            <div class="topology-legend">
+                <div class="legend-section">
+                    <span class="legend-label">Resource Tiers:</span>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #0078d4;"></div>
+                            <span>Workload</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #107c10;"></div>
+                            <span>Networking</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #8661c5;"></div>
+                            <span>Storage</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #d83b01;"></div>
+                            <span>Configuration</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #e81123;"></div>
+                            <span>RBAC</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #008272;"></div>
+                            <span>Scaling</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="legend-section">
+                    <span class="legend-label">Indicators:</span>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <div class="legend-badge critical">⚠</div>
+                            <span>Critical Resource</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-badge connectivity">5+</div>
+                            <span>High Connectivity</span>
+                        </div>
+                    </div>
+                </div>
             </div>
             <svg id="topologySvg" class="topology-svg">
                 <defs>
+                    <!-- Gradient definitions for modern look -->
+                    <linearGradient id="nodeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:rgba(255,255,255,0.1);stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:rgba(0,0,0,0.1);stop-opacity:1" />
+                    </linearGradient>
                     <!-- Arrow markers for different relationship types -->
-                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                        <polygon points="0 0, 10 3, 0 6" fill="var(--vscode-foreground)" opacity="0.6" />
+                    <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="var(--vscode-foreground)" opacity="0.5" />
                     </marker>
-                    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-                        <polygon points="0 0, 10 3, 0 6" fill="#ff9800" opacity="0.8" />
+                    <marker id="arrowhead-critical" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#ffa500" opacity="0.8" />
                     </marker>
+                    <marker id="arrowhead-selected" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                        <polygon points="0 0, 8 4, 0 8" fill="#0078d4" opacity="0.9" />
+                    </marker>
+                    <!-- Filter for drop shadow -->
+                    <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+                        <feOffset dx="0" dy="2" result="offsetblur"/>
+                        <feComponentTransfer>
+                            <feFuncA type="linear" slope="0.3"/>
+                        </feComponentTransfer>
+                        <feMerge>
+                            <feMergeNode/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                    <!-- Glow effect for critical nodes -->
+                    <filter id="criticalGlow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
                 </defs>
                 <g id="topologyContent"></g>
             </svg>
@@ -536,55 +637,162 @@ function getEnhancedStyles(): string {
             color: var(--vscode-gitDecoration-modifiedResourceForeground);
             font-weight: bold;
         }
-        /* Center the topology SVG within its container using flexbox */
+        /* Modern Topology View Styles */
         .topology-view {
             position: relative;
-            height: 600px;
+            height: 700px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .topology-controls {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 10;
-            display: flex;
-            gap: 5px;
-        }
-        .topology-controls button {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .topology-svg {
-            width: 100%;
-            height: 100%;
             background-color: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 4px;
+            border-radius: 8px;
+            overflow: hidden;
         }
         .topology-header {
-            padding: 10px 0;
+            padding: 16px 20px;
+            background-color: var(--vscode-editor-inactiveSelectionBackground);
+            border-bottom: 1px solid var(--vscode-panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .topology-title-section {
+            flex: 1;
+            min-width: 250px;
         }
         .topology-header h2 {
-            margin: 0;
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .topology-info {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+            align-items: center;
+        }
+        .topology-stat {
+            font-weight: 500;
+        }
+        .topology-separator {
+            opacity: 0.5;
+        }
+        .topology-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            gap: 4px;
+            background-color: var(--vscode-input-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 6px;
+            padding: 4px;
         }
         .topology-btn {
-            background-color: var(--vscode-button-background);
+            background-color: transparent;
             color: var(--vscode-button-foreground);
             border: none;
             padding: 6px 10px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
         }
         .topology-btn:hover {
             background-color: var(--vscode-button-hoverBackground);
+        }
+        .topology-btn .btn-icon {
+            display: inline-block;
+            font-size: 16px;
+        }
+        .topology-select {
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+        }
+        .topology-select:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+        .topology-legend {
+            padding: 12px 20px;
+            background-color: var(--vscode-editor-background);
+            border-bottom: 1px solid var(--vscode-panel-border);
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            font-size: 11px;
+        }
+        .legend-section {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .legend-label {
+            font-weight: 600;
+            color: var(--vscode-descriptionForeground);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .legend-items {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid var(--vscode-panel-border);
+        }
+        .legend-badge {
+            min-width: 24px;
+            height: 18px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 0 4px;
+        }
+        .legend-badge.critical {
+            background-color: #ffa500;
+            color: #000;
+        }
+        .legend-badge.connectivity {
+            background-color: #0078d4;
+            color: #fff;
+        }
+        .topology-svg {
+            flex: 1;
+            width: 100%;
+            background-color: var(--vscode-editor-background);
+            cursor: grab;
+        }
+        .topology-svg:active {
+            cursor: grabbing;
         }
         .architecture-diagram {
             position: relative;
@@ -668,48 +876,122 @@ function getEnhancedStyles(): string {
         .legend-item svg {
             vertical-align: middle;
         }
+        /* Modern Topology Node and Edge Styles */
         .topo-node {
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .topo-node[data-filtered="hidden"] {
+            display: none;
         }
         .topo-node:hover {
-            filter: brightness(1.2);
+            filter: brightness(1.15) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            transform: translateY(-2px);
         }
         .topo-node.selected {
-            filter: brightness(1.4) drop-shadow(0 0 8px rgba(255, 152, 0, 0.8));
+            filter: brightness(1.25) drop-shadow(0 6px 16px rgba(0, 120, 212, 0.6));
+        }
+        .topo-node-rect {
+            stroke-width: 2;
+            stroke: var(--vscode-panel-border);
+            filter: url(#dropShadow);
+            rx: 6;
+        }
+        .topo-node.critical .topo-node-rect {
+            stroke: #ffa500;
+            stroke-width: 3;
+            filter: url(#criticalGlow);
         }
         .topo-edge {
             fill: none;
             stroke: var(--vscode-foreground);
             stroke-width: 1.5;
-            opacity: 0.3;
+            opacity: 0.25;
             marker-end: url(#arrowhead);
-            transition: all 0.2s;
+            transition: all 0.25s ease;
+        }
+        .topo-edge[data-filtered="hidden"] {
+            display: none;
         }
         .topo-edge.highlighted {
             opacity: 0.9;
-            stroke: #ff9800;
+            stroke: #0078d4;
             stroke-width: 2.5;
+            marker-end: url(#arrowhead-selected);
+        }
+        .topo-edge.critical-path {
+            stroke: #ffa500;
+            opacity: 0.6;
+            marker-end: url(#arrowhead-critical);
         }
         .critical-glow {
             animation: pulse 2s ease-in-out infinite;
         }
         @keyframes pulse {
-            0%, 100% { opacity: 0.2; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.7; }
         }
         .topo-label {
-            font-size: 10px;
+            font-size: 11px;
             fill: var(--vscode-foreground);
             text-anchor: middle;
             pointer-events: none;
+            font-weight: 500;
         }
-        .topo-group {
+        .topo-label.name {
+            font-size: 9px;
+            opacity: 0.85;
+            font-weight: 400;
+        }
+        .topo-tier-bg {
             fill: var(--vscode-editor-inactiveSelectionBackground);
             stroke: var(--vscode-panel-border);
-            stroke-width: 2;
+            stroke-width: 1;
+            stroke-dasharray: 4,4;
             rx: 8;
-            opacity: 0.3;
+            opacity: 0.4;
+        }
+        .topo-tier-bg[data-filtered="hidden"] {
+            display: none;
+        }
+        .topo-tier-label {
+            font-size: 13px;
+            font-weight: 600;
+            fill: var(--vscode-descriptionForeground);
+            text-anchor: start;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .topo-tier-label[data-filtered="hidden"] {
+            display: none;
+        }
+        .connectivity-badge {
+            cursor: help;
+        }
+        .connectivity-badge-circle {
+            fill: #0078d4;
+            stroke: var(--vscode-editor-background);
+            stroke-width: 2;
+        }
+        .connectivity-badge-text {
+            fill: #fff;
+            font-size: 9px;
+            font-weight: bold;
+            text-anchor: middle;
+        }
+        .critical-badge {
+            cursor: help;
+        }
+        .critical-badge-bg {
+            fill: #ffa500;
+            stroke: var(--vscode-editor-background);
+            stroke-width: 2;
+        }
+        .critical-badge-text {
+            fill: #000;
+            font-size: 11px;
+            font-weight: bold;
+            text-anchor: middle;
         }
         .no-data {
             text-align: center;
@@ -1082,6 +1364,16 @@ function generateJavaScript(data: any): string {
         }
 
         // Enhanced Topology view with relationships
+        /**
+         * Modern Topology Rendering with Horizontal Layout
+         * 
+         * Key improvements:
+         * - Horizontal tier arrangement (resources grouped by type across the width)
+         * - Better spacing and visual hierarchy
+         * - Modern card-based node design with shadows
+         * - Enhanced interactivity and animations
+         * - Cleaner edge routing
+         */
         function initTopology() {
             const svg = document.getElementById('topologySvg');
             if (!svg) return;
@@ -1094,31 +1386,37 @@ function generateJavaScript(data: any): string {
             const nodes = ${safeArchNodes};
             const edges = ${safeRelationships};
             
+            // Update stats in header
+            const nodeCount = document.getElementById('nodeCount');
+            const edgeCount = document.getElementById('edgeCount');
+            if (nodeCount) nodeCount.textContent = \`\${nodes.length} resource\${nodes.length !== 1 ? 's' : ''}\`;
+            if (edgeCount) edgeCount.textContent = \`\${edges.length} connection\${edges.length !== 1 ? 's' : ''}\`;
+            
             if (nodes.length === 0) {
-                container.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--vscode-foreground)">No resources to display</text>';
+                container.innerHTML = '<text x="50%" y="50%" text-anchor="middle" font-size="14" fill="var(--vscode-descriptionForeground)">No resources to display</text>';
                 return;
             }
 
-            const width = svg.clientWidth || 800;
-            const height = svg.clientHeight || 600;
+            const width = svg.clientWidth || 1000;
+            const height = svg.clientHeight || 650;
 
-            // Enhanced grouping by category (tiers/domains)
+            // Enhanced tier configuration with modern colors
             const tiers = {
-                'Workload': { nodes: [], color: '#007acc', label: 'Workloads' },
-                'Networking': { nodes: [], color: '#4caf50', label: 'Networking' },
-                'Storage': { nodes: [], color: '#9c27b0', label: 'Storage' },
-                'Configuration': { nodes: [], color: '#ff9800', label: 'Configuration' },
-                'RBAC': { nodes: [], color: '#f44336', label: 'RBAC' },
-                'Scaling': { nodes: [], color: '#00bcd4', label: 'Scaling' },
-                'Other': { nodes: [], color: '#9e9e9e', label: 'Other' }
+                'Workload': { nodes: [], color: '#0078d4', label: 'Workloads', icon: '⚙' },
+                'Networking': { nodes: [], color: '#107c10', label: 'Networking', icon: '🌐' },
+                'Storage': { nodes: [], color: '#8661c5', label: 'Storage', icon: '💾' },
+                'Configuration': { nodes: [], color: '#d83b01', label: 'Configuration', icon: '📝' },
+                'RBAC': { nodes: [], color: '#e81123', label: 'RBAC', icon: '🔒' },
+                'Scaling': { nodes: [], color: '#008272', label: 'Scaling', icon: '📊' },
+                'Other': { nodes: [], color: '#737373', label: 'Other', icon: '📦' }
             };
             
+            // Group nodes by category
             nodes.forEach(node => {
                 const category = node.category || 'Other';
                 if (tiers[category]) {
                     tiers[category].nodes.push(node);
                 } else {
-                    // Route unknown categories to Other
                     tiers['Other'].nodes.push(node);
                 }
             });
@@ -1128,203 +1426,267 @@ function generateJavaScript(data: any): string {
             const activeTiers = tierOrder.filter(t => tiers[t].nodes.length > 0);
             
             /**
-             * SWIMLANE LAYOUT ALGORITHM
+             * HORIZONTAL TIER LAYOUT ALGORITHM
              * 
-             * The topology graph organizes resources into vertical swimlanes (columns) by category.
-             * Each swimlane represents one of: Workloads, Networking, Storage, Configuration, RBAC, Scaling, or Other.
+             * Improved layout that arranges tiers horizontally across the canvas
+             * with better spacing and visual organization.
              * 
-             * Layout calculations:
-             * - margin: Outer padding (40px) to prevent nodes from being clipped at viewport edges
-             * - columnWidth: (SVG width - 2*margin) divided by number of active tiers ensures equal spacing
-             * - Node x-position: margin + (tierIndex + 0.5) * columnWidth centers nodes within their column
-             * - Background rectangle: margin + tierIndex * columnWidth + padding aligns with column boundaries
-             * - Node y-position: Nodes are stacked vertically with consistent spacing (70px)
-             * 
-             * This ensures:
-             * 1. Consistent column widths across all tiers
-             * 2. Nodes centered within their respective swimlanes
-             * 3. Tier labels and backgrounds aligned with node positions
-             * 4. No clipping at viewport edges even on narrow panels
+             * Layout structure:
+             * - Tiers are arranged as horizontal rows (not vertical columns)
+             * - Each tier gets a horizontal band across the canvas
+             * - Nodes within a tier are distributed horizontally
+             * - Better utilization of widescreen displays
+             * - More intuitive left-to-right flow
              */
-            const margin = 40;
-            const columnWidth = activeTiers.length > 0 ? (width - 2 * margin) / activeTiers.length : width;
-            const nodeSpacing = 70;
-            const startY = 80;
+            const margin = 50;
+            const tierHeight = activeTiers.length > 0 ? (height - 2 * margin - 60) / activeTiers.length : 100;
+            const nodeSpacing = 100;
+            const startY = margin + 60;
             
+            // Track filter state
+            let filterTier = 'all';
+            const tierFilterEl = document.getElementById('tierFilter');
+            if (tierFilterEl) {
+                tierFilterEl.addEventListener('change', (e) => {
+                    filterTier = e.target.value;
+                    applyTierFilter();
+                });
+            }
+            
+            function applyTierFilter() {
+                const allNodes = container.querySelectorAll('.topo-node');
+                const allEdges = container.querySelectorAll('.topo-edge');
+                const allTierBgs = container.querySelectorAll('.topo-tier-bg');
+                const allTierLabels = container.querySelectorAll('.topo-tier-label');
+                
+                if (filterTier === 'all') {
+                    allNodes.forEach(n => n.removeAttribute('data-filtered'));
+                    allEdges.forEach(e => e.removeAttribute('data-filtered'));
+                    allTierBgs.forEach(b => b.removeAttribute('data-filtered'));
+                    allTierLabels.forEach(l => l.removeAttribute('data-filtered'));
+                } else {
+                    // Hide all first
+                    allNodes.forEach(n => n.setAttribute('data-filtered', 'hidden'));
+                    allEdges.forEach(e => e.setAttribute('data-filtered', 'hidden'));
+                    allTierBgs.forEach(b => b.setAttribute('data-filtered', 'hidden'));
+                    allTierLabels.forEach(l => l.setAttribute('data-filtered', 'hidden'));
+                    
+                    // Show selected tier
+                    allNodes.forEach(n => {
+                        if (n.getAttribute('data-tier') === filterTier) {
+                            n.removeAttribute('data-filtered');
+                        }
+                    });
+                    allTierBgs.forEach(b => {
+                        if (b.getAttribute('data-tier') === filterTier) {
+                            b.removeAttribute('data-filtered');
+                        }
+                    });
+                    allTierLabels.forEach(l => {
+                        if (l.getAttribute('data-tier') === filterTier) {
+                            l.removeAttribute('data-filtered');
+                        }
+                    });
+                    
+                    // Show edges that connect to visible nodes
+                    allEdges.forEach(edge => {
+                        const sourceId = edge.getAttribute('data-source');
+                        const targetId = edge.getAttribute('data-target');
+                        const sourceNode = container.querySelector(\`.topo-node[data-node-id="\${sourceId}"]\`);
+                        const targetNode = container.querySelector(\`.topo-node[data-node-id="\${targetId}"]\`);
+                        
+                        if (sourceNode?.getAttribute('data-filtered') !== 'hidden' && targetNode?.getAttribute('data-filtered') !== 'hidden') {
+                            edge.removeAttribute('data-filtered');
+                        }
+                    });
+                }
+            }
+            
+            // Render tiers and position nodes
             activeTiers.forEach((tierName, tierIndex) => {
                 const tier = tiers[tierName];
-                // Center nodes within each column for proper alignment, with margin offset
-                const x = margin + (tierIndex + 0.5) * columnWidth;
-                let y = startY;
+                const tierY = startY + tierIndex * tierHeight;
+                const tierCenterY = tierY + tierHeight / 2;
                 
-                // Draw tier background rectangle aligned with column
-                const tierGroup = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                tierGroup.setAttribute('class', 'topo-tier-bg');
-                tierGroup.setAttribute('x', margin + tierIndex * columnWidth + 20);
-                tierGroup.setAttribute('y', 20);
-                tierGroup.setAttribute('width', columnWidth - 40);
-                tierGroup.setAttribute('height', height - 40);
-                tierGroup.setAttribute('fill', tier.color);
-                tierGroup.setAttribute('opacity', '0.05');
-                tierGroup.setAttribute('stroke', tier.color);
-                tierGroup.setAttribute('stroke-width', '2');
-                tierGroup.setAttribute('stroke-dasharray', '5,5');
-                tierGroup.setAttribute('rx', '10');
-                container.appendChild(tierGroup);
+                // Draw tier background
+                const tierBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                tierBg.setAttribute('class', 'topo-tier-bg');
+                tierBg.setAttribute('data-tier', tierName);
+                tierBg.setAttribute('x', margin);
+                tierBg.setAttribute('y', tierY);
+                tierBg.setAttribute('width', width - 2 * margin);
+                tierBg.setAttribute('height', tierHeight - 20);
+                tierBg.setAttribute('fill', tier.color);
+                container.appendChild(tierBg);
                 
-                // Tier label centered within column
+                // Tier label on the left
                 const tierLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                tierLabel.setAttribute('x', x);
-                tierLabel.setAttribute('y', 50);
-                tierLabel.setAttribute('text-anchor', 'middle');
-                tierLabel.setAttribute('font-weight', 'bold');
-                tierLabel.setAttribute('font-size', '14');
+                tierLabel.setAttribute('class', 'topo-tier-label');
+                tierLabel.setAttribute('data-tier', tierName);
+                tierLabel.setAttribute('x', margin + 10);
+                tierLabel.setAttribute('y', tierY + 20);
+                tierLabel.setAttribute('text-anchor', 'start');
                 tierLabel.setAttribute('fill', tier.color);
-                tierLabel.textContent = tier.label;
+                tierLabel.textContent = \`\${tier.icon} \${tier.label}\`;
                 container.appendChild(tierLabel);
                 
-                // Position nodes vertically in this column
+                // Position nodes horizontally within this tier
+                const tierNodeCount = tier.nodes.length;
+                // Skip empty tiers to prevent division by zero in spacing calculation
+                if (tierNodeCount === 0) continue;
+                
+                const availableWidth = width - 2 * margin - 40;
+                const spacing = tierNodeCount > 1 ? Math.min(nodeSpacing, availableWidth / (tierNodeCount - 1)) : 0;
+                const startX = margin + 20 + (availableWidth - (tierNodeCount - 1) * spacing) / 2;
+                
                 tier.nodes.forEach((node, i) => {
-                    nodePositions.set(node.id, { x, y, node });
-                    y += nodeSpacing;
+                    const x = startX + i * spacing;
+                    const y = tierCenterY;
+                    nodePositions.set(node.id, { x, y, node, tier: tierName });
                 });
             });
 
-            // Draw edges with enhanced styling
+            // Draw edges first (so they appear behind nodes)
             edges.forEach(edge => {
                 const source = nodePositions.get(edge.source);
                 const target = nodePositions.get(edge.target);
                 if (!source || !target) return;
 
-                // Use curved path for better visual clarity
+                // Use smooth cubic bezier curves for better aesthetics
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                const midX = (source.x + target.x) / 2;
-                const midY = (source.y + target.y) / 2;
-                const controlOffset = Math.abs(target.x - source.x) * 0.3;
-                const d = \`M\${source.x},\${source.y} Q\${midX + controlOffset},\${midY} \${target.x},\${target.y}\`;
+                const dx = target.x - source.x;
+                const dy = target.y - source.y;
+                const controlPointOffset = Math.abs(dx) * 0.5;
+                
+                const d = \`M\${source.x},\${source.y} C\${source.x + controlPointOffset},\${source.y} \${target.x - controlPointOffset},\${target.y} \${target.x},\${target.y}\`;
+                
                 path.setAttribute('d', d);
-                path.setAttribute('class', 'topo-edge');
-                path.setAttribute('stroke', edge.type === 'ownership' ? '#ff9800' : 'var(--vscode-foreground)');
-                path.setAttribute('stroke-width', edge.type === 'ownership' ? '2' : '1.5');
-                path.setAttribute('marker-end', 'url(#arrowhead)');
+                path.setAttribute('class', \`topo-edge\${edge.type === 'ownership' ? ' critical-path' : ''}\`);
+                path.setAttribute('data-source', edge.source);
+                path.setAttribute('data-target', edge.target);
+                path.setAttribute('stroke', edge.type === 'ownership' ? '#ffa500' : 'var(--vscode-foreground)');
                 
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = \`\${edge.source} → \${edge.target}\nType: \${edge.type || 'unknown'}\${edge.label ? ' (' + edge.label + ')' : ''}\`;
+                title.textContent = \`\${edge.source} → \${edge.target}\\nType: \${edge.type || 'connection'}\${edge.label ? \`\\n\${edge.label}\` : ''}\`;
                 path.appendChild(title);
                 
                 container.appendChild(path);
             });
 
-            // Draw nodes with enhanced interactivity
+            // Draw nodes with modern card design
             let selectedNode = null;
-            nodePositions.forEach(({ x, y, node }) => {
+            nodePositions.forEach(({ x, y, node, tier }) => {
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                g.setAttribute('class', 'topo-node');
+                g.setAttribute('class', \`topo-node\${node.isCritical ? ' critical' : ''}\`);
                 g.setAttribute('data-node-id', node.id);
+                g.setAttribute('data-tier', tier);
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
 
-                // Highlight critical nodes with glow effect
-                if (node.isCritical) {
-                    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    glow.setAttribute('r', '28');
-                    glow.setAttribute('fill', '#ff9800');
-                    glow.setAttribute('opacity', '0.3');
-                    glow.setAttribute('class', 'critical-glow');
-                    g.appendChild(glow);
-                }
-                
-                // Node size based on connectivity
-                const baseSize = 20;
-                const connectivityBonus = Math.min(node.inDegree + node.outDegree, 8) * 2;
-                const nodeSize = baseSize + connectivityBonus;
+                // Node size based on connectivity with better scaling
+                const baseSize = 24;
+                const connectivityBonus = Math.min(node.inDegree + node.outDegree, 10) * 1.5;
+                const nodeWidth = baseSize * 2 + connectivityBonus * 2;
+                const nodeHeight = baseSize + connectivityBonus;
 
+                // Main node rectangle with gradient
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('x', -nodeSize);
-                rect.setAttribute('y', -nodeSize/2);
-                rect.setAttribute('width', nodeSize * 2);
-                rect.setAttribute('height', nodeSize);
-                rect.setAttribute('rx', '5');
-                rect.setAttribute('fill', node.colorCode || '#007acc');
-                rect.setAttribute('stroke', node.isCritical ? '#ff9800' : 'var(--vscode-panel-border)');
-                rect.setAttribute('stroke-width', node.isCritical ? '3' : '2');
+                rect.setAttribute('class', 'topo-node-rect');
+                rect.setAttribute('x', -nodeWidth / 2);
+                rect.setAttribute('y', -nodeHeight / 2);
+                rect.setAttribute('width', nodeWidth);
+                rect.setAttribute('height', nodeHeight);
+                rect.setAttribute('fill', node.colorCode || tiers[tier]?.color || '#0078d4');
+                rect.setAttribute('opacity', '0.9');
                 g.appendChild(rect);
+                
+                // Gradient overlay for depth
+                const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                overlay.setAttribute('x', -nodeWidth / 2);
+                overlay.setAttribute('y', -nodeHeight / 2);
+                overlay.setAttribute('width', nodeWidth);
+                overlay.setAttribute('height', nodeHeight);
+                overlay.setAttribute('fill', 'url(#nodeGradient)');
+                overlay.setAttribute('rx', '6');
+                overlay.setAttribute('pointer-events', 'none');
+                g.appendChild(overlay);
 
-                // Add badge for high connectivity
-                if (node.inDegree + node.outDegree > 5) {
-                    const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    badge.setAttribute('cx', nodeSize - 5);
-                    badge.setAttribute('cy', -nodeSize/2 + 5);
-                    badge.setAttribute('r', '8');
-                    badge.setAttribute('fill', '#ff9800');
-                    badge.setAttribute('stroke', '#fff');
-                    badge.setAttribute('stroke-width', '1.5');
-                    g.appendChild(badge);
+                // Critical badge
+                if (node.isCritical) {
+                    const criticalBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    criticalBadge.setAttribute('class', 'critical-badge critical-glow');
+                    criticalBadge.setAttribute('transform', \`translate(\${nodeWidth / 2 - 8}, \${-nodeHeight / 2 + 8})\`);
+                    
+                    const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    badgeBg.setAttribute('class', 'critical-badge-bg');
+                    badgeBg.setAttribute('r', '10');
+                    criticalBadge.appendChild(badgeBg);
                     
                     const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    badgeText.setAttribute('x', nodeSize - 5);
-                    badgeText.setAttribute('y', -nodeSize/2 + 8);
-                    badgeText.setAttribute('text-anchor', 'middle');
-                    badgeText.setAttribute('font-size', '8');
-                    badgeText.setAttribute('font-weight', 'bold');
-                    badgeText.setAttribute('fill', '#fff');
-                    badgeText.textContent = node.inDegree + node.outDegree;
-                    g.appendChild(badgeText);
+                    badgeText.setAttribute('class', 'critical-badge-text');
+                    badgeText.setAttribute('y', '4');
+                    badgeText.textContent = '⚠';
+                    criticalBadge.appendChild(badgeText);
+                    
+                    const badgeTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                    badgeTitle.textContent = 'Critical Resource - High importance in system architecture';
+                    criticalBadge.appendChild(badgeTitle);
+                    
+                    g.appendChild(criticalBadge);
                 }
 
-                /**
-                 * TEXT LABEL POSITIONING (INSIDE NODE BOXES)
-                 * 
-                 * Each node is a rectangle from y=-nodeSize/2 to y=nodeSize/2 (height = nodeSize)
-                 * where nodeSize = baseSize (20) + connectivityBonus (0-16), typically 20-36px
-                 * 
-                 * For minimum size (20px): box bounds are y=-10 to y=10
-                 * For maximum size (36px): box bounds are y=-18 to y=18
-                 * 
-                 * Labels are positioned to be INSIDE the box:
-                 * - Kind label: y=-5 (upper portion, above center line at y=0)
-                 * - Name label: y=7 (lower portion, below center line at y=0)
-                 * 
-                 * These positions work for all node sizes:
-                 * - Minimum (20px): -5 and 7 are within [-10, 10] bounds
-                 * - Typical/Maximum (36px): -5 and 7 are comfortably within [-18, 18] bounds
-                 * 
-                 * Both use text-anchor="middle" (set in CSS) to horizontally center at x=0
-                 * Font sizes are kept small (9px, 8px) to fit within the node width
-                 * Text is truncated to prevent overflow (kind: 10 chars, name: 12 chars)
-                 * 
-                 * Note: Labels are positioned close to edges on minimum-sized nodes but
-                 * remain fully visible. Larger nodes have more comfortable spacing.
-                 */
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                text.setAttribute('class', 'topo-label');
-                text.setAttribute('y', '-5');  // Position above center, within box bounds for all node sizes
-                text.setAttribute('font-size', '9');
-                text.textContent = node.kind.substring(0, 10);
-                g.appendChild(text);
+                // High connectivity badge
+                const totalConnections = node.inDegree + node.outDegree;
+                if (totalConnections >= 5) {
+                    const connBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    connBadge.setAttribute('class', 'connectivity-badge');
+                    connBadge.setAttribute('transform', \`translate(\${-nodeWidth / 2 + 8}, \${-nodeHeight / 2 + 8})\`);
+                    
+                    const badgeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    badgeCircle.setAttribute('class', 'connectivity-badge-circle');
+                    badgeCircle.setAttribute('r', '10');
+                    connBadge.appendChild(badgeCircle);
+                    
+                    const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    badgeText.setAttribute('class', 'connectivity-badge-text');
+                    badgeText.setAttribute('y', '4');
+                    badgeText.textContent = totalConnections;
+                    connBadge.appendChild(badgeText);
+                    
+                    const badgeTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                    badgeTitle.textContent = \`High Connectivity: \${totalConnections} connections (In: \${node.inDegree}, Out: \${node.outDegree})\`;
+                    connBadge.appendChild(badgeTitle);
+                    
+                    g.appendChild(connBadge);
+                }
+
+                // Node labels with better positioning
+                const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                kindText.setAttribute('class', 'topo-label');
+                kindText.setAttribute('y', '-2');
+                kindText.textContent = node.kind.substring(0, 14);
+                g.appendChild(kindText);
 
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                nameText.setAttribute('class', 'topo-label');
-                nameText.setAttribute('y', '7');  // Position below center, within box bounds for all node sizes
-                nameText.setAttribute('font-size', '8');
-                nameText.setAttribute('opacity', '0.8');
-                nameText.textContent = node.name.substring(0, 12);
+                nameText.setAttribute('class', 'topo-label name');
+                nameText.setAttribute('y', '10');
+                nameText.textContent = node.name.substring(0, 16);
                 g.appendChild(nameText);
 
                 // Enhanced tooltip
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
                 const criticalStr = node.isCritical ? ' [CRITICAL]' : '';
-                const connectionsStr = \`Connections: In=\${node.inDegree}, Out=\${node.outDegree}\`;
-                title.textContent = \`\${node.kind}: \${node.name}\${criticalStr}\n\${node.namespace ? 'Namespace: ' + node.namespace : ''}\nCategory: \${node.category}\n\${connectionsStr}\`;
+                const connectionsStr = \`Connections: \${totalConnections} (In: \${node.inDegree}, Out: \${node.outDegree})\`;
+                title.textContent = \`\${node.kind}: \${node.name}\${criticalStr}\${node.namespace ? \`\\nNamespace: \${node.namespace}\` : ''}\\nCategory: \${node.category}\\n\${connectionsStr}\`;
                 g.appendChild(title);
                 
-                // Click to highlight related nodes
+                // Interactive click handler
                 g.style.cursor = 'pointer';
                 g.addEventListener('click', (e) => {
                     e.stopPropagation();
                     
-                    // Remove previous selection
-                    document.querySelectorAll('.topo-node').forEach(n => n.classList.remove('selected'));
-                    document.querySelectorAll('.topo-edge').forEach(e => e.classList.remove('highlighted'));
+                    // Clear previous selection
+                    container.querySelectorAll('.topo-node').forEach(n => n.classList.remove('selected'));
+                    container.querySelectorAll('.topo-edge').forEach(e => e.classList.remove('highlighted'));
                     
                     if (selectedNode === node.id) {
                         selectedNode = null;
@@ -1335,15 +1697,11 @@ function generateJavaScript(data: any): string {
                     g.classList.add('selected');
                     
                     // Highlight connected edges
-                    const relatedEdges = edges.filter(e => e.source === node.id || e.target === node.id);
-                    relatedEdges.forEach(edge => {
-                        const edgePaths = container.querySelectorAll('path.topo-edge');
-                        edgePaths.forEach(path => {
-                            const titleText = path.querySelector('title')?.textContent || '';
-                            if (titleText.includes(edge.source) && titleText.includes(edge.target)) {
-                                path.classList.add('highlighted');
-                            }
-                        });
+                    edges.filter(e => e.source === node.id || e.target === node.id).forEach(edge => {
+                        const edgePath = container.querySelector(\`path[data-source="\${edge.source}"][data-target="\${edge.target}"]\`);
+                        if (edgePath) {
+                            edgePath.classList.add('highlighted');
+                        }
                     });
                 });
 
@@ -1351,41 +1709,53 @@ function generateJavaScript(data: any): string {
             });
             
             // Click on background to deselect
-            svg.addEventListener('click', () => {
-                document.querySelectorAll('.topo-node').forEach(n => n.classList.remove('selected'));
-                document.querySelectorAll('.topo-edge').forEach(e => e.classList.remove('highlighted'));
-                selectedNode = null;
+            svg.addEventListener('click', (e) => {
+                if (e.target === svg || e.target === container) {
+                    container.querySelectorAll('.topo-node').forEach(n => n.classList.remove('selected'));
+                    container.querySelectorAll('.topo-edge').forEach(e => e.classList.remove('highlighted'));
+                    selectedNode = null;
+                }
             });
 
-            /**
-             * GRAPH CENTERING
-             * 
-             * After all nodes and edges are rendered, we center the entire graph
-             * within the SVG viewport for better visual presentation.
-             * 
-             * Approach:
-             * 1. Use getBBox() to get the actual bounding box of all rendered content
-             * 2. Calculate the offset needed to center this content in the SVG viewport
-             * 3. Apply this offset via topologyPanX and topologyPanY
-             * 4. The transform is applied through updateTopologyZoom()
-             * 5. Store these as default values for Reset View / Fit to Screen
-             * 
-             * Formula:
-             * - centerX = (viewportWidth - contentWidth) / 2 - contentX
-             * - centerY = (viewportHeight - contentHeight) / 2 - contentY
-             * 
-             * This works in conjunction with the .topology-view CSS flexbox centering
-             * to ensure the graph is centered both at the container and content level.
-             */
-            const contentBounds = typeof container.getBBox === 'function' ? container.getBBox() : { x: 0, y: 0, width: width, height: height };
-            const centerX = (width - contentBounds.width) / 2 - contentBounds.x;
-            const centerY = (height - contentBounds.height) / 2 - contentBounds.y;
-            // Store the initially computed centered pan so Reset / Fit can restore this view
-            const defaultTopologyPanX = centerX;
-            const defaultTopologyPanY = centerY;
-            topologyPanX = centerX;
-            topologyPanY = centerY;
+            // Pan and zoom support
+            let isPanning = false;
+            let panStart = { x: 0, y: 0 };
             
+            svg.addEventListener('mousedown', (e) => {
+                if (e.target === svg || e.target === container || e.target.tagName === 'rect' && e.target.classList.contains('topo-tier-bg')) {
+                    isPanning = true;
+                    panStart = { x: e.clientX - topologyPanX, y: e.clientY - topologyPanY };
+                }
+            });
+            
+            svg.addEventListener('mousemove', (e) => {
+                if (isPanning) {
+                    topologyPanX = e.clientX - panStart.x;
+                    topologyPanY = e.clientY - panStart.y;
+                    updateTopologyZoom();
+                }
+            });
+            
+            svg.addEventListener('mouseup', () => {
+                isPanning = false;
+            });
+            
+            svg.addEventListener('mouseleave', () => {
+                isPanning = false;
+            });
+            
+            // Mouse wheel zoom
+            svg.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                topologyZoom = Math.max(0.3, Math.min(3, topologyZoom + delta));
+                updateTopologyZoom();
+            });
+
+            // Center the graph initially
+            topologyPanX = 0;
+            topologyPanY = 0;
+            topologyZoom = 1;
             updateTopologyZoom();
         }
 
@@ -1412,8 +1782,8 @@ function generateJavaScript(data: any): string {
         if (resetZoomBtn) {
             resetZoomBtn.addEventListener('click', () => {
                 topologyZoom = 1;
-                topologyPanX = defaultTopologyPanX;
-                topologyPanY = defaultTopologyPanY;
+                topologyPanX = 0;
+                topologyPanY = 0;
                 updateTopologyZoom();
             });
         }
@@ -1424,10 +1794,26 @@ function generateJavaScript(data: any): string {
                 const container = document.getElementById('topologyContent');
                 if (!svg || !container) return;
                 
-                // Reset to default view
-                topologyZoom = 0.8;
-                topologyPanX = defaultTopologyPanX;
-                topologyPanY = defaultTopologyPanY;
+                // Calculate optimal zoom to fit content
+                try {
+                    const bbox = container.getBBox();
+                    const svgWidth = svg.clientWidth || 1000;
+                    const svgHeight = svg.clientHeight || 650;
+                    
+                    const scaleX = svgWidth / (bbox.width + 100);
+                    const scaleY = svgHeight / (bbox.height + 100);
+                    topologyZoom = Math.min(scaleX, scaleY, 1.5);
+                    
+                    // Center the content
+                    const scaledWidth = bbox.width * topologyZoom;
+                    const scaledHeight = bbox.height * topologyZoom;
+                    topologyPanX = (svgWidth - scaledWidth) / 2 - bbox.x * topologyZoom;
+                    topologyPanY = (svgHeight - scaledHeight) / 2 - bbox.y * topologyZoom;
+                } catch (e) {
+                    topologyZoom = 0.8;
+                    topologyPanX = 0;
+                    topologyPanY = 0;
+                }
                 updateTopologyZoom();
             });
         }
