@@ -177,19 +177,32 @@ The extension automatically detects relationships between Kubernetes resources:
 
 The architecture diagram in the Overview tab provides:
 
+- **Shape-Coded Nodes** - Different shapes represent resource types:
+  - Rounded rectangles for workloads
+  - Hexagons for networking resources
+  - Cylinders for storage
+  - Document shapes for configuration
+  - Shield shapes for RBAC
+  - Circles for other types
+- **Visual Legend** - Interactive legend explaining shape meanings
 - **Hierarchical Layout** - Resources grouped by category (Workloads, Networking, Configuration, etc.)
 - **Node Sizing** - Node size based on connectivity (in-degree + out-degree)
 - **Critical Node Detection** - Nodes with above-average connectivity highlighted
-- **Directed Edges** - Arrows showing relationships and data flow direction
-- **Interactive Tooltips** - Hover to see resource details and connection metrics
+- **Directed Arrows** - Curved edges with arrowheads showing relationships and data flow direction
+- **Interactive Tooltips** - Hover to see resource details, category, and connection metrics
 
 ### Enhanced Topology Tab
 
-The topology tab offers an actionable system view:
+The topology tab offers a detailed structural view with actionable insights:
 
-- **Namespace Grouping** - Resources organized by namespace and category
-- **Relationship Edges** - Visual connections between related resources
-- **Critical Emphasis** - Important nodes shown with thicker borders
+- **Tier-Based Swimlanes** - Resources organized in vertical columns by category
+- **Visual Tier Boundaries** - Color-coded backgrounds with dashed borders for each tier
+- **Tier Labels** - Clear headers identifying each category column
+- **Relationship Edges** - Curved paths with directional arrows showing connection types
+- **Critical Node Highlighting** - Important nodes with glowing effects and special borders
+- **Connectivity Badges** - Orange badges on high-traffic nodes showing connection count
+- **Click-to-Highlight** - Click nodes to highlight all their relationships
+- **Enhanced Tooltips** - Detailed metadata including namespace, category, and connection counts
 - **Zoom/Pan Controls** - Navigate large topologies easily
 - **Fit to Screen** - Auto-adjust view to show all resources
 

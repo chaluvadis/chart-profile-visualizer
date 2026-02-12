@@ -144,24 +144,26 @@ function generateOverviewTab(data: any): string {
 				? `
         <div class="chart-container">
             <h2>High-Level Architecture
-                <span class="help-tooltip" title="Shows the main components and their connections. Arrows indicate relationships and data flow. Larger nodes are more central to the system.">ⓘ</span>
+                <span class="help-tooltip" title="Shows the main components and their connections. Different shapes represent resource types: rounded rectangles (workloads), hexagons (networking), cylinders (storage), documents (configuration), shields (RBAC). Arrows indicate relationships and data flow. Larger nodes are more central to the system.">ⓘ</span>
             </h2>
+            <div class="legend-container">
+                <div class="legend-title">Legend:</div>
+                <div class="legend-items">
+                    <span class="legend-item"><svg width="30" height="20"><rect x="5" y="5" width="20" height="10" rx="3" fill="#007acc" stroke="#333" stroke-width="1"/></svg> Workload</span>
+                    <span class="legend-item"><svg width="30" height="20"><polygon points="15,5 20,10 15,15 10,10" fill="#4caf50" stroke="#333" stroke-width="1"/></svg> Networking</span>
+                    <span class="legend-item"><svg width="30" height="20"><ellipse cx="15" cy="7" rx="7" ry="3" fill="#9c27b0" stroke="#333" stroke-width="1"/><rect x="8" y="7" width="14" height="6" fill="#9c27b0" stroke="none"/><ellipse cx="15" cy="13" rx="7" ry="3" fill="#9c27b0" stroke="#333" stroke-width="1"/></svg> Storage</span>
+                    <span class="legend-item"><svg width="30" height="20"><path d="M5,5 L18,5 L22,9 L22,15 L5,15 Z" fill="#ff9800" stroke="#333" stroke-width="1"/></svg> Config</span>
+                    <span class="legend-item"><svg width="30" height="20"><path d="M15,5 L22,8 L22,12 Q22,14 15,14 Q8,14 8,12 L8,8 Z" fill="#f44336" stroke="#333" stroke-width="1"/></svg> RBAC</span>
+                    <span class="legend-item"><svg width="30" height="20"><circle cx="15" cy="10" r="5" fill="#9e9e9e" stroke="#333" stroke-width="1"/></svg> Other</span>
+                </div>
+            </div>
             <div id="architectureDiagram" class="architecture-diagram"></div>
         </div>
         `
 				: ""
 		}
 
-        ${
-			data.totalValues > 0
-				? `
-        <div class="chart-container">
-            <h2>Values: Overridden vs Base</h2>
-            <canvas id="valuesChart" class="chart-canvas"></canvas>
-        </div>
-        `
-				: ""
-		}
+
 
         ${
 			data.overriddenValues.length > 0
@@ -279,7 +281,7 @@ function generateTopologyTab(): string {
         <div class="topology-view">
             <div class="topology-header">
                 <h2>System Topology
-                    <span class="help-tooltip" title="Interactive view of resources with relationships. Resources are grouped by type and namespace. Click nodes to see details, zoom/pan to navigate.">ⓘ</span>
+                    <span class="help-tooltip" title="Detailed system structure organized by tiers (swimlanes). Resources are grouped by category with visual highlighting of critical components. Click nodes to highlight relationships. Orange badges show high connectivity. Critical nodes have glowing indicators. Arrows show relationship direction and type.">ⓘ</span>
                 </h2>
             </div>
             <div class="topology-controls">
@@ -634,6 +636,33 @@ function getEnhancedStyles(): string {
         .help-tooltip:hover {
             opacity: 1;
         }
+        .legend-container {
+            margin: 10px 0 20px 0;
+            padding: 12px;
+            background-color: var(--vscode-editor-inactiveSelectionBackground);
+            border-radius: 6px;
+            border: 1px solid var(--vscode-panel-border);
+        }
+        .legend-title {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+        }
+        .legend-item svg {
+            vertical-align: middle;
+        }
         .topo-node {
             cursor: pointer;
             transition: all 0.2s;
@@ -642,8 +671,7 @@ function getEnhancedStyles(): string {
             filter: brightness(1.2);
         }
         .topo-node.selected {
-            filter: brightness(1.3);
-            stroke-width: 3;
+            filter: brightness(1.4) drop-shadow(0 0 8px rgba(255, 152, 0, 0.8));
         }
         .topo-edge {
             fill: none;
@@ -651,6 +679,19 @@ function getEnhancedStyles(): string {
             stroke-width: 1.5;
             opacity: 0.3;
             marker-end: url(#arrowhead);
+            transition: all 0.2s;
+        }
+        .topo-edge.highlighted {
+            opacity: 0.9;
+            stroke: #ff9800;
+            stroke-width: 2.5;
+        }
+        .critical-glow {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.5; }
         }
         .topo-label {
             font-size: 10px;
@@ -906,7 +947,7 @@ function generateJavaScript(data: any): string {
             });
             svg.appendChild(edgesGroup);
 
-            // Draw nodes
+            // Draw nodes with different shapes based on category
             const nodesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             nodePositions.forEach(({ x, y, node }) => {
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -915,13 +956,89 @@ function generateJavaScript(data: any): string {
 
                 // Node size based on degree
                 const size = 30 + Math.min(node.inDegree + node.outDegree, 10) * 3;
-
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('r', size/2);
-                circle.setAttribute('fill', node.colorCode || '#007acc');
-                circle.setAttribute('stroke', 'var(--vscode-panel-border)');
-                circle.setAttribute('stroke-width', '2');
-                g.appendChild(circle);
+                const strokeWidth = node.isCritical ? '3' : '2';
+                
+                // Create different shapes based on category
+                let shape;
+                const category = node.category || 'Other';
+                
+                if (category === 'Workload') {
+                    // Rounded rectangle for workloads
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    shape.setAttribute('x', -size/2);
+                    shape.setAttribute('y', -size/2);
+                    shape.setAttribute('width', size);
+                    shape.setAttribute('height', size);
+                    shape.setAttribute('rx', '8');
+                } else if (category === 'Storage') {
+                    // Cylinder shape for storage (approximated with ellipse stack)
+                    const cylinderGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    
+                    const topEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    topEllipse.setAttribute('cx', '0');
+                    topEllipse.setAttribute('cy', -size/3);
+                    topEllipse.setAttribute('rx', size/2);
+                    topEllipse.setAttribute('ry', size/6);
+                    topEllipse.setAttribute('fill', node.colorCode || '#9c27b0');
+                    topEllipse.setAttribute('stroke', 'var(--vscode-panel-border)');
+                    topEllipse.setAttribute('stroke-width', strokeWidth);
+                    
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', -size/2);
+                    rect.setAttribute('y', -size/3);
+                    rect.setAttribute('width', size);
+                    rect.setAttribute('height', size * 2/3);
+                    rect.setAttribute('fill', node.colorCode || '#9c27b0');
+                    rect.setAttribute('stroke', 'none');
+                    
+                    const bottomEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    bottomEllipse.setAttribute('cx', '0');
+                    bottomEllipse.setAttribute('cy', size/3);
+                    bottomEllipse.setAttribute('rx', size/2);
+                    bottomEllipse.setAttribute('ry', size/6);
+                    bottomEllipse.setAttribute('fill', node.colorCode || '#9c27b0');
+                    bottomEllipse.setAttribute('stroke', 'var(--vscode-panel-border)');
+                    bottomEllipse.setAttribute('stroke-width', strokeWidth);
+                    
+                    cylinderGroup.appendChild(rect);
+                    cylinderGroup.appendChild(topEllipse);
+                    cylinderGroup.appendChild(bottomEllipse);
+                    g.appendChild(cylinderGroup);
+                    shape = null; // Already added to g
+                } else if (category === 'Networking') {
+                    // Hexagon for networking
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    const hexPoints = [
+                        [size/2, 0],
+                        [size/4, size/2],
+                        [-size/4, size/2],
+                        [-size/2, 0],
+                        [-size/4, -size/2],
+                        [size/4, -size/2]
+                    ].map(p => p.join(',')).join(' ');
+                    shape.setAttribute('points', hexPoints);
+                } else if (category === 'Configuration') {
+                    // Document shape for configuration (approximated with path)
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const docPath = \`M\${-size/2},\${-size/2} L\${size/4},\${-size/2} L\${size/2},\${-size/4} L\${size/2},\${size/2} L\${-size/2},\${size/2} Z\`;
+                    shape.setAttribute('d', docPath);
+                } else if (category === 'RBAC') {
+                    // Shield shape for RBAC
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const shieldPath = \`M0,\${-size/2} L\${size/2},\${-size/4} L\${size/2},\${size/4} Q\${size/2},\${size/2} 0,\${size/2} Q\${-size/2},\${size/2} \${-size/2},\${size/4} L\${-size/2},\${-size/4} Z\`;
+                    shape.setAttribute('d', shieldPath);
+                } else {
+                    // Circle for other types
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    shape.setAttribute('r', size/2);
+                }
+                
+                if (shape) {
+                    shape.setAttribute('fill', node.colorCode || '#007acc');
+                    shape.setAttribute('stroke', 'var(--vscode-panel-border)');
+                    shape.setAttribute('stroke-width', strokeWidth);
+                    g.appendChild(shape);
+                }
 
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('class', 'arch-label');
@@ -939,7 +1056,7 @@ function generateJavaScript(data: any): string {
 
                 // Tooltip
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = \`\${node.kind}: \${node.name}\nIn: \${node.inDegree}, Out: \${node.outDegree}\${node.isCritical ? ' (Critical)' : ''}\`;
+                title.textContent = \`\${node.kind}: \${node.name}\nCategory: \${category}\nIn: \${node.inDegree}, Out: \${node.outDegree}\${node.isCritical ? ' (Critical)' : ''}\`;
                 g.appendChild(title);
 
                 nodesGroup.appendChild(g);
@@ -980,108 +1097,211 @@ function generateJavaScript(data: any): string {
             const width = svg.clientWidth || 800;
             const height = svg.clientHeight || 600;
 
-            // Group nodes by namespace and category
-            const groups = {};
+            // Enhanced grouping by category (tiers/domains)
+            const tiers = {
+                'Workload': { nodes: [], color: '#007acc', label: 'Workloads' },
+                'Networking': { nodes: [], color: '#4caf50', label: 'Networking' },
+                'Storage': { nodes: [], color: '#9c27b0', label: 'Storage' },
+                'Configuration': { nodes: [], color: '#ff9800', label: 'Configuration' },
+                'RBAC': { nodes: [], color: '#f44336', label: 'RBAC' },
+                'Other': { nodes: [], color: '#9e9e9e', label: 'Other' }
+            };
+            
             nodes.forEach(node => {
-                const key = \`\${node.namespace || 'default'}-\${node.category}\`;
-                if (!groups[key]) {
-                    groups[key] = {
-                        namespace: node.namespace || 'default',
-                        category: node.category,
-                        nodes: []
-                    };
+                const category = node.category || 'Other';
+                if (tiers[category]) {
+                    tiers[category].nodes.push(node);
                 }
-                groups[key].nodes.push(node);
             });
-
-            const groupKeys = Object.keys(groups);
+            
             const nodePositions = new Map();
-
-            // Simple grid layout with grouping
-            let currentX = 100;
-            let currentY = 100;
-            const groupSpacing = 50;
-            const nodeSpacing = 80;
-            const nodesPerRow = 4;
-
-            groupKeys.forEach(groupKey => {
-                const group = groups[groupKey];
-                let x = currentX;
-                let y = currentY;
-
-                group.nodes.forEach((node, i) => {
+            const tierOrder = ['Workload', 'Networking', 'Storage', 'Configuration', 'RBAC', 'Other'];
+            const activeTiers = tierOrder.filter(t => tiers[t].nodes.length > 0);
+            
+            // Layout in columns (swimlanes) by tier
+            const columnWidth = width / (activeTiers.length + 1);
+            const nodeSpacing = 70;
+            const startY = 80;
+            
+            activeTiers.forEach((tierName, tierIndex) => {
+                const tier = tiers[tierName];
+                const x = (tierIndex + 0.8) * columnWidth;
+                let y = startY;
+                
+                // Draw tier background rectangle
+                const tierGroup = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                tierGroup.setAttribute('class', 'topo-tier-bg');
+                tierGroup.setAttribute('x', tierIndex * columnWidth + 20);
+                tierGroup.setAttribute('y', 20);
+                tierGroup.setAttribute('width', columnWidth - 40);
+                tierGroup.setAttribute('height', height - 40);
+                tierGroup.setAttribute('fill', tier.color);
+                tierGroup.setAttribute('opacity', '0.05');
+                tierGroup.setAttribute('stroke', tier.color);
+                tierGroup.setAttribute('stroke-width', '2');
+                tierGroup.setAttribute('stroke-dasharray', '5,5');
+                tierGroup.setAttribute('rx', '10');
+                container.appendChild(tierGroup);
+                
+                // Tier label
+                const tierLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tierLabel.setAttribute('x', x);
+                tierLabel.setAttribute('y', 50);
+                tierLabel.setAttribute('text-anchor', 'middle');
+                tierLabel.setAttribute('font-weight', 'bold');
+                tierLabel.setAttribute('font-size', '14');
+                tierLabel.setAttribute('fill', tier.color);
+                tierLabel.textContent = tier.label;
+                container.appendChild(tierLabel);
+                
+                // Position nodes vertically in this column
+                tier.nodes.forEach((node, i) => {
                     nodePositions.set(node.id, { x, y, node });
-                    
-                    x += nodeSpacing;
-                    if ((i + 1) % nodesPerRow === 0) {
-                        x = currentX;
-                        y += nodeSpacing;
-                    }
+                    y += nodeSpacing;
                 });
-
-                currentY = y + nodeSpacing + groupSpacing;
-                if (currentY > height - 100) {
-                    currentY = 100;
-                    currentX += (nodesPerRow * nodeSpacing) + groupSpacing;
-                }
             });
 
-            // Draw edges
+            // Draw edges with enhanced styling
             edges.forEach(edge => {
                 const source = nodePositions.get(edge.source);
                 const target = nodePositions.get(edge.target);
                 if (!source || !target) return;
 
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', source.x);
-                line.setAttribute('y1', source.y);
-                line.setAttribute('x2', target.x);
-                line.setAttribute('y2', target.y);
-                line.setAttribute('class', 'topo-edge');
-                line.setAttribute('marker-end', 'url(#arrowhead)');
+                // Use curved path for better visual clarity
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const midX = (source.x + target.x) / 2;
+                const midY = (source.y + target.y) / 2;
+                const controlOffset = Math.abs(target.x - source.x) * 0.3;
+                const d = \`M\${source.x},\${source.y} Q\${midX + controlOffset},\${midY} \${target.x},\${target.y}\`;
+                path.setAttribute('d', d);
+                path.setAttribute('class', 'topo-edge');
+                path.setAttribute('stroke', edge.type === 'ownership' ? '#ff9800' : 'var(--vscode-foreground)');
+                path.setAttribute('stroke-width', edge.type === 'ownership' ? '2' : '1.5');
+                path.setAttribute('marker-end', 'url(#arrowhead)');
                 
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = \`\${edge.source} → \${edge.target}\`;
-                line.appendChild(title);
+                title.textContent = \`\${edge.source} → \${edge.target}\nType: \${edge.type || 'unknown'}\${edge.label ? ' (' + edge.label + ')' : ''}\`;
+                path.appendChild(title);
                 
-                container.appendChild(line);
+                container.appendChild(path);
             });
 
-            // Draw nodes
+            // Draw nodes with enhanced interactivity
+            let selectedNode = null;
             nodePositions.forEach(({ x, y, node }) => {
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 g.setAttribute('class', 'topo-node');
+                g.setAttribute('data-node-id', node.id);
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
 
+                // Highlight critical nodes with glow effect
+                if (node.isCritical) {
+                    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    glow.setAttribute('r', '28');
+                    glow.setAttribute('fill', '#ff9800');
+                    glow.setAttribute('opacity', '0.3');
+                    glow.setAttribute('class', 'critical-glow');
+                    g.appendChild(glow);
+                }
+                
+                // Node size based on connectivity
+                const baseSize = 20;
+                const connectivityBonus = Math.min(node.inDegree + node.outDegree, 8) * 2;
+                const nodeSize = baseSize + connectivityBonus;
+
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('x', '-30');
-                rect.setAttribute('y', '-20');
-                rect.setAttribute('width', '60');
-                rect.setAttribute('height', '40');
+                rect.setAttribute('x', -nodeSize);
+                rect.setAttribute('y', -nodeSize/2);
+                rect.setAttribute('width', nodeSize * 2);
+                rect.setAttribute('height', nodeSize);
                 rect.setAttribute('rx', '5');
                 rect.setAttribute('fill', node.colorCode || '#007acc');
-                rect.setAttribute('stroke', 'var(--vscode-panel-border)');
-                rect.setAttribute('stroke-width', node.isCritical ? '3' : '1');
+                rect.setAttribute('stroke', node.isCritical ? '#ff9800' : 'var(--vscode-panel-border)');
+                rect.setAttribute('stroke-width', node.isCritical ? '3' : '2');
                 g.appendChild(rect);
+
+                // Add badge for high connectivity
+                if (node.inDegree + node.outDegree > 5) {
+                    const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    badge.setAttribute('cx', nodeSize - 5);
+                    badge.setAttribute('cy', -nodeSize/2 + 5);
+                    badge.setAttribute('r', '8');
+                    badge.setAttribute('fill', '#ff9800');
+                    badge.setAttribute('stroke', '#fff');
+                    badge.setAttribute('stroke-width', '1.5');
+                    g.appendChild(badge);
+                    
+                    const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    badgeText.setAttribute('x', nodeSize - 5);
+                    badgeText.setAttribute('y', -nodeSize/2 + 8);
+                    badgeText.setAttribute('text-anchor', 'middle');
+                    badgeText.setAttribute('font-size', '8');
+                    badgeText.setAttribute('font-weight', 'bold');
+                    badgeText.setAttribute('fill', '#fff');
+                    badgeText.textContent = node.inDegree + node.outDegree;
+                    g.appendChild(badgeText);
+                }
 
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('class', 'topo-label');
-                text.setAttribute('y', '-5');
-                text.textContent = node.kind.substring(0, 8);
+                text.setAttribute('y', '-2');
+                text.setAttribute('font-size', '9');
+                text.textContent = node.kind.substring(0, 10);
                 g.appendChild(text);
 
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 nameText.setAttribute('class', 'topo-label');
-                nameText.setAttribute('y', '8');
-                nameText.setAttribute('font-size', '9');
-                nameText.textContent = node.name.substring(0, 10);
+                nameText.setAttribute('y', '10');
+                nameText.setAttribute('font-size', '8');
+                nameText.setAttribute('opacity', '0.8');
+                nameText.textContent = node.name.substring(0, 12);
                 g.appendChild(nameText);
 
+                // Enhanced tooltip
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = \`\${node.kind}: \${node.name}\n\${node.namespace ? 'Namespace: ' + node.namespace : ''}\`;
+                const criticalStr = node.isCritical ? ' [CRITICAL]' : '';
+                const connectionsStr = \`Connections: In=\${node.inDegree}, Out=\${node.outDegree}\`;
+                title.textContent = \`\${node.kind}: \${node.name}\${criticalStr}\n\${node.namespace ? 'Namespace: ' + node.namespace : ''}\nCategory: \${node.category}\n\${connectionsStr}\`;
                 g.appendChild(title);
+                
+                // Click to highlight related nodes
+                g.style.cursor = 'pointer';
+                g.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    // Remove previous selection
+                    document.querySelectorAll('.topo-node').forEach(n => n.classList.remove('selected'));
+                    document.querySelectorAll('.topo-edge').forEach(e => e.classList.remove('highlighted'));
+                    
+                    if (selectedNode === node.id) {
+                        selectedNode = null;
+                        return;
+                    }
+                    
+                    selectedNode = node.id;
+                    g.classList.add('selected');
+                    
+                    // Highlight connected edges
+                    const relatedEdges = edges.filter(e => e.source === node.id || e.target === node.id);
+                    relatedEdges.forEach(edge => {
+                        const edgePaths = container.querySelectorAll('path.topo-edge');
+                        edgePaths.forEach(path => {
+                            const titleText = path.querySelector('title')?.textContent || '';
+                            if (titleText.includes(edge.source) && titleText.includes(edge.target)) {
+                                path.classList.add('highlighted');
+                            }
+                        });
+                    });
+                });
 
                 container.appendChild(g);
+            });
+            
+            // Click on background to deselect
+            svg.addEventListener('click', () => {
+                document.querySelectorAll('.topo-node').forEach(n => n.classList.remove('selected'));
+                document.querySelectorAll('.topo-edge').forEach(e => e.classList.remove('highlighted'));
+                selectedNode = null;
             });
 
             updateTopologyZoom();
