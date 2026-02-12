@@ -536,6 +536,7 @@ function getEnhancedStyles(): string {
             color: var(--vscode-gitDecoration-modifiedResourceForeground);
             font-weight: bold;
         }
+        /* Center the topology SVG within its container using flexbox */
         .topology-view {
             position: relative;
             height: 600px;
@@ -1121,8 +1122,23 @@ function generateJavaScript(data: any): string {
             const tierOrder = ['Workload', 'Networking', 'Storage', 'Configuration', 'RBAC', 'Other'];
             const activeTiers = tierOrder.filter(t => tiers[t].nodes.length > 0);
             
-            // Layout in columns (swimlanes) by tier
-            // Calculate equal-width columns with proper spacing for alignment
+            /**
+             * SWIMLANE LAYOUT ALGORITHM
+             * 
+             * The topology graph organizes resources into vertical swimlanes (columns) by category.
+             * Each swimlane represents one of: Workloads, Networking, Storage, Configuration, RBAC, or Other.
+             * 
+             * Layout calculations:
+             * - columnWidth: Total SVG width divided by number of active tiers ensures equal spacing
+             * - Node x-position: (tierIndex + 0.5) * columnWidth centers nodes within their column
+             * - Background rectangle: tierIndex * columnWidth + padding aligns with column boundaries
+             * - Node y-position: Nodes are stacked vertically with consistent spacing (70px)
+             * 
+             * This ensures:
+             * 1. Consistent column widths across all tiers
+             * 2. Nodes centered within their respective swimlanes
+             * 3. Tier labels and backgrounds aligned with node positions
+             */
             const columnWidth = width / activeTiers.length;
             const nodeSpacing = 70;
             const startY = 80;
@@ -1247,8 +1263,23 @@ function generateJavaScript(data: any): string {
                     g.appendChild(badgeText);
                 }
 
-                // Position text labels inside the node box with proper vertical centering
-                // Node box is from y=-nodeSize/2 to y=nodeSize/2
+                /**
+                 * TEXT LABEL POSITIONING (INSIDE NODE BOXES)
+                 * 
+                 * Each node is a rectangle from y=-nodeSize/2 to y=nodeSize/2 (height = nodeSize)
+                 * where nodeSize = baseSize (20) + connectivityBonus (0-16), typically 20-36px
+                 * 
+                 * Labels are positioned to be INSIDE the box:
+                 * - Kind label: y=-5 (upper portion, above center line at y=0)
+                 * - Name label: y=7 (lower portion, below center line at y=0)
+                 * 
+                 * Both use text-anchor="middle" (set in CSS) to horizontally center at x=0
+                 * Font sizes are kept small (9px, 8px) to fit within the node width
+                 * Text is truncated to prevent overflow (kind: 10 chars, name: 12 chars)
+                 * 
+                 * This ensures labels are always visible inside their boxes and don't
+                 * extend beyond the node boundaries even at minimum node size (20px).
+                 */
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('class', 'topo-label');
                 text.setAttribute('y', '-5');  // Position above center, within box bounds
@@ -1311,8 +1342,25 @@ function generateJavaScript(data: any): string {
                 selectedNode = null;
             });
 
-            // Center the graph content within the SVG viewport
-            // Calculate content bounds and apply centering transform
+            /**
+             * GRAPH CENTERING
+             * 
+             * After all nodes and edges are rendered, we center the entire graph
+             * within the SVG viewport for better visual presentation.
+             * 
+             * Approach:
+             * 1. Use getBBox() to get the actual bounding box of all rendered content
+             * 2. Calculate the offset needed to center this content in the SVG viewport
+             * 3. Apply this offset via topologyPanX and topologyPanY
+             * 4. The transform is applied through updateTopologyZoom()
+             * 
+             * Formula:
+             * - centerX = (viewportWidth - contentWidth) / 2 - contentX
+             * - centerY = (viewportHeight - contentHeight) / 2 - contentY
+             * 
+             * This works in conjunction with the .topology-view CSS flexbox centering
+             * to ensure the graph is centered both at the container and content level.
+             */
             const contentBounds = container.getBBox ? container.getBBox() : { x: 0, y: 0, width: width, height: height };
             const centerX = (width - contentBounds.width) / 2 - contentBounds.x;
             const centerY = (height - contentBounds.height) / 2 - contentBounds.y;
