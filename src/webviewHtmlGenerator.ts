@@ -7,73 +7,85 @@ import type { ResourceHierarchy } from "./resourceVisualizer";
  * Interface for Kubernetes Secret object structure
  */
 interface SecretObject {
-	data?: Record<string, string>;
-	stringData?: Record<string, string>;
-	[key: string]: any;
+  data?: Record<string, string>;
+  stringData?: Record<string, string>;
+  [key: string]: any;
 }
 
 /**
  * Sanitize a Secret's YAML content by redacting sensitive data fields
  */
 function sanitizeSecretYaml(yamlContent: string): string {
-	try {
-		const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
+  try {
+    const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
 
-		// Type guard to ensure we have a valid object
-		if (!yamlObj || typeof yamlObj !== "object") {
-			return "# Secret data redacted for security";
-		}
+    // Type guard to ensure we have a valid object
+    if (!yamlObj || typeof yamlObj !== "object") {
+      return "# Secret data redacted for security";
+    }
 
-		const secretObj = yamlObj as SecretObject;
+    const secretObj = yamlObj as SecretObject;
 
-		// Redact sensitive fields by replacing values with placeholders
-		const redactField = (obj: Record<string, string>): Record<string, string> => {
-			return Object.keys(obj).reduce(
-				(acc, key) => {
-					acc[key] = "***REDACTED***";
-					return acc;
-				},
-				{} as Record<string, string>
-			);
-		};
+    // Redact sensitive fields by replacing values with placeholders
+    const redactField = (
+      obj: Record<string, string>,
+    ): Record<string, string> => {
+      return Object.keys(obj).reduce(
+        (acc, key) => {
+          acc[key] = "***REDACTED***";
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+    };
 
-		if (secretObj.data) {
-			secretObj.data = redactField(secretObj.data);
-		}
-		if (secretObj.stringData) {
-			secretObj.stringData = redactField(secretObj.stringData);
-		}
+    if (secretObj.data) {
+      secretObj.data = redactField(secretObj.data);
+    }
+    if (secretObj.stringData) {
+      secretObj.stringData = redactField(secretObj.stringData);
+    }
 
-		return yaml.dump(secretObj);
-	} catch (error) {
-		// If parsing fails, just hide the whole yaml for secrets
-		return "# Secret data redacted for security";
-	}
+    return yaml.dump(secretObj);
+  } catch (error) {
+    // If parsing fails, just hide the whole yaml for secrets
+    return "# Secret data redacted for security";
+  }
 }
 
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
  */
-export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensionUri: vscode.Uri): string {
-	const nonce = getNonce();
-	const styleNonce = getNonce();
+export function generateEnhancedHtml(
+  webview: vscode.Webview,
+  data: any,
+  extensionUri: vscode.Uri,
+): string {
+  const nonce = getNonce();
 
-	// Get local Chart.js URI
-	const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
+  // Get local Chart.js and CSS URIs
+  const chartJsUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"),
+  );
+  const stylesUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(extensionUri, "out", "styles.css"),
+  );
 
-	// Generate resource explorer HTML
-	const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
+  // Generate resource explorer HTML
+  const resourceExplorerHtml = generateResourceExplorer(
+    data.resourceHierarchy,
+    webview,
+    extensionUri,
+  );
 
-	return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}'; style-src 'nonce-${styleNonce}' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src ${webview.cspSource};">
     <title>Chart Visualization</title>
-    <style nonce="${styleNonce}">
-        ${getEnhancedStyles()}
-    </style>
+    <link rel="stylesheet" href="${stylesUri}" nonce="${nonce}">
 </head>
 <body>
     <div class="toolbar">
@@ -112,7 +124,7 @@ export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensi
 }
 
 function generateOverviewTab(data: any): string {
-	return `
+  return `
         <div class="header">
             <h1 class="chart-title">
                 ${escapeHtml(data.chartName)}
@@ -140,8 +152,8 @@ function generateOverviewTab(data: any): string {
         </div>
 
         ${
-			data.architectureNodes && data.architectureNodes.length > 0
-				? `
+          data.architectureNodes && data.architectureNodes.length > 0
+            ? `
         <div class="chart-container">
             <h2>High-Level Architecture
                 <span class="help-tooltip" title="Shows the main components and their connections. Different shapes represent resource types: rounded rectangles (workloads), hexagons (networking), cylinders (storage), documents (configuration), shields (RBAC). Arrows indicate relationships and data flow. Larger nodes are more central to the system.">ⓘ</span>
@@ -160,14 +172,14 @@ function generateOverviewTab(data: any): string {
             <div id="architectureDiagram" class="architecture-diagram"></div>
         </div>
         `
-				: ""
-		}
+            : ""
+        }
 
 
 
         ${
-			data.overriddenValues.length > 0
-				? `
+          data.overriddenValues.length > 0
+            ? `
         <div class="chart-container">
             <h2>Top Overridden Values</h2>
             <table class="values-table">
@@ -180,83 +192,86 @@ function generateOverviewTab(data: any): string {
                 </thead>
                 <tbody>
                     ${data.overriddenValues
-						.map(
-							(v: any) => `
+                      .map(
+                        (v: any) => `
                         <tr>
                             <td class="value-key">${escapeHtml(v.key)}</td>
                             <td class="value-old">${escapeHtml(String(v.baseValue))}</td>
                             <td class="value-new">${escapeHtml(String(v.envValue))}</td>
                         </tr>
-                    `
-						)
-						.join("")}
+                    `,
+                      )
+                      .join("")}
                 </tbody>
             </table>
         </div>
         `
-				: ""
-		}
+            : ""
+        }
     `;
 }
 
 function generateResourceExplorer(
-	hierarchy: ResourceHierarchy,
-	webview: vscode.Webview,
-	extensionUri: vscode.Uri
+  hierarchy: ResourceHierarchy,
+  webview: vscode.Webview,
+  extensionUri: vscode.Uri,
 ): string {
-	if (!hierarchy || hierarchy.totalCount === 0) {
-		return '<div class="no-data"><p>No resources found</p></div>';
-	}
+  if (!hierarchy || hierarchy.totalCount === 0) {
+    return '<div class="no-data"><p>No resources found</p></div>';
+  }
 
-	let html = '<div class="resource-explorer">';
+  let html = '<div class="resource-explorer">';
 
-	for (const [kind, group] of hierarchy.kindGroups) {
-		html += `
+  for (const [kind, group] of hierarchy.kindGroups) {
+    html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
             <div class="kind-header">
                 <span class="expand-icon">▶</span>
-                <span class="kind-name" style="color: ${group.colorCode}">${escapeHtml(kind)} (${group.count})</span>
+                <span class="kind-name" data-color="${group.colorCode}">${escapeHtml(kind)} (${group.count})</span>
             </div>
-            <div class="kind-resources" style="display: none;">
+            <div class="kind-resources" data-collapsed="true">
         `;
 
-		for (const resource of group.resources) {
-			// For secrets, sanitize the YAML to mask sensitive data
-			const displayYaml = resource.kind === "Secret" ? sanitizeSecretYaml(resource.yaml) : resource.yaml;
+    for (const resource of group.resources) {
+      // For secrets, sanitize the YAML to mask sensitive data
+      const displayYaml =
+        resource.kind === "Secret"
+          ? sanitizeSecretYaml(resource.yaml)
+          : resource.yaml;
 
-			html += `
-            <div class="resource-card" style="border-left-color: ${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
+      html += `
+            <div class="resource-card" data-color="${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
                 <div class="resource-header">
                     <span class="expand-icon">▶</span>
                     <strong>${escapeHtml(resource.name)}</strong>
                     ${resource.namespace ? `<span class="namespace-tag">${escapeHtml(resource.namespace)}</span>` : ""}
                     <button class="copy-btn">📋</button>
                 </div>
-                <div class="resource-details" style="display: none;">
+                <div class="resource-details" data-collapsed="true">
                     <div class="detail-section">
                         <h4>Metadata</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.metadata, null, 2))}</pre>
                     </div>
                     ${
-						Object.keys(resource.spec || {}).length > 0
-							? `
+                      Object.keys(resource.spec || {}).length > 0
+                        ? `
                     <div class="detail-section">
                         <h4>Spec</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.spec, null, 2))}</pre>
                     </div>
                     `
-							: ""
-					}
+                        : ""
+                    }
                     ${
-						resource.kind === "Secret" && resource.data
-							? `
+                      resource.kind === "Secret" && resource.data
+                        ? `
                     <div class="detail-section">
                         <h4>Data (masked)</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.data, null, 2))}</pre>
                     </div>
                     `
-							: ""
-					}
+                        : ""
+                    }
                     <div class="detail-section">
                         <h4>Full YAML</h4>
                         <pre class="yaml-content">${escapeHtml(displayYaml)}</pre>
@@ -264,20 +279,20 @@ function generateResourceExplorer(
                 </div>
             </div>
             `;
-		}
+    }
 
-		html += `
+    html += `
             </div>
         </div>
         `;
-	}
+  }
 
-	html += "</div>";
-	return html;
+  html += "</div>";
+  return html;
 }
 
 function generateTopologyTab(): string {
-	return `
+  return `
         <div class="topology-view">
             <div class="topology-header">
                 <div class="topology-title-section">
@@ -324,27 +339,27 @@ function generateTopologyTab(): string {
                     <span class="legend-label">Resource Tiers:</span>
                     <div class="legend-items">
                         <div class="legend-item">
-                            <div class="legend-color" style="background-color: #0078d4;"></div>
+                            <div class="legend-color" data-color="#0078d4"></div>
                             <span>Workload</span>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background-color: #107c10;"></div>
+                            <div class="legend-color" data-color="#107c10"></div>
                             <span>Networking</span>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background-color: #8661c5;"></div>
+                            <div class="legend-color" data-color="#8661c5"></div>
                             <span>Storage</span>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background-color: #d83b01;"></div>
+                            <div class="legend-color" data-color="#d83b01"></div>
                             <span>Configuration</span>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background-color: #e81123;"></div>
+                            <div class="legend-color" data-color="#e81123"></div>
                             <span>RBAC</span>
                         </div>
                         <div class="legend-item">
-                            <div class="legend-color" style="background-color: #008272;"></div>
+                            <div class="legend-color" data-color="#008272"></div>
                             <span>Scaling</span>
                         </div>
                     </div>
@@ -407,616 +422,33 @@ function generateTopologyTab(): string {
     `;
 }
 
-function getEnhancedStyles(): string {
-	return `
-        body {
-            font-family: var(--vscode-font-family);
-            color: var(--vscode-foreground);
-            background-color: var(--vscode-editor-background);
-            padding: 0;
-            margin: 0;
-        }
-        .toolbar {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            padding: 10px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            border-bottom: 1px solid var(--vscode-panel-border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .toolbar-btn {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .toolbar-btn:hover {
-            background-color: var(--vscode-button-hoverBackground);
-        }
-        .search-box {
-            flex: 1;
-            max-width: 300px;
-            padding: 6px 12px;
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 4px;
-        }
-        .tabs {
-            display: flex;
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            border-bottom: 1px solid var(--vscode-panel-border);
-        }
-        .tab-btn {
-            background: none;
-            border: none;
-            color: var(--vscode-foreground);
-            padding: 12px 20px;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-        }
-        .tab-btn.active {
-            border-bottom-color: var(--vscode-focusBorder);
-            font-weight: bold;
-        }
-        .tab-content {
-            display: none;
-            padding: 20px;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .header {
-            border-bottom: 2px solid var(--vscode-panel-border);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-        .chart-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 0;
-        }
-        .environment-badge {
-            display: inline-block;
-            background-color: var(--vscode-badge-background);
-            color: var(--vscode-badge-foreground);
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 14px;
-            margin-left: 10px;
-        }
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .stat-card {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 8px;
-            padding: 15px;
-        }
-        .stat-label {
-            font-size: 12px;
-            color: var(--vscode-descriptionForeground);
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-        .stat-value {
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .chart-container {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            max-height: 60vh;
-            overflow: auto;
-        }
-        .chart-canvas {
-            width: 100%;
-            max-width: 100%;
-            /* height will be set dynamically in JS based on bar count */
-        }
-        .resource-explorer {
-            padding: 10px 0;
-        }
-        .kind-group {
-            margin-bottom: 15px;
-        }
-        .kind-header {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            padding: 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .kind-header:hover {
-            background-color: var(--vscode-list-hoverBackground);
-        }
-        .expand-icon {
-            transition: transform 0.2s;
-        }
-        .expanded .expand-icon {
-            transform: rotate(90deg);
-        }
-        .kind-resources {
-            margin-left: 20px;
-            margin-top: 10px;
-        }
-        .resource-card {
-            background-color: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-panel-border);
-            border-left: 4px solid;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            padding: 12px;
-        }
-        .resource-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-        .namespace-tag {
-            background-color: var(--vscode-badge-background);
-            color: var(--vscode-badge-foreground);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-        }
-        .copy-btn {
-            margin-left: auto;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            opacity: 0.6;
-        }
-        .copy-btn:hover {
-            opacity: 1;
-        }
-        .resource-details {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--vscode-panel-border);
-        }
-        .detail-section {
-            margin-bottom: 15px;
-        }
-        .detail-section h4 {
-            margin: 0 0 8px 0;
-            color: var(--vscode-descriptionForeground);
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-        .detail-section pre {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-            font-size: 12px;
-            margin: 0;
-        }
-        .values-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        .values-table th,
-        .values-table td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid var(--vscode-panel-border);
-        }
-        .values-table th {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            font-weight: bold;
-        }
-        .value-key {
-            font-family: var(--vscode-editor-font-family);
-            color: var(--vscode-textLink-foreground);
-        }
-        .value-old {
-            color: var(--vscode-descriptionForeground);
-            text-decoration: line-through;
-        }
-        .value-new {
-            color: var(--vscode-gitDecoration-modifiedResourceForeground);
-            font-weight: bold;
-        }
-        /* Modern Topology View Styles */
-        .topology-view {
-            position: relative;
-            height: 700px;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--vscode-editor-background);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .topology-header {
-            padding: 16px 20px;
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            border-bottom: 1px solid var(--vscode-panel-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        .topology-title-section {
-            flex: 1;
-            min-width: 250px;
-        }
-        .topology-header h2 {
-            margin: 0 0 8px 0;
-            font-size: 18px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .topology-info {
-            display: flex;
-            gap: 12px;
-            font-size: 12px;
-            color: var(--vscode-descriptionForeground);
-            align-items: center;
-        }
-        .topology-stat {
-            font-weight: 500;
-        }
-        .topology-separator {
-            opacity: 0.5;
-        }
-        .topology-controls {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .control-group {
-            display: flex;
-            gap: 4px;
-            background-color: var(--vscode-input-background);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 6px;
-            padding: 4px;
-        }
-        .topology-btn {
-            background-color: transparent;
-            color: var(--vscode-button-foreground);
-            border: none;
-            padding: 6px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 36px;
-        }
-        .topology-btn:hover {
-            background-color: var(--vscode-button-hoverBackground);
-        }
-        .topology-btn .btn-icon {
-            display: inline-block;
-            font-size: 16px;
-        }
-        .topology-select {
-            background-color: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 12px;
-            cursor: pointer;
-            outline: none;
-        }
-        .topology-select:hover {
-            background-color: var(--vscode-list-hoverBackground);
-        }
-        .topology-legend {
-            padding: 12px 20px;
-            background-color: var(--vscode-editor-background);
-            border-bottom: 1px solid var(--vscode-panel-border);
-            display: flex;
-            gap: 30px;
-            flex-wrap: wrap;
-            font-size: 11px;
-        }
-        .topology-legend .legend-section {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        .topology-legend .legend-label {
-            font-weight: 600;
-            color: var(--vscode-descriptionForeground);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .topology-legend .legend-items {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-        .topology-legend .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .topology-legend .legend-color {
-            width: 16px;
-            height: 16px;
-            border-radius: 3px;
-            border: 1px solid var(--vscode-panel-border);
-        }
-        .topology-legend .legend-badge {
-            min-width: 24px;
-            height: 18px;
-            border-radius: 3px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
-            padding: 0 4px;
-        }
-        .topology-legend .legend-badge.critical {
-            background-color: #ffa500;
-            color: #000;
-        }
-        .topology-legend .legend-badge.connectivity {
-            background-color: #0078d4;
-            color: #fff;
-        }
-        .topology-svg {
-            flex: 1;
-            width: 100%;
-            background-color: var(--vscode-editor-background);
-            cursor: grab;
-        }
-        .topology-svg:active {
-            cursor: grabbing;
-        }
-        .architecture-diagram {
-            position: relative;
-            min-height: 500px;
-            background-color: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .arch-svg {
-            width: 100%;
-            height: 100%;
-        }
-        .arch-node {
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .arch-node:hover {
-            opacity: 0.8;
-        }
-        .arch-node.critical {
-            filter: drop-shadow(0 0 4px rgba(255, 152, 0, 0.6));
-        }
-        .arch-edge {
-            fill: none;
-            stroke: var(--vscode-foreground);
-            stroke-width: 1.5;
-            opacity: 0.4;
-            marker-end: url(#arrowhead);
-        }
-        .arch-edge.critical-path {
-            stroke: #ff9800;
-            stroke-width: 2;
-            opacity: 0.7;
-            marker-end: url(#arrowhead-critical);
-        }
-        .arch-label {
-            font-size: 11px;
-            fill: var(--vscode-foreground);
-            text-anchor: middle;
-            pointer-events: none;
-        }
-        .arch-group-label {
-            font-size: 13px;
-            fill: var(--vscode-descriptionForeground);
-            font-weight: bold;
-        }
-        .help-tooltip {
-            cursor: help;
-            opacity: 0.6;
-            font-size: 14px;
-            margin-left: 5px;
-        }
-        .help-tooltip:hover {
-            opacity: 1;
-        }
-        .legend-container {
-            margin: 10px 0 20px 0;
-            padding: 12px;
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            border-radius: 6px;
-            border: 1px solid var(--vscode-panel-border);
-        }
-        .legend-title {
-            font-size: 12px;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: var(--vscode-descriptionForeground);
-        }
-        .legend-items {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        .legend-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 11px;
-        }
-        .legend-item svg {
-            vertical-align: middle;
-        }
-        /* Modern Topology Node and Edge Styles */
-        .topo-node {
-            cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .topo-node[data-filtered="hidden"] {
-            display: none;
-        }
-        .topo-node:hover {
-            filter: brightness(1.15) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-            transform: translateY(-2px);
-        }
-        .topo-node.selected {
-            filter: brightness(1.25) drop-shadow(0 6px 16px rgba(0, 120, 212, 0.6));
-        }
-        .topo-node-rect {
-            stroke-width: 2;
-            stroke: var(--vscode-panel-border);
-            filter: url(#dropShadow);
-            rx: 6;
-        }
-        .topo-node.critical .topo-node-rect {
-            stroke: #ffa500;
-            stroke-width: 3;
-            filter: url(#criticalGlow);
-        }
-        .topo-edge {
-            fill: none;
-            stroke: var(--vscode-foreground);
-            stroke-width: 1.5;
-            opacity: 0.25;
-            marker-end: url(#arrowhead);
-            transition: all 0.25s ease;
-        }
-        .topo-edge[data-filtered="hidden"] {
-            display: none;
-        }
-        .topo-edge.highlighted {
-            opacity: 0.9;
-            stroke: #0078d4;
-            stroke-width: 2.5;
-            marker-end: url(#arrowhead-selected);
-        }
-        .topo-edge.critical-path {
-            stroke: #ffa500;
-            opacity: 0.6;
-            marker-end: url(#arrowhead-critical);
-        }
-        .critical-glow {
-            animation: pulse 2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 0.7; }
-        }
-        .topo-label {
-            font-size: 11px;
-            fill: var(--vscode-foreground);
-            text-anchor: middle;
-            pointer-events: none;
-            font-weight: 500;
-        }
-        .topo-label.name {
-            font-size: 9px;
-            opacity: 0.85;
-            font-weight: 400;
-        }
-        .topo-tier-bg {
-            stroke: var(--vscode-panel-border);
-            stroke-width: 1;
-            stroke-dasharray: 4,4;
-            rx: 8;
-            opacity: 0.4;
-        }
-        .topo-tier-bg[data-filtered="hidden"] {
-            display: none;
-        }
-        .topo-tier-label {
-            font-size: 13px;
-            font-weight: 600;
-            text-anchor: start;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-        .topo-tier-label[data-filtered="hidden"] {
-            display: none;
-        }
-        .connectivity-badge {
-            cursor: help;
-        }
-        .connectivity-badge-circle {
-            fill: #0078d4;
-            stroke: var(--vscode-editor-background);
-            stroke-width: 2;
-        }
-        .connectivity-badge-text {
-            fill: #fff;
-            font-size: 9px;
-            font-weight: bold;
-            text-anchor: middle;
-        }
-        .critical-badge {
-            cursor: help;
-        }
-        .critical-badge-bg {
-            fill: #ffa500;
-            stroke: var(--vscode-editor-background);
-            stroke-width: 2;
-        }
-        .critical-badge-text {
-            fill: #000;
-            font-size: 11px;
-            font-weight: bold;
-            text-anchor: middle;
-        }
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: var(--vscode-descriptionForeground);
-        }
-    `;
-}
-
 function generateJavaScript(data: any): string {
-	// Create a minimal, sanitized dataset for topology - only include kind, name, namespace
-	const topologyResources = data.resources.map((r: any) => ({
-		kind: r.kind || "Unknown",
-		name: r.name || "unnamed",
-		namespace: r.namespace || "default",
-	}));
+  // Create a minimal, sanitized dataset for topology - only include kind, name, namespace
+  const topologyResources = data.resources.map((r: any) => ({
+    kind: r.kind || "Unknown",
+    name: r.name || "unnamed",
+    namespace: r.namespace || "default",
+  }));
 
-	// Escape the JSON to prevent XSS by replacing < with \u003c
-	const safeTopologyData = JSON.stringify(topologyResources).replace(/</g, "\\u003c");
+  // Escape the JSON to prevent XSS by replacing < with \u003c
+  const safeTopologyData = JSON.stringify(topologyResources).replace(
+    /</g,
+    "\\u003c",
+  );
 
-	// Pass architecture data safely
-	const architectureNodes = data.architectureNodes || [];
-	const relationships = data.relationships || [];
-	const safeArchNodes = JSON.stringify(architectureNodes).replace(/</g, "\\u003c");
-	const safeRelationships = JSON.stringify(relationships).replace(/</g, "\\u003c");
+  // Pass architecture data safely
+  const architectureNodes = data.architectureNodes || [];
+  const relationships = data.relationships || [];
+  const safeArchNodes = JSON.stringify(architectureNodes).replace(
+    /</g,
+    "\\u003c",
+  );
+  const safeRelationships = JSON.stringify(relationships).replace(
+    /</g,
+    "\\u003c",
+  );
 
-	return `
+  return `
         const vscode = acquireVsCodeApi();
         let liveMode = false;
         let currentZoom = 1;
@@ -1059,7 +491,7 @@ function generateJavaScript(data: any): string {
             document.querySelectorAll('.kind-group').forEach(group => {
                 group.classList.add('expanded');
                 const resources = group.querySelector('.kind-resources');
-                if (resources) resources.style.display = 'block';
+                if (resources) resources.setAttribute('data-collapsed', 'false');
             });
         });
 
@@ -1067,12 +499,12 @@ function generateJavaScript(data: any): string {
             document.querySelectorAll('.kind-group').forEach(group => {
                 group.classList.remove('expanded');
                 const resources = group.querySelector('.kind-resources');
-                if (resources) resources.style.display = 'none';
+                if (resources) resources.setAttribute('data-collapsed', 'true');
             });
             document.querySelectorAll('.resource-card').forEach(card => {
                 card.classList.remove('expanded');
                 const details = card.querySelector('.resource-details');
-                if (details) details.style.display = 'none';
+                if (details) details.setAttribute('data-collapsed', 'true');
             });
         });
 
@@ -1096,7 +528,8 @@ function generateJavaScript(data: any): string {
                 group.classList.toggle('expanded');
                 const resources = group.querySelector('.kind-resources');
                 if (resources) {
-                    resources.style.display = resources.style.display === 'none' ? 'block' : 'none';
+                    const isCollapsed = resources.getAttribute('data-collapsed') === 'true';
+                    resources.setAttribute('data-collapsed', isCollapsed ? 'false' : 'true');
                 }
                 return;
             }
@@ -1117,7 +550,8 @@ function generateJavaScript(data: any): string {
                 card.classList.toggle('expanded');
                 const details = card.querySelector('.resource-details');
                 if (details) {
-                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
+                    const isCollapsed = details.getAttribute('data-collapsed') === 'true';
+                    details.setAttribute('data-collapsed', isCollapsed ? 'false' : 'true');
                 }
                 return;
             }
@@ -1531,7 +965,7 @@ function generateJavaScript(data: any): string {
                 // Position nodes horizontally within this tier
                 const tierNodeCount = tier.nodes.length;
                 // Skip empty tiers to prevent division by zero in spacing calculation
-                if (tierNodeCount === 0) continue;
+                if (tierNodeCount === 0) return;
                 
                 const availableWidth = width - 2 * margin - 40;
                 const spacing = tierNodeCount > 1 ? Math.min(nodeSpacing, availableWidth / (tierNodeCount - 1)) : 0;
@@ -1828,7 +1262,7 @@ function generateJavaScript(data: any): string {
 }
 
 function generateChartJsInit(data: any): string {
-	return `
+  return `
         const chartColors = {
             primary: '#007acc',
             secondary: '#68217a',
@@ -1848,8 +1282,8 @@ function generateChartJsInit(data: any): string {
         ];
 
         ${
-			Object.keys(data.resourceCounts || {}).length > 0
-				? `
+          Object.keys(data.resourceCounts || {}).length > 0
+            ? `
         (function() {
             const canvas = document.getElementById('resourceChart');
             if (!canvas) return;
@@ -1967,12 +1401,12 @@ function generateChartJsInit(data: any): string {
             }
         })();
         `
-				: ""
-		}
+            : ""
+        }
 
         ${
-			data.totalValues > 0
-				? `
+          data.totalValues > 0
+            ? `
         (function() {
             const ctx = document.getElementById('valuesChart');
             if (!ctx) return;
@@ -1993,24 +1427,24 @@ function generateChartJsInit(data: any): string {
             });
         })();
         `
-				: ""
-		}
+            : ""
+        }
     `;
 }
 
 function getNonce(): string {
-	return crypto.randomBytes(16).toString("base64");
+  return crypto.randomBytes(16).toString("base64");
 }
 
 function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function escapeAttr(text: string): string {
-	return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }

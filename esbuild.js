@@ -1,4 +1,6 @@
 const esbuild = require("esbuild");
+const fs = require("fs");
+const path = require("path");
 
 const production = process.argv.includes("--production");
 const watch = process.argv.includes("--watch");
@@ -47,6 +49,14 @@ async function main() {
   } else {
     await ctx.rebuild();
     await ctx.dispose();
+  }
+
+  // Copy CSS file to out directory
+  const srcCssPath = path.join(__dirname, "src", "styles.css");
+  const outCssPath = path.join(__dirname, "out", "styles.css");
+  if (fs.existsSync(srcCssPath)) {
+    fs.copyFileSync(srcCssPath, outCssPath);
+    console.log("Copied styles.css to out directory");
   }
 }
 
