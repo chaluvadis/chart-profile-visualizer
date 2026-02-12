@@ -8,6 +8,7 @@
 		"type": "git",
 		"url": "https://github.com/chaluvadis/chart-profile-visualizer.git"
 	},
+	"icon":"./images/icon-light.png",
 	"bugs": {
 		"url": "https://github.com/chaluvadis/chart-profile-visualizer/issues"
 	},
