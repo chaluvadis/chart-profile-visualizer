@@ -83,16 +83,20 @@ For each environment, you can:
   - Expand/collapse all controls
 
 **Topology Tab:**
-  - **Enhanced System Topology** - Detailed structural view with actionable insights:
-    - Tier-based swimlane layout organizing resources by category (Workload, Networking, Storage, etc.)
-    - Visual tier boundaries with color-coded backgrounds
-    - Relationship edges with directional arrows showing connection types
-    - Critical nodes with glowing indicators and special highlighting
-    - Connectivity badges showing number of connections for high-traffic nodes
-    - Click nodes to highlight their relationships
-    - Enhanced tooltips with detailed resource metadata
-    - Zoom, pan, and fit-to-screen controls
-    - Curved edges for better visual clarity
+  - **Redesigned System Topology** - Modern, intuitive visualization of system architecture:
+    - **Horizontal tier layout** - Resources organized in horizontal bands by category (Workload, Networking, Storage, Configuration, RBAC, Scaling)
+    - **Modern node design** - Card-based nodes with gradients, shadows, and smooth animations
+    - **Visual hierarchy** - Clear spacing and grouping with color-coded tier backgrounds
+    - **Interactive legend** - Visual guide showing tier colors and special indicators
+    - **Smart filtering** - Dropdown to focus on specific resource tiers
+    - **Resource statistics** - Header displays resource and connection counts
+    - **Critical indicators** - Orange warning badges (⚠) for critical resources
+    - **Connectivity badges** - Blue badges showing connection count for highly connected nodes (5+)
+    - **Interactive selection** - Click nodes to highlight their relationships with smooth transitions
+    - **Enhanced tooltips** - Detailed resource metadata with connection statistics
+    - **Smooth edge routing** - Cubic bezier curves for cleaner, more readable connections
+    - **Advanced controls** - Zoom in/out, reset view, fit-to-screen, and mouse-based pan/zoom
+    - **Responsive design** - Adapts to different panel sizes and screen resolutions
   - Relationships detected:
     - Service selectors to workloads
     - Ingress routing to services
