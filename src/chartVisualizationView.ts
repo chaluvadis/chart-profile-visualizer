@@ -6,6 +6,12 @@ import * as vscode from "vscode";
 import type { ChartTreeItem } from "./chartProfilesProvider";
 import { type RenderedResource, renderHelmTemplate } from "./helmRenderer";
 import { LiveUpdateManager } from "./liveUpdateManager";
+import {
+	buildArchitectureNodes,
+	detectRelationships,
+	type ArchitectureNode,
+	type ResourceRelationship,
+} from "./relationshipDetector";
 import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
 import { mergeValues } from "./valuesMerger";
 import { generateEnhancedHtml } from "./webviewHtmlGenerator";
@@ -271,6 +277,16 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		console.warn("Could not render templates for visualization:", error);
 	}
 
+	// Parse resources into hierarchy
+	const resourceHierarchy = parseResources(resources);
+
+	// Detect relationships and build architecture
+	const structuredResources = Array.from(resourceHierarchy.kindGroups.values()).flatMap(
+		(group) => group.resources
+	);
+	const relationships = detectRelationships(structuredResources);
+	const architectureNodes = buildArchitectureNodes(structuredResources, relationships);
+
 	return {
 		chartName,
 		environment,
@@ -281,7 +297,9 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		namespaceCounts,
 		templateSources,
 		resources,
-		resourceHierarchy: parseResources(resources),
+		resourceHierarchy,
+		architectureNodes,
+		relationships,
 	};
 }
 
@@ -844,6 +862,8 @@ interface ChartData {
 	templateSources: string[];
 	resources: RenderedResource[];
 	resourceHierarchy: ResourceHierarchy;
+	architectureNodes: ArchitectureNode[];
+	relationships: ResourceRelationship[];
 }
 
 function getNonce(): string {

@@ -140,11 +140,13 @@ function generateOverviewTab(data: any): string {
         </div>
 
         ${
-			Object.keys(data.resourceCounts).length > 0
+			data.architectureNodes && data.architectureNodes.length > 0
 				? `
         <div class="chart-container">
-            <h2>Resource Type Distribution</h2>
-            <canvas id="resourceChart" class="chart-canvas"></canvas>
+            <h2>High-Level Architecture
+                <span class="help-tooltip" title="Shows the main components and their connections. Arrows indicate relationships and data flow. Larger nodes are more central to the system.">ⓘ</span>
+            </h2>
+            <div id="architectureDiagram" class="architecture-diagram"></div>
         </div>
         `
 				: ""
@@ -275,15 +277,28 @@ function generateResourceExplorer(
 function generateTopologyTab(): string {
 	return `
         <div class="topology-view">
+            <div class="topology-header">
+                <h2>System Topology
+                    <span class="help-tooltip" title="Interactive view of resources with relationships. Resources are grouped by type and namespace. Click nodes to see details, zoom/pan to navigate.">ⓘ</span>
+                </h2>
+            </div>
             <div class="topology-controls">
-                <button id="zoomInBtn">🔍+</button>
-                <button id="zoomOutBtn">🔍-</button>
-                <button id="resetZoomBtn">⟲</button>
+                <button id="zoomInBtn" class="topology-btn" title="Zoom In">🔍+</button>
+                <button id="zoomOutBtn" class="topology-btn" title="Zoom Out">🔍-</button>
+                <button id="resetZoomBtn" class="topology-btn" title="Reset View">⟲</button>
+                <button id="fitToScreen" class="topology-btn" title="Fit to Screen">⛶</button>
             </div>
             <svg id="topologySvg" class="topology-svg">
-                <text x="50%" y="50%" text-anchor="middle" fill="var(--vscode-foreground)">
-                    Topology view: Drag to connect resources
-                </text>
+                <defs>
+                    <!-- Arrow markers for different relationship types -->
+                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                        <polygon points="0 0, 10 3, 0 6" fill="var(--vscode-foreground)" opacity="0.6" />
+                    </marker>
+                    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                        <polygon points="0 0, 10 3, 0 6" fill="#ff9800" opacity="0.8" />
+                    </marker>
+                </defs>
+                <g id="topologyContent"></g>
             </svg>
         </div>
     `;
@@ -546,6 +561,110 @@ function getEnhancedStyles(): string {
             border: 1px solid var(--vscode-panel-border);
             border-radius: 4px;
         }
+        .topology-header {
+            padding: 10px 0;
+        }
+        .topology-header h2 {
+            margin: 0;
+        }
+        .topology-btn {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .topology-btn:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
+        .architecture-diagram {
+            position: relative;
+            min-height: 500px;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .arch-svg {
+            width: 100%;
+            height: 100%;
+        }
+        .arch-node {
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .arch-node:hover {
+            opacity: 0.8;
+        }
+        .arch-node.critical {
+            filter: drop-shadow(0 0 4px rgba(255, 152, 0, 0.6));
+        }
+        .arch-edge {
+            fill: none;
+            stroke: var(--vscode-foreground);
+            stroke-width: 1.5;
+            opacity: 0.4;
+            marker-end: url(#arrowhead);
+        }
+        .arch-edge.critical-path {
+            stroke: #ff9800;
+            stroke-width: 2;
+            opacity: 0.7;
+            marker-end: url(#arrowhead-critical);
+        }
+        .arch-label {
+            font-size: 11px;
+            fill: var(--vscode-foreground);
+            text-anchor: middle;
+            pointer-events: none;
+        }
+        .arch-group-label {
+            font-size: 13px;
+            fill: var(--vscode-descriptionForeground);
+            font-weight: bold;
+        }
+        .help-tooltip {
+            cursor: help;
+            opacity: 0.6;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+        .help-tooltip:hover {
+            opacity: 1;
+        }
+        .topo-node {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .topo-node:hover {
+            filter: brightness(1.2);
+        }
+        .topo-node.selected {
+            filter: brightness(1.3);
+            stroke-width: 3;
+        }
+        .topo-edge {
+            fill: none;
+            stroke: var(--vscode-foreground);
+            stroke-width: 1.5;
+            opacity: 0.3;
+            marker-end: url(#arrowhead);
+        }
+        .topo-label {
+            font-size: 10px;
+            fill: var(--vscode-foreground);
+            text-anchor: middle;
+            pointer-events: none;
+        }
+        .topo-group {
+            fill: var(--vscode-editor-inactiveSelectionBackground);
+            stroke: var(--vscode-panel-border);
+            stroke-width: 2;
+            rx: 8;
+            opacity: 0.3;
+        }
         .no-data {
             text-align: center;
             padding: 40px;
@@ -565,10 +684,19 @@ function generateJavaScript(data: any): string {
 	// Escape the JSON to prevent XSS by replacing < with \u003c
 	const safeTopologyData = JSON.stringify(topologyResources).replace(/</g, "\\u003c");
 
+	// Pass architecture data safely
+	const architectureNodes = data.architectureNodes || [];
+	const relationships = data.relationships || [];
+	const safeArchNodes = JSON.stringify(architectureNodes).replace(/</g, "\\u003c");
+	const safeRelationships = JSON.stringify(relationships).replace(/</g, "\\u003c");
+
 	return `
         const vscode = acquireVsCodeApi();
         let liveMode = false;
         let currentZoom = 1;
+        let topologyZoom = 1;
+        let topologyPanX = 0;
+        let topologyPanY = 0;
 
         // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -669,85 +797,333 @@ function generateJavaScript(data: any): string {
             }
         });
 
-        // Topology view functions
+        // Architecture diagram rendering
+        function initArchitectureDiagram() {
+            const container = document.getElementById('architectureDiagram');
+            if (!container) return;
+            if (container.hasAttribute('data-initialized')) return;
+            container.setAttribute('data-initialized', 'true');
+
+            const nodes = ${safeArchNodes};
+            const edges = ${safeRelationships};
+            
+            if (nodes.length === 0) {
+                container.innerHTML = '<div class="no-data">No resources to display</div>';
+                return;
+            }
+
+            // Create SVG
+            const width = container.clientWidth;
+            const height = 500;
+            
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'arch-svg');
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.setAttribute('viewBox', \`0 0 \${width} \${height}\`);
+
+            // Add arrow markers
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'arrowhead');
+            marker.setAttribute('markerWidth', '10');
+            marker.setAttribute('markerHeight', '10');
+            marker.setAttribute('refX', '9');
+            marker.setAttribute('refY', '3');
+            marker.setAttribute('orient', 'auto');
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '0 0, 10 3, 0 6');
+            polygon.setAttribute('fill', 'var(--vscode-foreground)');
+            polygon.setAttribute('opacity', '0.6');
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+            
+            const markerCritical = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            markerCritical.setAttribute('id', 'arrowhead-critical');
+            markerCritical.setAttribute('markerWidth', '10');
+            markerCritical.setAttribute('markerHeight', '10');
+            markerCritical.setAttribute('refX', '9');
+            markerCritical.setAttribute('refY', '3');
+            markerCritical.setAttribute('orient', 'auto');
+            const polygonCritical = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygonCritical.setAttribute('points', '0 0, 10 3, 0 6');
+            polygonCritical.setAttribute('fill', '#ff9800');
+            polygonCritical.setAttribute('opacity', '0.8');
+            markerCritical.appendChild(polygonCritical);
+            defs.appendChild(markerCritical);
+            svg.appendChild(defs);
+
+            // Simple hierarchical layout: group by category, arrange in layers
+            const categories = {};
+            nodes.forEach(node => {
+                if (!categories[node.category]) {
+                    categories[node.category] = [];
+                }
+                categories[node.category].push(node);
+            });
+
+            const categoryKeys = Object.keys(categories);
+            const layerHeight = height / (categoryKeys.length + 1);
+            const nodePositions = new Map();
+
+            // Position nodes
+            categoryKeys.forEach((category, layerIndex) => {
+                const layerNodes = categories[category];
+                const layerY = (layerIndex + 1) * layerHeight;
+                const nodeWidth = Math.min(width / (layerNodes.length + 1), 150);
+
+                layerNodes.forEach((node, i) => {
+                    const x = ((i + 1) * width) / (layerNodes.length + 1);
+                    const y = layerY;
+                    nodePositions.set(node.id, { x, y, node });
+                });
+            });
+
+            // Draw edges first (so they appear behind nodes)
+            const edgesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            edges.forEach(edge => {
+                const source = nodePositions.get(edge.source);
+                const target = nodePositions.get(edge.target);
+                if (!source || !target) return;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = \`M\${source.x},\${source.y} Q\${(source.x + target.x)/2},\${(source.y + target.y)/2 - 30} \${target.x},\${target.y}\`;
+                path.setAttribute('d', d);
+                path.setAttribute('class', 'arch-edge');
+                path.setAttribute('marker-end', 'url(#arrowhead)');
+                
+                // Title for tooltip
+                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                title.textContent = \`\${edge.source} → \${edge.target} (\${edge.label || edge.type})\`;
+                path.appendChild(title);
+                
+                edgesGroup.appendChild(path);
+            });
+            svg.appendChild(edgesGroup);
+
+            // Draw nodes
+            const nodesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            nodePositions.forEach(({ x, y, node }) => {
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('class', node.isCritical ? 'arch-node critical' : 'arch-node');
+                g.setAttribute('transform', \`translate(\${x}, \${y})\`);
+
+                // Node size based on degree
+                const size = 30 + Math.min(node.inDegree + node.outDegree, 10) * 3;
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('r', size/2);
+                circle.setAttribute('fill', node.colorCode || '#007acc');
+                circle.setAttribute('stroke', 'var(--vscode-panel-border)');
+                circle.setAttribute('stroke-width', '2');
+                g.appendChild(circle);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('class', 'arch-label');
+                text.setAttribute('y', size/2 + 15);
+                text.textContent = node.name.substring(0, 12);
+                g.appendChild(text);
+
+                const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                kindText.setAttribute('class', 'arch-label');
+                kindText.setAttribute('y', size/2 + 28);
+                kindText.setAttribute('font-size', '9');
+                kindText.setAttribute('opacity', '0.7');
+                kindText.textContent = node.kind;
+                g.appendChild(kindText);
+
+                // Tooltip
+                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                title.textContent = \`\${node.kind}: \${node.name}\nIn: \${node.inDegree}, Out: \${node.outDegree}\${node.isCritical ? ' (Critical)' : ''}\`;
+                g.appendChild(title);
+
+                nodesGroup.appendChild(g);
+            });
+            svg.appendChild(nodesGroup);
+
+            container.appendChild(svg);
+        }
+
+        // Initialize architecture diagram when overview tab is loaded
+        if (document.getElementById('architectureDiagram')) {
+            requestIdleCallback ? requestIdleCallback(initArchitectureDiagram) : setTimeout(initArchitectureDiagram, 0);
+        }
+
+        // Enhanced Topology view with relationships
         function initTopology() {
             const svg = document.getElementById('topologySvg');
+            if (!svg) return;
             if (svg.hasAttribute('data-initialized')) return;
             svg.setAttribute('data-initialized', 'true');
 
-            // Simple topology: just show resources as nodes (minimal data)
-            const resources = ${safeTopologyData};
-            const width = svg.clientWidth;
-            const height = svg.clientHeight;
+            const container = document.getElementById('topologyContent');
+            if (!container) return;
 
-            resources.forEach((resource, i) => {
-                const x = 50 + (i % 5) * 150;
-                const y = 50 + Math.floor(i / 5) * 100;
+            const nodes = ${safeArchNodes};
+            const edges = ${safeRelationships};
+            
+            if (nodes.length === 0) {
+                container.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--vscode-foreground)">No resources to display</text>';
+                return;
+            }
 
+            const width = svg.clientWidth || 800;
+            const height = svg.clientHeight || 600;
+
+            // Group nodes by namespace and category
+            const groups = {};
+            nodes.forEach(node => {
+                const key = \`\${node.namespace || 'default'}-\${node.category}\`;
+                if (!groups[key]) {
+                    groups[key] = {
+                        namespace: node.namespace || 'default',
+                        category: node.category,
+                        nodes: []
+                    };
+                }
+                groups[key].nodes.push(node);
+            });
+
+            const groupKeys = Object.keys(groups);
+            const nodePositions = new Map();
+
+            // Simple grid layout with grouping
+            let currentX = 100;
+            let currentY = 100;
+            const groupSpacing = 50;
+            const nodeSpacing = 80;
+            const nodesPerRow = 4;
+
+            groupKeys.forEach(groupKey => {
+                const group = groups[groupKey];
+                let x = currentX;
+                let y = currentY;
+
+                group.nodes.forEach((node, i) => {
+                    nodePositions.set(node.id, { x, y, node });
+                    
+                    x += nodeSpacing;
+                    if ((i + 1) % nodesPerRow === 0) {
+                        x = currentX;
+                        y += nodeSpacing;
+                    }
+                });
+
+                currentY = y + nodeSpacing + groupSpacing;
+                if (currentY > height - 100) {
+                    currentY = 100;
+                    currentX += (nodesPerRow * nodeSpacing) + groupSpacing;
+                }
+            });
+
+            // Draw edges
+            edges.forEach(edge => {
+                const source = nodePositions.get(edge.source);
+                const target = nodePositions.get(edge.target);
+                if (!source || !target) return;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', source.x);
+                line.setAttribute('y1', source.y);
+                line.setAttribute('x2', target.x);
+                line.setAttribute('y2', target.y);
+                line.setAttribute('class', 'topo-edge');
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+                
+                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                title.textContent = \`\${edge.source} → \${edge.target}\`;
+                line.appendChild(title);
+                
+                container.appendChild(line);
+            });
+
+            // Draw nodes
+            nodePositions.forEach(({ x, y, node }) => {
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('class', 'topo-node');
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
 
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('width', '120');
-                rect.setAttribute('height', '60');
+                rect.setAttribute('x', '-30');
+                rect.setAttribute('y', '-20');
+                rect.setAttribute('width', '60');
+                rect.setAttribute('height', '40');
                 rect.setAttribute('rx', '5');
-                rect.setAttribute('fill', 'var(--vscode-editor-inactiveSelectionBackground)');
+                rect.setAttribute('fill', node.colorCode || '#007acc');
                 rect.setAttribute('stroke', 'var(--vscode-panel-border)');
+                rect.setAttribute('stroke-width', node.isCritical ? '3' : '1');
                 g.appendChild(rect);
 
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                text.setAttribute('x', '60');
-                text.setAttribute('y', '25');
-                text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('fill', 'var(--vscode-foreground)');
-                text.setAttribute('font-size', '12');
-                text.textContent = resource.kind;
+                text.setAttribute('class', 'topo-label');
+                text.setAttribute('y', '-5');
+                text.textContent = node.kind.substring(0, 8);
                 g.appendChild(text);
 
-                const name = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                name.setAttribute('x', '60');
-                name.setAttribute('y', '45');
-                name.setAttribute('text-anchor', 'middle');
-                name.setAttribute('fill', 'var(--vscode-descriptionForeground)');
-                name.setAttribute('font-size', '10');
-                name.textContent = resource.name.substring(0, 15);
-                g.appendChild(name);
+                const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                nameText.setAttribute('class', 'topo-label');
+                nameText.setAttribute('y', '8');
+                nameText.setAttribute('font-size', '9');
+                nameText.textContent = node.name.substring(0, 10);
+                g.appendChild(nameText);
 
-                svg.appendChild(g);
+                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                title.textContent = \`\${node.kind}: \${node.name}\n\${node.namespace ? 'Namespace: ' + node.namespace : ''}\`;
+                g.appendChild(title);
+
+                container.appendChild(g);
             });
+
+            updateTopologyZoom();
         }
 
-        // Topology zoom controls - bind event listeners
+        // Topology zoom controls
         const zoomInBtn = document.getElementById('zoomInBtn');
         const zoomOutBtn = document.getElementById('zoomOutBtn');
         const resetZoomBtn = document.getElementById('resetZoomBtn');
+        const fitToScreenBtn = document.getElementById('fitToScreen');
 
         if (zoomInBtn) {
             zoomInBtn.addEventListener('click', () => {
-                currentZoom = Math.min(currentZoom + 0.1, 3);
-                updateZoom();
+                topologyZoom = Math.min(topologyZoom + 0.2, 3);
+                updateTopologyZoom();
             });
         }
 
         if (zoomOutBtn) {
             zoomOutBtn.addEventListener('click', () => {
-                currentZoom = Math.max(currentZoom - 0.1, 0.5);
-                updateZoom();
+                topologyZoom = Math.max(topologyZoom - 0.2, 0.3);
+                updateTopologyZoom();
             });
         }
 
         if (resetZoomBtn) {
             resetZoomBtn.addEventListener('click', () => {
-                currentZoom = 1;
-                updateZoom();
+                topologyZoom = 1;
+                topologyPanX = 0;
+                topologyPanY = 0;
+                updateTopologyZoom();
             });
         }
 
-        function updateZoom() {
-            const svg = document.getElementById('topologySvg');
-            if (svg) {
-                svg.style.transform = \`scale(\${currentZoom})\`;
-                svg.style.transformOrigin = 'center center';
+        if (fitToScreenBtn) {
+            fitToScreenBtn.addEventListener('click', () => {
+                const svg = document.getElementById('topologySvg');
+                const container = document.getElementById('topologyContent');
+                if (!svg || !container) return;
+                
+                // Reset to default view
+                topologyZoom = 0.8;
+                topologyPanX = 0;
+                topologyPanY = 0;
+                updateTopologyZoom();
+            });
+        }
+
+        function updateTopologyZoom() {
+            const container = document.getElementById('topologyContent');
+            if (container) {
+                container.setAttribute('transform', \`translate(\${topologyPanX}, \${topologyPanY}) scale(\${topologyZoom})\`);
             }
         }
 
