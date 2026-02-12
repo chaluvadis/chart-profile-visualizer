@@ -536,9 +536,14 @@ function getEnhancedStyles(): string {
             color: var(--vscode-gitDecoration-modifiedResourceForeground);
             font-weight: bold;
         }
+        /* Center the topology SVG within its container using flexbox */
         .topology-view {
             position: relative;
             height: 600px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
         .topology-controls {
             position: absolute;
@@ -1104,6 +1109,7 @@ function generateJavaScript(data: any): string {
                 'Storage': { nodes: [], color: '#9c27b0', label: 'Storage' },
                 'Configuration': { nodes: [], color: '#ff9800', label: 'Configuration' },
                 'RBAC': { nodes: [], color: '#f44336', label: 'RBAC' },
+                'Scaling': { nodes: [], color: '#00bcd4', label: 'Scaling' },
                 'Other': { nodes: [], color: '#9e9e9e', label: 'Other' }
             };
             
@@ -1111,27 +1117,50 @@ function generateJavaScript(data: any): string {
                 const category = node.category || 'Other';
                 if (tiers[category]) {
                     tiers[category].nodes.push(node);
+                } else {
+                    // Route unknown categories to Other
+                    tiers['Other'].nodes.push(node);
                 }
             });
             
             const nodePositions = new Map();
-            const tierOrder = ['Workload', 'Networking', 'Storage', 'Configuration', 'RBAC', 'Other'];
+            const tierOrder = ['Workload', 'Networking', 'Storage', 'Configuration', 'RBAC', 'Scaling', 'Other'];
             const activeTiers = tierOrder.filter(t => tiers[t].nodes.length > 0);
             
-            // Layout in columns (swimlanes) by tier
-            const columnWidth = width / (activeTiers.length + 1);
+            /**
+             * SWIMLANE LAYOUT ALGORITHM
+             * 
+             * The topology graph organizes resources into vertical swimlanes (columns) by category.
+             * Each swimlane represents one of: Workloads, Networking, Storage, Configuration, RBAC, Scaling, or Other.
+             * 
+             * Layout calculations:
+             * - margin: Outer padding (40px) to prevent nodes from being clipped at viewport edges
+             * - columnWidth: (SVG width - 2*margin) divided by number of active tiers ensures equal spacing
+             * - Node x-position: margin + (tierIndex + 0.5) * columnWidth centers nodes within their column
+             * - Background rectangle: margin + tierIndex * columnWidth + padding aligns with column boundaries
+             * - Node y-position: Nodes are stacked vertically with consistent spacing (70px)
+             * 
+             * This ensures:
+             * 1. Consistent column widths across all tiers
+             * 2. Nodes centered within their respective swimlanes
+             * 3. Tier labels and backgrounds aligned with node positions
+             * 4. No clipping at viewport edges even on narrow panels
+             */
+            const margin = 40;
+            const columnWidth = activeTiers.length > 0 ? (width - 2 * margin) / activeTiers.length : width;
             const nodeSpacing = 70;
             const startY = 80;
             
             activeTiers.forEach((tierName, tierIndex) => {
                 const tier = tiers[tierName];
-                const x = (tierIndex + 0.8) * columnWidth;
+                // Center nodes within each column for proper alignment, with margin offset
+                const x = margin + (tierIndex + 0.5) * columnWidth;
                 let y = startY;
                 
-                // Draw tier background rectangle
+                // Draw tier background rectangle aligned with column
                 const tierGroup = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 tierGroup.setAttribute('class', 'topo-tier-bg');
-                tierGroup.setAttribute('x', tierIndex * columnWidth + 20);
+                tierGroup.setAttribute('x', margin + tierIndex * columnWidth + 20);
                 tierGroup.setAttribute('y', 20);
                 tierGroup.setAttribute('width', columnWidth - 40);
                 tierGroup.setAttribute('height', height - 40);
@@ -1143,7 +1172,7 @@ function generateJavaScript(data: any): string {
                 tierGroup.setAttribute('rx', '10');
                 container.appendChild(tierGroup);
                 
-                // Tier label
+                // Tier label centered within column
                 const tierLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 tierLabel.setAttribute('x', x);
                 tierLabel.setAttribute('y', 50);
@@ -1242,16 +1271,40 @@ function generateJavaScript(data: any): string {
                     g.appendChild(badgeText);
                 }
 
+                /**
+                 * TEXT LABEL POSITIONING (INSIDE NODE BOXES)
+                 * 
+                 * Each node is a rectangle from y=-nodeSize/2 to y=nodeSize/2 (height = nodeSize)
+                 * where nodeSize = baseSize (20) + connectivityBonus (0-16), typically 20-36px
+                 * 
+                 * For minimum size (20px): box bounds are y=-10 to y=10
+                 * For maximum size (36px): box bounds are y=-18 to y=18
+                 * 
+                 * Labels are positioned to be INSIDE the box:
+                 * - Kind label: y=-5 (upper portion, above center line at y=0)
+                 * - Name label: y=7 (lower portion, below center line at y=0)
+                 * 
+                 * These positions work for all node sizes:
+                 * - Minimum (20px): -5 and 7 are within [-10, 10] bounds
+                 * - Typical/Maximum (36px): -5 and 7 are comfortably within [-18, 18] bounds
+                 * 
+                 * Both use text-anchor="middle" (set in CSS) to horizontally center at x=0
+                 * Font sizes are kept small (9px, 8px) to fit within the node width
+                 * Text is truncated to prevent overflow (kind: 10 chars, name: 12 chars)
+                 * 
+                 * Note: Labels are positioned close to edges on minimum-sized nodes but
+                 * remain fully visible. Larger nodes have more comfortable spacing.
+                 */
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 text.setAttribute('class', 'topo-label');
-                text.setAttribute('y', '-2');
+                text.setAttribute('y', '-5');  // Position above center, within box bounds for all node sizes
                 text.setAttribute('font-size', '9');
                 text.textContent = node.kind.substring(0, 10);
                 g.appendChild(text);
 
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 nameText.setAttribute('class', 'topo-label');
-                nameText.setAttribute('y', '10');
+                nameText.setAttribute('y', '7');  // Position below center, within box bounds for all node sizes
                 nameText.setAttribute('font-size', '8');
                 nameText.setAttribute('opacity', '0.8');
                 nameText.textContent = node.name.substring(0, 12);
@@ -1304,6 +1357,35 @@ function generateJavaScript(data: any): string {
                 selectedNode = null;
             });
 
+            /**
+             * GRAPH CENTERING
+             * 
+             * After all nodes and edges are rendered, we center the entire graph
+             * within the SVG viewport for better visual presentation.
+             * 
+             * Approach:
+             * 1. Use getBBox() to get the actual bounding box of all rendered content
+             * 2. Calculate the offset needed to center this content in the SVG viewport
+             * 3. Apply this offset via topologyPanX and topologyPanY
+             * 4. The transform is applied through updateTopologyZoom()
+             * 5. Store these as default values for Reset View / Fit to Screen
+             * 
+             * Formula:
+             * - centerX = (viewportWidth - contentWidth) / 2 - contentX
+             * - centerY = (viewportHeight - contentHeight) / 2 - contentY
+             * 
+             * This works in conjunction with the .topology-view CSS flexbox centering
+             * to ensure the graph is centered both at the container and content level.
+             */
+            const contentBounds = typeof container.getBBox === 'function' ? container.getBBox() : { x: 0, y: 0, width: width, height: height };
+            const centerX = (width - contentBounds.width) / 2 - contentBounds.x;
+            const centerY = (height - contentBounds.height) / 2 - contentBounds.y;
+            // Store the initially computed centered pan so Reset / Fit can restore this view
+            const defaultTopologyPanX = centerX;
+            const defaultTopologyPanY = centerY;
+            topologyPanX = centerX;
+            topologyPanY = centerY;
+            
             updateTopologyZoom();
         }
 
@@ -1330,8 +1412,8 @@ function generateJavaScript(data: any): string {
         if (resetZoomBtn) {
             resetZoomBtn.addEventListener('click', () => {
                 topologyZoom = 1;
-                topologyPanX = 0;
-                topologyPanY = 0;
+                topologyPanX = defaultTopologyPanX;
+                topologyPanY = defaultTopologyPanY;
                 updateTopologyZoom();
             });
         }
@@ -1344,8 +1426,8 @@ function generateJavaScript(data: any): string {
                 
                 // Reset to default view
                 topologyZoom = 0.8;
-                topologyPanX = 0;
-                topologyPanY = 0;
+                topologyPanX = defaultTopologyPanX;
+                topologyPanY = defaultTopologyPanY;
                 updateTopologyZoom();
             });
         }
