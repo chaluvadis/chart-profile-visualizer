@@ -4,8 +4,8 @@ A VS Code extension for visualizing Helm charts across multiple environments wit
 
 ## Features
 
-- 🏗️ **High-Level Architecture Diagram** - Visualize system architecture with nodes and edges showing module connections and data flow
-- 🗺️ **Enhanced Topology View** - Interactive graph with meaningful groupings, relationship detection, and critical path highlighting
+- 🏗️ **High-Level Architecture Diagram** - Visualize system architecture with shape-coded nodes (workloads, networking, storage, config, RBAC) and directional arrows showing data flow
+- 🗺️ **Enhanced Topology View** - Interactive tier-based swimlane layout with critical node highlighting, connectivity badges, and click-to-highlight relationships
 - 📊 **Interactive Chart Visualization** - View value overrides and chart statistics with multiple visualization tabs
 - 🎯 **Resource Explorer** - Browse all Kubernetes resources with full configuration details in a collapsible hierarchy
 - 🔍 **Search & Filter** - Instantly search resources by name, kind, namespace, or labels
@@ -61,13 +61,13 @@ For each environment, you can:
 - Click "Visualize Chart" to open an interactive dashboard with three tabs:
 
 **Overview Tab:**
-  - **High-Level Architecture Diagram** - Node-and-edge visualization showing:
-    - Main components/modules in the system
-    - Connections and relationships between resources
-    - Data flow direction (via arrows)
-    - Critical nodes highlighted (based on connectivity)
-    - Resources grouped by category with color coding
-  - Overridden vs base values (pie chart)
+  - **High-Level Architecture Diagram** - Visual representation of system architecture using distinct shapes:
+    - Different shapes for resource types: rounded rectangles (workloads), hexagons (networking), cylinders (storage), documents (configuration), shields (RBAC)
+    - Directional arrows showing relationships and data flow
+    - Node size reflects connectivity (larger = more connections)
+    - Critical nodes highlighted based on centrality
+    - Color-coded by resource category
+    - Interactive legend explaining visual elements
   - Detailed override comparison table
   - Namespace and template statistics
 
@@ -83,13 +83,16 @@ For each environment, you can:
   - Expand/collapse all controls
 
 **Topology Tab:**
-  - **Enhanced System Topology** with actionable insights:
-    - Resources organized by namespace and category
-    - Relationship edges showing connections (Services → Deployments, Ingress → Services, etc.)
-    - Critical nodes emphasized with thicker borders
-    - Interactive tooltips with resource details
+  - **Enhanced System Topology** - Detailed structural view with actionable insights:
+    - Tier-based swimlane layout organizing resources by category (Workload, Networking, Storage, etc.)
+    - Visual tier boundaries with color-coded backgrounds
+    - Relationship edges with directional arrows showing connection types
+    - Critical nodes with glowing indicators and special highlighting
+    - Connectivity badges showing number of connections for high-traffic nodes
+    - Click nodes to highlight their relationships
+    - Enhanced tooltips with detailed resource metadata
     - Zoom, pan, and fit-to-screen controls
-    - Color-coded by resource type for quick identification
+    - Curved edges for better visual clarity
   - Relationships detected:
     - Service selectors to workloads
     - Ingress routing to services

@@ -709,54 +709,7 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
 				: ""
 		}
 
-        ${
-			data.totalValues > 0
-				? `
-        // Overridden vs Base Values (Pie Chart)
-        (function() {
-            const ctx = document.getElementById('valuesChart');
-            if (!ctx) return;
 
-            const overriddenCount = ${data.overriddenCount};
-            const baseCount = ${data.totalValues - data.overriddenCount};
-
-            new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: ['Overridden Values', 'Base Values'],
-                    datasets: [{
-                        data: [overriddenCount, baseCount],
-                        backgroundColor: [chartColors.warning, chartColors.info],
-                        borderColor: [chartColors.warning, chartColors.info],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const percentage = ((value / ${data.totalValues}) * 100).toFixed(1);
-                                    return label + ': ' + value + ' (' + percentage + '%)';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        })();
-        `
-				: ""
-		}
 
         ${
 			Object.keys(data.namespaceCounts).length > 1
