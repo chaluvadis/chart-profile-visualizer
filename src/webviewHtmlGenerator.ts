@@ -973,8 +973,8 @@ function generateJavaScript(data: any): string {
             // Note: Uses linear truncation (O(n)) which is sufficient for typical K8s
             // resource names (10-30 chars). Binary search could optimize to O(log n)
             // but adds complexity with minimal benefit for this use case.
-            const ELLIPSIS = '...';
             const truncateText = (text, maxWidth, element) => {
+                const ELLIPSIS = '...';
                 element.textContent = text;
                 let textWidth = element.getComputedTextLength();
                 
