@@ -419,6 +419,9 @@ function generateJavaScript(data: any): string {
         let topologyZoom = 1;
         let topologyPanX = 0;
         let topologyPanY = 0;
+        
+        // Topology layout constants
+        const MAX_AUTO_FIT_ZOOM = 1.5; // Maximum zoom level when auto-fitting content to screen
 
         // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -838,6 +841,7 @@ function generateJavaScript(data: any): string {
             const tierHeight = activeTiers.length > 0 ? (height - 2 * margin - 60) / activeTiers.length : 100;
             const nodeSpacing = 100;
             const startY = margin + 60;
+            const tierLabelHeight = 30; // Height reserved for tier label at top of each tier band
             
             // Track filter state
             let filterTier = 'all';
@@ -932,12 +936,26 @@ function generateJavaScript(data: any): string {
                 if (tierNodeCount === 0) return;
                 
                 const availableWidth = width - 2 * margin - 40;
-                const spacing = tierNodeCount > 1 ? Math.min(nodeSpacing, availableWidth / (tierNodeCount - 1)) : 0;
-                const startX = margin + 20 + (availableWidth - (tierNodeCount - 1) * spacing) / 2;
+                // For multi-node tiers, distribute evenly across full width
+                // For single-node tiers, center the node
+                let startX, spacing;
+                if (tierNodeCount === 1) {
+                    // Center single node horizontally
+                    startX = margin + 20 + availableWidth / 2;
+                    spacing = 0;
+                } else {
+                    // Distribute multiple nodes evenly across full width
+                    spacing = availableWidth / (tierNodeCount - 1);
+                    startX = margin + 20;
+                }
+                
+                // Account for tier label height when calculating vertical position
+                // Label is at tierY + 20, so center nodes in remaining space
+                const availableHeight = tierHeight - 20 - tierLabelHeight;
+                const y = tierY + tierLabelHeight + availableHeight / 2;
                 
                 tier.nodes.forEach((node, i) => {
                     const x = startX + i * spacing;
-                    const y = tierCenterY;
                     nodePositions.set(node.id, { x, y, node, tier: tierName });
                 });
             });
@@ -951,7 +969,10 @@ function generateJavaScript(data: any): string {
                 // Use smooth cubic bezier curves for better aesthetics
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 const dx = target.x - source.x;
-                const controlPointOffset = Math.abs(dx) * 0.5;
+                const dy = target.y - source.y;
+                // Use vertical distance to create better curves for vertically aligned nodes
+                // Minimum offset ensures smooth curves even when dx is near zero
+                const controlPointOffset = Math.max(Math.abs(dx) * 0.5, Math.abs(dy) * 0.3);
                 
                 const d = \`M\${source.x},\${source.y} C\${source.x + controlPointOffset},\${source.y} \${target.x - controlPointOffset},\${target.y} \${target.x},\${target.y}\`;
                 
@@ -1181,11 +1202,44 @@ function generateJavaScript(data: any): string {
                 updateTopologyZoom();
             });
 
-            // Center the graph initially
-            topologyPanX = 0;
-            topologyPanY = 0;
-            topologyZoom = 1;
+            // Auto-fit to screen on initial render
+            fitTopologyToScreen();
+        }
+
+        // Helper function to fit topology to screen
+        function fitTopologyToScreen() {
+            const svg = document.getElementById('topologySvg');
+            const container = document.getElementById('topologyContent');
+            if (!svg || !container) return;
+            
+            // Calculate optimal zoom to fit content
+            try {
+                const bbox = container.getBBox();
+                const svgWidth = svg.clientWidth || 1000;
+                const svgHeight = svg.clientHeight || 650;
+                
+                const scaleX = svgWidth / (bbox.width + 100);
+                const scaleY = svgHeight / (bbox.height + 100);
+                topologyZoom = Math.min(scaleX, scaleY, MAX_AUTO_FIT_ZOOM);
+                
+                // Center the content
+                const scaledWidth = bbox.width * topologyZoom;
+                const scaledHeight = bbox.height * topologyZoom;
+                topologyPanX = (svgWidth - scaledWidth) / 2 - bbox.x * topologyZoom;
+                topologyPanY = (svgHeight - scaledHeight) / 2 - bbox.y * topologyZoom;
+            } catch (e) {
+                topologyZoom = 0.8;
+                topologyPanX = 0;
+                topologyPanY = 0;
+            }
             updateTopologyZoom();
+        }
+
+        function updateTopologyZoom() {
+            const container = document.getElementById('topologyContent');
+            if (container) {
+                container.setAttribute('transform', \`translate(\${topologyPanX}, \${topologyPanY}) scale(\${topologyZoom})\`);
+            }
         }
 
         // Topology zoom controls
@@ -1218,41 +1272,9 @@ function generateJavaScript(data: any): string {
         }
 
         if (fitToScreenBtn) {
-            fitToScreenBtn.addEventListener('click', () => {
-                const svg = document.getElementById('topologySvg');
-                const container = document.getElementById('topologyContent');
-                if (!svg || !container) return;
-                
-                // Calculate optimal zoom to fit content
-                try {
-                    const bbox = container.getBBox();
-                    const svgWidth = svg.clientWidth || 1000;
-                    const svgHeight = svg.clientHeight || 650;
-                    
-                    const scaleX = svgWidth / (bbox.width + 100);
-                    const scaleY = svgHeight / (bbox.height + 100);
-                    topologyZoom = Math.min(scaleX, scaleY, 1.5);
-                    
-                    // Center the content
-                    const scaledWidth = bbox.width * topologyZoom;
-                    const scaledHeight = bbox.height * topologyZoom;
-                    topologyPanX = (svgWidth - scaledWidth) / 2 - bbox.x * topologyZoom;
-                    topologyPanY = (svgHeight - scaledHeight) / 2 - bbox.y * topologyZoom;
-                } catch (e) {
-                    topologyZoom = 0.8;
-                    topologyPanX = 0;
-                    topologyPanY = 0;
-                }
-                updateTopologyZoom();
-            });
+            fitToScreenBtn.addEventListener('click', fitTopologyToScreen);
         }
 
-        function updateTopologyZoom() {
-            const container = document.getElementById('topologyContent');
-            if (container) {
-                container.setAttribute('transform', \`translate(\${topologyPanX}, \${topologyPanY}) scale(\${topologyZoom})\`);
-            }
-        }
 
         // Chart.js initialization for overview tab
         ${generateChartJsInit(data)}
