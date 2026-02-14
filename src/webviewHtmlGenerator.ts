@@ -419,6 +419,9 @@ function generateJavaScript(data: any): string {
         let topologyZoom = 1;
         let topologyPanX = 0;
         let topologyPanY = 0;
+        
+        // Topology layout constants
+        const MAX_AUTO_FIT_ZOOM = 1.5; // Maximum zoom level when auto-fitting content to screen
 
         // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -838,6 +841,7 @@ function generateJavaScript(data: any): string {
             const tierHeight = activeTiers.length > 0 ? (height - 2 * margin - 60) / activeTiers.length : 100;
             const nodeSpacing = 100;
             const startY = margin + 60;
+            const tierLabelHeight = 30; // Height reserved for tier label at top of each tier band
             
             // Track filter state
             let filterTier = 'all';
@@ -947,9 +951,8 @@ function generateJavaScript(data: any): string {
                 
                 // Account for tier label height when calculating vertical position
                 // Label is at tierY + 20, so center nodes in remaining space
-                const labelHeight = 30;
-                const availableHeight = tierHeight - 20 - labelHeight;
-                const y = tierY + labelHeight + availableHeight / 2;
+                const availableHeight = tierHeight - 20 - tierLabelHeight;
+                const y = tierY + tierLabelHeight + availableHeight / 2;
                 
                 tier.nodes.forEach((node, i) => {
                     const x = startX + i * spacing;
@@ -1217,7 +1220,7 @@ function generateJavaScript(data: any): string {
                 
                 const scaleX = svgWidth / (bbox.width + 100);
                 const scaleY = svgHeight / (bbox.height + 100);
-                topologyZoom = Math.min(scaleX, scaleY, 1.5);
+                topologyZoom = Math.min(scaleX, scaleY, MAX_AUTO_FIT_ZOOM);
                 
                 // Center the content
                 const scaledWidth = bbox.width * topologyZoom;
