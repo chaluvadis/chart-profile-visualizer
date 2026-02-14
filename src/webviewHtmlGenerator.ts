@@ -406,16 +406,6 @@ function generateTopologyTab(): string {
 }
 
 function generateJavaScript(data: any): string {
-	// Create a minimal, sanitized dataset for topology - only include kind, name, namespace
-	const topologyResources = data.resources.map((r: any) => ({
-		kind: r.kind || "Unknown",
-		name: r.name || "unnamed",
-		namespace: r.namespace || "default",
-	}));
-
-	// Escape the JSON to prevent XSS by replacing < with \u003c
-	const safeTopologyData = JSON.stringify(topologyResources).replace(/</g, "\\u003c");
-
 	// Pass architecture data safely
 	const architectureNodes = data.architectureNodes || [];
 	const relationships = data.relationships || [];
@@ -978,6 +968,33 @@ function generateJavaScript(data: any): string {
                 container.appendChild(path);
             });
 
+            // Helper function to truncate text to fit within available width
+            // Uses SVG's getComputedTextLength() for accurate measurement
+            // Note: Uses linear truncation (O(n)) which is sufficient for typical K8s
+            // resource names (10-30 chars). Binary search could optimize to O(log n)
+            // but adds complexity with minimal benefit for this use case.
+            const ELLIPSIS = '...';
+            const truncateText = (text, maxWidth, element) => {
+                element.textContent = text;
+                let textWidth = element.getComputedTextLength();
+                
+                // If text fits, no truncation needed
+                if (textWidth <= maxWidth) {
+                    return text;
+                }
+                
+                // Truncate text to fit with ellipsis
+                let truncated = text;
+                while (textWidth > maxWidth && truncated.length > 0) {
+                    truncated = truncated.slice(0, -1);
+                    element.textContent = truncated + ELLIPSIS;
+                    textWidth = element.getComputedTextLength();
+                }
+                
+                // If we had to truncate, return with ellipsis
+                return truncated.length > 0 ? truncated + ELLIPSIS : ELLIPSIS;
+            };
+
             // Draw nodes with modern card design
             let selectedNode = null;
             nodePositions.forEach(({ x, y, node, tier }) => {
@@ -1069,33 +1086,6 @@ function generateJavaScript(data: any): string {
                 // to ensure labels always stay within the node box boundaries
                 const textPadding = 16; // 8px padding on each side
                 const maxTextWidth = nodeWidth - textPadding;
-                const ELLIPSIS = '...';
-                
-                // Helper function to truncate text to fit within available width
-                // Uses SVG's getComputedTextLength() for accurate measurement
-                // Note: Uses linear truncation (O(n)) which is sufficient for typical K8s
-                // resource names (10-30 chars). Binary search could optimize to O(log n)
-                // but adds complexity with minimal benefit for this use case.
-                const truncateText = (text: string, maxWidth: number, element: SVGTextElement): string => {
-                    element.textContent = text;
-                    let textWidth = element.getComputedTextLength();
-                    
-                    // If text fits, no truncation needed
-                    if (textWidth <= maxWidth) {
-                        return text;
-                    }
-                    
-                    // Truncate text to fit with ellipsis
-                    let truncated = text;
-                    while (textWidth > maxWidth && truncated.length > 0) {
-                        truncated = truncated.slice(0, -1);
-                        element.textContent = truncated + ELLIPSIS;
-                        textWidth = element.getComputedTextLength();
-                    }
-                    
-                    // If we had to truncate, return with ellipsis
-                    return truncated.length > 0 ? truncated + ELLIPSIS : ELLIPSIS;
-                };
                 
                 // Kind label (top)
                 const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
