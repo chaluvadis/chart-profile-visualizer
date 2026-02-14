@@ -365,8 +365,8 @@ function generateTopologyTab(): string {
                 <defs>
                     <!-- Gradient definitions for modern look -->
                     <linearGradient id="nodeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:rgba(255,255,255,0.1);stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:rgba(0,0,0,0.1);stop-opacity:1" />
+                        <stop offset="0%" stop-color="rgba(255,255,255,0.1)" stop-opacity="1" />
+                        <stop offset="100%" stop-color="rgba(0,0,0,0.1)" stop-opacity="1" />
                     </linearGradient>
                     <!-- Arrow markers for different relationship types -->
                     <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
