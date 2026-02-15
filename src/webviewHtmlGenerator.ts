@@ -959,9 +959,10 @@ function generateJavaScript(data: any): string {
                 
                 // Account for tier label height when calculating vertical position
                 // Tier background spans from (tierY + 5) to (tierY + tierHeight - 20)
-                // Label is at (tierY + 22), nodes should be centered in space below label
-                const labelBottomY = tierY + tierLabelHeight + 5; // Bottom of label area
-                const tierBottomY = tierY + tierHeight - 20; // Bottom of tier
+                // Label is centered at (tierY + 22), needs space of tierLabelHeight
+                // The +5 offset accounts for the visual spacing after the label area
+                const labelBottomY = tierY + 22 + 5; // Label vertical center + small spacing below
+                const tierBottomY = tierY + tierHeight - 20; // Bottom of tier background
                 const availableHeight = tierBottomY - labelBottomY;
                 const y = labelBottomY + availableHeight / 2; // Center nodes in available space
                 
@@ -1069,6 +1070,9 @@ function generateJavaScript(data: any): string {
                 const baseSize = 24;
                 const totalConnectivity = node.inDegree + node.outDegree;
                 const connectivityBonus = Math.min(totalConnectivity, 10) * 1.5;
+                
+                // Badge text vertical offset for proper centering
+                const BADGE_TEXT_Y_OFFSET = 4;
                 const nodeWidth = calculateNodeWidth(totalConnectivity);
                 const nodeHeight = baseSize + connectivityBonus;
 
@@ -1108,7 +1112,7 @@ function generateJavaScript(data: any): string {
                     const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     badgeText.setAttribute('class', 'critical-badge-text');
                     badgeText.setAttribute('x', '0');
-                    badgeText.setAttribute('y', '4');
+                    badgeText.setAttribute('y', BADGE_TEXT_Y_OFFSET);
                     badgeText.setAttribute('text-anchor', 'middle');
                     badgeText.setAttribute('dominant-baseline', 'middle');
                     badgeText.textContent = '⚠';
@@ -1136,7 +1140,7 @@ function generateJavaScript(data: any): string {
                     const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     badgeText.setAttribute('class', 'connectivity-badge-text');
                     badgeText.setAttribute('x', '0');
-                    badgeText.setAttribute('y', '4');
+                    badgeText.setAttribute('y', BADGE_TEXT_Y_OFFSET);
                     badgeText.setAttribute('text-anchor', 'middle');
                     badgeText.setAttribute('dominant-baseline', 'middle');
                     badgeText.textContent = totalConnections;
