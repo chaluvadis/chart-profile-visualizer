@@ -958,9 +958,12 @@ function generateJavaScript(data: any): string {
                 }
                 
                 // Account for tier label height when calculating vertical position
-                // Label is at tierY + 20, so center nodes in remaining space
-                const availableHeight = tierHeight - 20 - tierLabelHeight;
-                const y = tierY + tierLabelHeight + availableHeight / 2 + 10; // Add 10px offset for better vertical centering
+                // Tier background spans from (tierY + 5) to (tierY + tierHeight - 20)
+                // Label is at (tierY + 22), nodes should be centered in space below label
+                const labelBottomY = tierY + tierLabelHeight + 5; // Bottom of label area
+                const tierBottomY = tierY + tierHeight - 20; // Bottom of tier
+                const availableHeight = tierBottomY - labelBottomY;
+                const y = labelBottomY + availableHeight / 2; // Center nodes in available space
                 
                 tier.nodes.forEach((node, i) => {
                     const x = startX + i * spacing;
