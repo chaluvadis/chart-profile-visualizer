@@ -533,16 +533,16 @@ body {
     50% { opacity: 0.7; }
 }
 .topo-label {
-    font-size: 11px;
+    font-size: 12px;
     fill: var(--vscode-foreground);
     text-anchor: middle;
     pointer-events: none;
-    font-weight: 500;
+    font-weight: 600;
 }
 .topo-label.name {
-    font-size: 9px;
-    opacity: 0.85;
-    font-weight: 400;
+    font-size: 11px;
+    opacity: 0.9;
+    font-weight: 500;
 }
 .topo-tier-bg {
     stroke: var(--vscode-panel-border);

@@ -419,7 +419,7 @@ function generateJavaScript(data: any): string {
         let topologyZoom = 1;
         let topologyPanX = 0;
         let topologyPanY = 0;
-        
+
         // Topology layout constants
         const MAX_AUTO_FIT_ZOOM = 1.5; // Maximum zoom level when auto-fitting content to screen
 
@@ -533,7 +533,7 @@ function generateJavaScript(data: any): string {
 
             const nodes = ${safeArchNodes};
             const edges = ${safeRelationships};
-            
+
             if (nodes.length === 0) {
                 container.innerHTML = '<div class="no-data">No resources to display</div>';
                 return;
@@ -542,7 +542,7 @@ function generateJavaScript(data: any): string {
             // Create SVG
             const width = container.clientWidth;
             const height = 500;
-            
+
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('class', 'arch-svg');
             svg.setAttribute('width', width);
@@ -564,7 +564,7 @@ function generateJavaScript(data: any): string {
             polygon.setAttribute('opacity', '0.6');
             marker.appendChild(polygon);
             defs.appendChild(marker);
-            
+
             const markerCritical = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
             markerCritical.setAttribute('id', 'arrowhead-critical');
             markerCritical.setAttribute('markerWidth', '10');
@@ -608,11 +608,11 @@ function generateJavaScript(data: any): string {
 
             // Draw edges first (so they appear behind nodes)
             const edgesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            
+
             // Control point offset for quadratic bezier curve - creates a gentle arc between nodes
             // Negative offset creates an upward curve, making edge direction clearer
             const CURVE_OFFSET = 30;
-            
+
             edges.forEach(edge => {
                 const source = nodePositions.get(edge.source);
                 const target = nodePositions.get(edge.target);
@@ -623,12 +623,12 @@ function generateJavaScript(data: any): string {
                 path.setAttribute('d', d);
                 path.setAttribute('class', 'arch-edge');
                 path.setAttribute('marker-end', 'url(#arrowhead)');
-                
+
                 // Title for tooltip
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
                 title.textContent = \`\${edge.source} → \${edge.target} (\${edge.label || edge.type})\`;
                 path.appendChild(title);
-                
+
                 edgesGroup.appendChild(path);
             });
             svg.appendChild(edgesGroup);
@@ -643,11 +643,11 @@ function generateJavaScript(data: any): string {
                 // Node size based on degree
                 const size = 30 + Math.min(node.inDegree + node.outDegree, 10) * 3;
                 const strokeWidth = node.isCritical ? '3' : '2';
-                
+
                 // Create different shapes based on category
                 let shape;
                 const category = node.category || 'Other';
-                
+
                 if (category === 'Workload') {
                     // Rounded rectangle for workloads
                     shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -659,7 +659,7 @@ function generateJavaScript(data: any): string {
                 } else if (category === 'Storage') {
                     // Cylinder shape for storage (approximated with ellipse stack)
                     const cylinderGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    
+
                     const topEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
                     topEllipse.setAttribute('cx', '0');
                     topEllipse.setAttribute('cy', -size/3);
@@ -668,7 +668,7 @@ function generateJavaScript(data: any): string {
                     topEllipse.setAttribute('fill', node.colorCode || '#9c27b0');
                     topEllipse.setAttribute('stroke', 'var(--vscode-panel-border)');
                     topEllipse.setAttribute('stroke-width', strokeWidth);
-                    
+
                     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('x', -size/2);
                     rect.setAttribute('y', -size/3);
@@ -676,7 +676,7 @@ function generateJavaScript(data: any): string {
                     rect.setAttribute('height', size * 2/3);
                     rect.setAttribute('fill', node.colorCode || '#9c27b0');
                     rect.setAttribute('stroke', 'none');
-                    
+
                     const bottomEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
                     bottomEllipse.setAttribute('cx', '0');
                     bottomEllipse.setAttribute('cy', size/3);
@@ -685,7 +685,7 @@ function generateJavaScript(data: any): string {
                     bottomEllipse.setAttribute('fill', node.colorCode || '#9c27b0');
                     bottomEllipse.setAttribute('stroke', 'var(--vscode-panel-border)');
                     bottomEllipse.setAttribute('stroke-width', strokeWidth);
-                    
+
                     cylinderGroup.appendChild(rect);
                     cylinderGroup.appendChild(topEllipse);
                     cylinderGroup.appendChild(bottomEllipse);
@@ -718,7 +718,7 @@ function generateJavaScript(data: any): string {
                     shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                     shape.setAttribute('r', size/2);
                 }
-                
+
                 if (shape) {
                     shape.setAttribute('fill', node.colorCode || '#007acc');
                     shape.setAttribute('stroke', 'var(--vscode-panel-border)');
@@ -765,7 +765,7 @@ function generateJavaScript(data: any): string {
         // Enhanced Topology view with relationships
         /**
          * Modern Topology Rendering with Horizontal Layout
-         * 
+         *
          * Key improvements:
          * - Horizontal tier arrangement (resources grouped by type across the width)
          * - Better spacing and visual hierarchy
@@ -784,13 +784,13 @@ function generateJavaScript(data: any): string {
 
             const nodes = ${safeArchNodes};
             const edges = ${safeRelationships};
-            
+
             // Update stats in header
             const nodeCount = document.getElementById('nodeCount');
             const edgeCount = document.getElementById('edgeCount');
             if (nodeCount) nodeCount.textContent = \`\${nodes.length} resource\${nodes.length !== 1 ? 's' : ''}\`;
             if (edgeCount) edgeCount.textContent = \`\${edges.length} connection\${edges.length !== 1 ? 's' : ''}\`;
-            
+
             if (nodes.length === 0) {
                 container.innerHTML = '<text x="50%" y="50%" text-anchor="middle" font-size="14" fill="var(--vscode-descriptionForeground)">No resources to display</text>';
                 return;
@@ -809,7 +809,7 @@ function generateJavaScript(data: any): string {
                 'Scaling': { nodes: [], color: '#008272', label: 'Scaling', icon: '📊' },
                 'Other': { nodes: [], color: '#737373', label: 'Other', icon: '📦' }
             };
-            
+
             // Group nodes by category
             nodes.forEach(node => {
                 const category = node.category || 'Other';
@@ -819,17 +819,17 @@ function generateJavaScript(data: any): string {
                     tiers['Other'].nodes.push(node);
                 }
             });
-            
+
             const nodePositions = new Map();
             const tierOrder = ['Workload', 'Networking', 'Storage', 'Configuration', 'RBAC', 'Scaling', 'Other'];
             const activeTiers = tierOrder.filter(t => tiers[t].nodes.length > 0);
-            
+
             /**
              * HORIZONTAL TIER LAYOUT ALGORITHM
-             * 
+             *
              * Improved layout that arranges tiers horizontally across the canvas
              * with better spacing and visual organization.
-             * 
+             *
              * Layout structure:
              * - Tiers are arranged as horizontal rows (not vertical columns)
              * - Each tier gets a horizontal band across the canvas
@@ -837,14 +837,14 @@ function generateJavaScript(data: any): string {
              * - Better utilization of widescreen displays
              */
             const margin = 50;
-            // Ensure minimum tier height for readability, with better spacing
-            const minTierHeight = 120;
+            // Ensure minimum tier height for readability, with better spacing for larger nodes
+            const minTierHeight = 140; // Increased from 120 to accommodate larger nodes
             const calculatedTierHeight = activeTiers.length > 0 ? (height - 2 * margin - 60) / activeTiers.length : minTierHeight;
             const tierHeight = Math.max(minTierHeight, calculatedTierHeight);
-            const nodeSpacing = 100;
+            const nodeSpacing = 140; // Increased from 100 for larger nodes
             const startY = margin + 60;
             const tierLabelHeight = 35; // Height reserved for tier label at top of each tier band
-            
+
             // Track filter state
             let filterTier = 'all';
             const tierFilterEl = document.getElementById('tierFilter');
@@ -854,13 +854,13 @@ function generateJavaScript(data: any): string {
                     applyTierFilter();
                 });
             }
-            
+
             function applyTierFilter() {
                 const allNodes = container.querySelectorAll('.topo-node');
                 const allEdges = container.querySelectorAll('.topo-edge');
                 const allTierBgs = container.querySelectorAll('.topo-tier-bg');
                 const allTierLabels = container.querySelectorAll('.topo-tier-label');
-                
+
                 if (filterTier === 'all') {
                     allNodes.forEach(n => n.removeAttribute('data-filtered'));
                     allEdges.forEach(e => e.removeAttribute('data-filtered'));
@@ -872,7 +872,7 @@ function generateJavaScript(data: any): string {
                     allEdges.forEach(e => e.setAttribute('data-filtered', 'hidden'));
                     allTierBgs.forEach(b => b.setAttribute('data-filtered', 'hidden'));
                     allTierLabels.forEach(l => l.setAttribute('data-filtered', 'hidden'));
-                    
+
                     // Show selected tier
                     allNodes.forEach(n => {
                         if (n.getAttribute('data-tier') === filterTier) {
@@ -889,26 +889,26 @@ function generateJavaScript(data: any): string {
                             l.removeAttribute('data-filtered');
                         }
                     });
-                    
+
                     // Show edges that connect to visible nodes
                     allEdges.forEach(edge => {
                         const sourceId = edge.getAttribute('data-source');
                         const targetId = edge.getAttribute('data-target');
                         const sourceNode = container.querySelector(\`.topo-node[data-node-id="\${sourceId}"]\`);
                         const targetNode = container.querySelector(\`.topo-node[data-node-id="\${targetId}"]\`);
-                        
+
                         if (sourceNode?.getAttribute('data-filtered') !== 'hidden' && targetNode?.getAttribute('data-filtered') !== 'hidden') {
                             edge.removeAttribute('data-filtered');
                         }
                     });
                 }
             }
-            
+
             // Render tiers and position nodes
             activeTiers.forEach((tierName, tierIndex) => {
                 const tier = tiers[tierName];
                 const tierY = startY + tierIndex * tierHeight;
-                
+
                 // Draw tier background with consistent padding
                 const tierBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 tierBg.setAttribute('class', 'topo-tier-bg');
@@ -919,7 +919,7 @@ function generateJavaScript(data: any): string {
                 tierBg.setAttribute('height', tierHeight - 25);
                 tierBg.setAttribute('fill', tier.color);
                 container.appendChild(tierBg);
-                
+
                 // Tier label on the left with better positioning
                 const tierLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 tierLabel.setAttribute('class', 'topo-tier-label');
@@ -931,15 +931,15 @@ function generateJavaScript(data: any): string {
                 tierLabel.setAttribute('fill', tier.color);
                 tierLabel.textContent = \`\${tier.icon} \${tier.label}\`;
                 container.appendChild(tierLabel);
-                
+
                 // Position nodes horizontally within this tier with improved spacing
                 const tierNodeCount = tier.nodes.length;
                 // Skip empty tiers to prevent division by zero in spacing calculation
                 if (tierNodeCount === 0) return;
-                
+
                 const availableWidth = width - 2 * margin - 100; // More conservative margin
-                const minNodeSpacing = 120; // Minimum space between nodes to prevent overlap
-                
+                const minNodeSpacing = 160; // Increased from 120 for larger nodes to prevent overlap
+
                 // For multi-node tiers, distribute evenly across full width
                 // For single-node tiers, center the node
                 let startX, spacing;
@@ -951,12 +951,12 @@ function generateJavaScript(data: any): string {
                     // Calculate optimal spacing - either evenly distributed or min spacing
                     const evenSpacing = availableWidth / (tierNodeCount - 1);
                     spacing = Math.max(evenSpacing, minNodeSpacing);
-                    
+
                     // Center the group of nodes
                     const totalWidth = (tierNodeCount - 1) * spacing;
                     startX = (width - totalWidth) / 2;
                 }
-                
+
                 // Account for tier label height when calculating vertical position
                 // Tier background spans from (tierY + 5) to (tierY + tierHeight - 20)
                 // Label is centered at (tierY + 22), needs space of tierLabelHeight
@@ -965,7 +965,7 @@ function generateJavaScript(data: any): string {
                 const tierBottomY = tierY + tierHeight - 20; // Bottom of tier background
                 const availableHeight = tierBottomY - labelBottomY;
                 const y = labelBottomY + availableHeight / 2; // Center nodes in available space
-                
+
                 tier.nodes.forEach((node, i) => {
                     const x = startX + i * spacing;
                     nodePositions.set(node.id, { x, y, node, tier: tierName });
@@ -973,10 +973,19 @@ function generateJavaScript(data: any): string {
             });
 
             // Helper function to calculate node width based on connectivity
+            // Increased base size for better text visibility
             const calculateNodeWidth = (connectivity) => {
-                const baseSize = 24;
-                const connectivityBonus = Math.min(connectivity, 10) * 1.5;
+                const baseSize = 50; // Increased from 24 for better text fit
+                const connectivityBonus = Math.min(connectivity, 10) * 3;
                 return baseSize * 2 + connectivityBonus * 2;
+            };
+
+            // Helper function to calculate node height based on connectivity
+            // Ensures enough height for two lines of text (kind + name)
+            const calculateNodeHeight = (connectivity) => {
+                const baseHeight = 45; // Minimum height for two text lines with padding
+                const connectivityBonus = Math.min(connectivity, 10) * 2;
+                return baseHeight + connectivityBonus;
             };
 
             // Draw edges first (so they appear behind nodes)
@@ -989,44 +998,41 @@ function generateJavaScript(data: any): string {
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 const dx = target.x - source.x;
                 const dy = target.y - source.y;
-                
+
                 // Calculate node dimensions to ensure edges connect at node boundaries
                 const sourceNode = source.node;
                 const targetNode = target.node;
                 const sourceConnectivity = (sourceNode.inDegree || 0) + (sourceNode.outDegree || 0);
                 const targetConnectivity = (targetNode.inDegree || 0) + (targetNode.outDegree || 0);
-                
-                const baseSize = 24;
-                const sourceConnectivityBonus = Math.min(sourceConnectivity, 10) * 1.5;
-                const targetConnectivityBonus = Math.min(targetConnectivity, 10) * 1.5;
+
                 const sourceWidth = calculateNodeWidth(sourceConnectivity);
                 const targetWidth = calculateNodeWidth(targetConnectivity);
-                const sourceHeight = baseSize + sourceConnectivityBonus;
-                const targetHeight = baseSize + targetConnectivityBonus;
-                
+                const sourceHeight = calculateNodeHeight(sourceConnectivity);
+                const targetHeight = calculateNodeHeight(targetConnectivity);
+
                 // Calculate edge start and end points at node boundaries
                 const angle = Math.atan2(dy, dx);
                 const sourceX = source.x + Math.cos(angle) * (sourceWidth / 2);
                 const sourceY = source.y + Math.sin(angle) * (sourceHeight / 2);
                 const targetX = target.x - Math.cos(angle) * (targetWidth / 2 + 5); // Add 5px gap for arrow
                 const targetY = target.y - Math.sin(angle) * (targetHeight / 2);
-                
+
                 // Use vertical distance to create better curves for vertically aligned nodes
                 // Minimum offset ensures smooth curves even when dx is near zero
                 const controlPointOffset = Math.max(Math.abs(dx) * 0.4, Math.abs(dy) * 0.35, 40);
-                
+
                 const d = \`M\${sourceX},\${sourceY} C\${sourceX + controlPointOffset},\${sourceY} \${targetX - controlPointOffset},\${targetY} \${targetX},\${targetY}\`;
-                
+
                 path.setAttribute('d', d);
                 path.setAttribute('class', \`topo-edge\${edge.type === 'ownership' ? ' critical-path' : ''}\`);
                 path.setAttribute('data-source', edge.source);
                 path.setAttribute('data-target', edge.target);
                 path.setAttribute('stroke', edge.type === 'ownership' ? '#ffa500' : 'var(--vscode-foreground)');
-                
+
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
                 title.textContent = \`\${edge.source} → \${edge.target}\\nType: \${edge.type || 'connection'}\${edge.label ? \`\\n\${edge.label}\` : ''}\`;
                 path.appendChild(title);
-                
+
                 container.appendChild(path);
             });
 
@@ -1039,12 +1045,12 @@ function generateJavaScript(data: any): string {
                 const ELLIPSIS = '...';
                 element.textContent = text;
                 let textWidth = element.getComputedTextLength();
-                
+
                 // If text fits, no truncation needed
                 if (textWidth <= maxWidth) {
                     return text;
                 }
-                
+
                 // Truncate text to fit with ellipsis
                 let truncated = text;
                 while (textWidth > maxWidth && truncated.length > 0) {
@@ -1052,7 +1058,7 @@ function generateJavaScript(data: any): string {
                     element.textContent = truncated + ELLIPSIS;
                     textWidth = element.getComputedTextLength();
                 }
-                
+
                 // If we had to truncate, return with ellipsis
                 return truncated.length > 0 ? truncated + ELLIPSIS : ELLIPSIS;
             };
@@ -1067,14 +1073,12 @@ function generateJavaScript(data: any): string {
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
 
                 // Node size based on connectivity with better scaling
-                const baseSize = 24;
                 const totalConnectivity = node.inDegree + node.outDegree;
-                const connectivityBonus = Math.min(totalConnectivity, 10) * 1.5;
-                
+
                 // Badge text vertical offset for proper centering
                 const BADGE_TEXT_Y_OFFSET = 4;
                 const nodeWidth = calculateNodeWidth(totalConnectivity);
-                const nodeHeight = baseSize + connectivityBonus;
+                const nodeHeight = calculateNodeHeight(totalConnectivity);
 
                 // Main node rectangle with gradient
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1086,7 +1090,7 @@ function generateJavaScript(data: any): string {
                 rect.setAttribute('fill', node.colorCode || tiers[tier]?.color || '#0078d4');
                 rect.setAttribute('opacity', '0.9');
                 g.appendChild(rect);
-                
+
                 // Gradient overlay for depth
                 const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 overlay.setAttribute('x', -nodeWidth / 2);
@@ -1103,12 +1107,12 @@ function generateJavaScript(data: any): string {
                     const criticalBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     criticalBadge.setAttribute('class', 'critical-badge critical-glow');
                     criticalBadge.setAttribute('transform', \`translate(\${nodeWidth / 2 - 8}, \${-nodeHeight / 2 + 8})\`);
-                    
+
                     const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                     badgeBg.setAttribute('class', 'critical-badge-bg');
                     badgeBg.setAttribute('r', '10');
                     criticalBadge.appendChild(badgeBg);
-                    
+
                     const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     badgeText.setAttribute('class', 'critical-badge-text');
                     badgeText.setAttribute('x', '0');
@@ -1117,11 +1121,11 @@ function generateJavaScript(data: any): string {
                     badgeText.setAttribute('dominant-baseline', 'middle');
                     badgeText.textContent = '⚠';
                     criticalBadge.appendChild(badgeText);
-                    
+
                     const badgeTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
                     badgeTitle.textContent = 'Critical Resource - High importance in system architecture';
                     criticalBadge.appendChild(badgeTitle);
-                    
+
                     g.appendChild(criticalBadge);
                 }
 
@@ -1131,12 +1135,12 @@ function generateJavaScript(data: any): string {
                     const connBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     connBadge.setAttribute('class', 'connectivity-badge');
                     connBadge.setAttribute('transform', \`translate(\${-nodeWidth / 2 + 8}, \${-nodeHeight / 2 + 8})\`);
-                    
+
                     const badgeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                     badgeCircle.setAttribute('class', 'connectivity-badge-circle');
                     badgeCircle.setAttribute('r', '10');
                     connBadge.appendChild(badgeCircle);
-                    
+
                     const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     badgeText.setAttribute('class', 'connectivity-badge-text');
                     badgeText.setAttribute('x', '0');
@@ -1145,35 +1149,41 @@ function generateJavaScript(data: any): string {
                     badgeText.setAttribute('dominant-baseline', 'middle');
                     badgeText.textContent = totalConnections;
                     connBadge.appendChild(badgeText);
-                    
+
                     const badgeTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
                     badgeTitle.textContent = \`High Connectivity: \${totalConnections} connections (In: \${node.inDegree}, Out: \${node.outDegree})\`;
                     connBadge.appendChild(badgeTitle);
-                    
+
                     g.appendChild(connBadge);
                 }
 
                 // Node labels with smart truncation to fit within node bounds
                 // Text is dynamically measured and truncated with ellipsis if needed
                 // to ensure labels always stay within the node box boundaries
-                const textPadding = 16; // 8px padding on each side
+                const textPadding = 20; // 10px padding on each side for larger boxes
                 const maxTextWidth = nodeWidth - textPadding;
-                
-                // Kind label (top) - with proper vertical alignment
+
+                // Calculate vertical positions for two-line text layout
+                // With larger boxes, we have more room for text
+                const textLineHeight = 14; // Height between text lines
+                const kindTextY = -textLineHeight / 2; // Kind label slightly above center
+                const nameTextY = textLineHeight / 2;  // Name label slightly below center
+
+                // Kind label (top) - with proper vertical alignment for larger boxes
                 const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 kindText.setAttribute('class', 'topo-label');
                 kindText.setAttribute('x', '0');
-                kindText.setAttribute('y', '-6');
+                kindText.setAttribute('y', kindTextY);
                 kindText.setAttribute('text-anchor', 'middle');
                 kindText.setAttribute('dominant-baseline', 'middle');
                 g.appendChild(kindText);
                 kindText.textContent = truncateText(node.kind, maxTextWidth, kindText);
 
-                // Name label (bottom) - with proper vertical alignment
+                // Name label (bottom) - with proper vertical alignment for larger boxes
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 nameText.setAttribute('class', 'topo-label name');
                 nameText.setAttribute('x', '0');
-                nameText.setAttribute('y', '6');
+                nameText.setAttribute('y', nameTextY);
                 nameText.setAttribute('text-anchor', 'middle');
                 nameText.setAttribute('dominant-baseline', 'middle');
                 g.appendChild(nameText);
@@ -1185,24 +1195,24 @@ function generateJavaScript(data: any): string {
                 const connectionsStr = \`Connections: \${totalConnections} (In: \${node.inDegree}, Out: \${node.outDegree})\`;
                 title.textContent = \`\${node.kind}: \${node.name}\${criticalStr}\${node.namespace ? \`\\nNamespace: \${node.namespace}\` : ''}\\nCategory: \${node.category}\\n\${connectionsStr}\`;
                 g.appendChild(title);
-                
+
                 // Interactive click handler
                 g.style.cursor = 'pointer';
                 g.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    
+
                     // Clear previous selection
                     container.querySelectorAll('.topo-node').forEach(n => n.classList.remove('selected'));
                     container.querySelectorAll('.topo-edge').forEach(e => e.classList.remove('highlighted'));
-                    
+
                     if (selectedNode === node.id) {
                         selectedNode = null;
                         return;
                     }
-                    
+
                     selectedNode = node.id;
                     g.classList.add('selected');
-                    
+
                     // Highlight connected edges
                     edges.filter(e => e.source === node.id || e.target === node.id).forEach(edge => {
                         const edgePath = container.querySelector(\`path[data-source="\${edge.source}"][data-target="\${edge.target}"]\`);
@@ -1214,7 +1224,7 @@ function generateJavaScript(data: any): string {
 
                 container.appendChild(g);
             });
-            
+
             // Click on background to deselect
             svg.addEventListener('click', (e) => {
                 if (e.target === svg || e.target === container) {
@@ -1227,14 +1237,14 @@ function generateJavaScript(data: any): string {
             // Pan and zoom support
             let isPanning = false;
             let panStart = { x: 0, y: 0 };
-            
+
             svg.addEventListener('mousedown', (e) => {
                 if (e.target === svg || e.target === container || e.target.tagName === 'rect' && e.target.classList.contains('topo-tier-bg')) {
                     isPanning = true;
                     panStart = { x: e.clientX - topologyPanX, y: e.clientY - topologyPanY };
                 }
             });
-            
+
             svg.addEventListener('mousemove', (e) => {
                 if (isPanning) {
                     topologyPanX = e.clientX - panStart.x;
@@ -1242,15 +1252,15 @@ function generateJavaScript(data: any): string {
                     updateTopologyZoom();
                 }
             });
-            
+
             svg.addEventListener('mouseup', () => {
                 isPanning = false;
             });
-            
+
             svg.addEventListener('mouseleave', () => {
                 isPanning = false;
             });
-            
+
             // Mouse wheel zoom
             svg.addEventListener('wheel', (e) => {
                 e.preventDefault();
@@ -1268,17 +1278,17 @@ function generateJavaScript(data: any): string {
             const svg = document.getElementById('topologySvg');
             const container = document.getElementById('topologyContent');
             if (!svg || !container) return;
-            
+
             // Calculate optimal zoom to fit content
             try {
                 const bbox = container.getBBox();
                 const svgWidth = svg.clientWidth || 1000;
                 const svgHeight = svg.clientHeight || 650;
-                
+
                 const scaleX = svgWidth / (bbox.width + 100);
                 const scaleY = svgHeight / (bbox.height + 100);
                 topologyZoom = Math.min(scaleX, scaleY, MAX_AUTO_FIT_ZOOM);
-                
+
                 // Center the content
                 const scaledWidth = bbox.width * topologyZoom;
                 const scaledHeight = bbox.height * topologyZoom;
