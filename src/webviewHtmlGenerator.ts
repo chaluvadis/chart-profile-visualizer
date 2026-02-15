@@ -908,7 +908,6 @@ function generateJavaScript(data: any): string {
             activeTiers.forEach((tierName, tierIndex) => {
                 const tier = tiers[tierName];
                 const tierY = startY + tierIndex * tierHeight;
-                const tierCenterY = tierY + tierHeight / 2;
                 
                 // Draw tier background with consistent padding
                 const tierBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -969,6 +968,13 @@ function generateJavaScript(data: any): string {
                 });
             });
 
+            // Helper function to calculate node width based on connectivity
+            const calculateNodeWidth = (connectivity) => {
+                const baseSize = 24;
+                const connectivityBonus = Math.min(connectivity, 10) * 1.5;
+                return baseSize * 2 + connectivityBonus * 2;
+            };
+
             // Draw edges first (so they appear behind nodes)
             edges.forEach(edge => {
                 const source = nodePositions.get(edge.source);
@@ -987,8 +993,8 @@ function generateJavaScript(data: any): string {
                 const targetConnectivity = (targetNode.inDegree || 0) + (targetNode.outDegree || 0);
                 
                 const baseSize = 24;
-                const sourceWidth = baseSize * 2 + Math.min(sourceConnectivity, 10) * 1.5 * 2;
-                const targetWidth = baseSize * 2 + Math.min(targetConnectivity, 10) * 1.5 * 2;
+                const sourceWidth = calculateNodeWidth(sourceConnectivity);
+                const targetWidth = calculateNodeWidth(targetConnectivity);
                 
                 // Calculate edge start and end points at node boundaries
                 const angle = Math.atan2(dy, dx);
@@ -1054,8 +1060,9 @@ function generateJavaScript(data: any): string {
 
                 // Node size based on connectivity with better scaling
                 const baseSize = 24;
-                const connectivityBonus = Math.min(node.inDegree + node.outDegree, 10) * 1.5;
-                const nodeWidth = baseSize * 2 + connectivityBonus * 2;
+                const totalConnectivity = node.inDegree + node.outDegree;
+                const connectivityBonus = Math.min(totalConnectivity, 10) * 1.5;
+                const nodeWidth = calculateNodeWidth(totalConnectivity);
                 const nodeHeight = baseSize + connectivityBonus;
 
                 // Main node rectangle with gradient

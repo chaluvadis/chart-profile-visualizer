@@ -549,8 +549,8 @@ body {
     stroke-width: 1;
     stroke-dasharray: 4,4;
     rx: 8;
-    opacity: 0.08;
-    fill-opacity: 0.05;
+    opacity: 0.15;
+    fill-opacity: 0.08;
 }
 .topo-tier-bg[data-filtered="hidden"] {
     display: none;
