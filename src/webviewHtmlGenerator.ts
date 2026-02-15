@@ -368,15 +368,15 @@ function generateTopologyTab(): string {
                         <stop offset="0%" stop-color="rgba(255,255,255,0.1)" stop-opacity="1" />
                         <stop offset="100%" stop-color="rgba(0,0,0,0.1)" stop-opacity="1" />
                     </linearGradient>
-                    <!-- Arrow markers for different relationship types -->
-                    <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                        <polygon points="0 0, 8 4, 0 8" fill="var(--vscode-foreground)" opacity="0.5" />
+                    <!-- Arrow markers for different relationship types - Enhanced visibility -->
+                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                        <polygon points="0 0, 10 5, 0 10" fill="var(--vscode-foreground)" opacity="0.6" />
                     </marker>
-                    <marker id="arrowhead-critical" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                        <polygon points="0 0, 8 4, 0 8" fill="#ffa500" opacity="0.8" />
+                    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                        <polygon points="0 0, 10 5, 0 10" fill="#ffa500" opacity="0.9" />
                     </marker>
-                    <marker id="arrowhead-selected" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                        <polygon points="0 0, 8 4, 0 8" fill="#0078d4" opacity="0.9" />
+                    <marker id="arrowhead-selected" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                        <polygon points="0 0, 10 5, 0 10" fill="#0078d4" />
                     </marker>
                     <!-- Filter for drop shadow -->
                     <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
@@ -835,13 +835,15 @@ function generateJavaScript(data: any): string {
              * - Each tier gets a horizontal band across the canvas
              * - Nodes within a tier are distributed horizontally
              * - Better utilization of widescreen displays
-             * - More intuitive left-to-right flow
              */
             const margin = 50;
-            const tierHeight = activeTiers.length > 0 ? (height - 2 * margin - 60) / activeTiers.length : 100;
+            // Ensure minimum tier height for readability, with better spacing
+            const minTierHeight = 120;
+            const calculatedTierHeight = activeTiers.length > 0 ? (height - 2 * margin - 60) / activeTiers.length : minTierHeight;
+            const tierHeight = Math.max(minTierHeight, calculatedTierHeight);
             const nodeSpacing = 100;
             const startY = margin + 60;
-            const tierLabelHeight = 30; // Height reserved for tier label at top of each tier band
+            const tierLabelHeight = 35; // Height reserved for tier label at top of each tier band
             
             // Track filter state
             let filterTier = 'all';
@@ -906,59 +908,72 @@ function generateJavaScript(data: any): string {
             activeTiers.forEach((tierName, tierIndex) => {
                 const tier = tiers[tierName];
                 const tierY = startY + tierIndex * tierHeight;
-                const tierCenterY = tierY + tierHeight / 2;
                 
-                // Draw tier background
+                // Draw tier background with consistent padding
                 const tierBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 tierBg.setAttribute('class', 'topo-tier-bg');
                 tierBg.setAttribute('data-tier', tierName);
-                tierBg.setAttribute('x', margin);
-                tierBg.setAttribute('y', tierY);
-                tierBg.setAttribute('width', width - 2 * margin);
-                tierBg.setAttribute('height', tierHeight - 20);
+                tierBg.setAttribute('x', margin - 10);
+                tierBg.setAttribute('y', tierY + 5);
+                tierBg.setAttribute('width', width - 2 * margin + 20);
+                tierBg.setAttribute('height', tierHeight - 25);
                 tierBg.setAttribute('fill', tier.color);
                 container.appendChild(tierBg);
                 
-                // Tier label on the left
+                // Tier label on the left with better positioning
                 const tierLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 tierLabel.setAttribute('class', 'topo-tier-label');
                 tierLabel.setAttribute('data-tier', tierName);
-                tierLabel.setAttribute('x', margin + 10);
-                tierLabel.setAttribute('y', tierY + 20);
+                tierLabel.setAttribute('x', margin + 5);
+                tierLabel.setAttribute('y', tierY + 22);
                 tierLabel.setAttribute('text-anchor', 'start');
+                tierLabel.setAttribute('dominant-baseline', 'middle');
                 tierLabel.setAttribute('fill', tier.color);
                 tierLabel.textContent = \`\${tier.icon} \${tier.label}\`;
                 container.appendChild(tierLabel);
                 
-                // Position nodes horizontally within this tier
+                // Position nodes horizontally within this tier with improved spacing
                 const tierNodeCount = tier.nodes.length;
                 // Skip empty tiers to prevent division by zero in spacing calculation
                 if (tierNodeCount === 0) return;
                 
-                const availableWidth = width - 2 * margin - 40;
+                const availableWidth = width - 2 * margin - 100; // More conservative margin
+                const minNodeSpacing = 120; // Minimum space between nodes to prevent overlap
+                
                 // For multi-node tiers, distribute evenly across full width
                 // For single-node tiers, center the node
                 let startX, spacing;
                 if (tierNodeCount === 1) {
                     // Center single node horizontally
-                    startX = margin + 20 + availableWidth / 2;
+                    startX = width / 2;
                     spacing = 0;
                 } else {
-                    // Distribute multiple nodes evenly across full width
-                    spacing = availableWidth / (tierNodeCount - 1);
-                    startX = margin + 20;
+                    // Calculate optimal spacing - either evenly distributed or min spacing
+                    const evenSpacing = availableWidth / (tierNodeCount - 1);
+                    spacing = Math.max(evenSpacing, minNodeSpacing);
+                    
+                    // Center the group of nodes
+                    const totalWidth = (tierNodeCount - 1) * spacing;
+                    startX = (width - totalWidth) / 2;
                 }
                 
                 // Account for tier label height when calculating vertical position
                 // Label is at tierY + 20, so center nodes in remaining space
                 const availableHeight = tierHeight - 20 - tierLabelHeight;
-                const y = tierY + tierLabelHeight + availableHeight / 2;
+                const y = tierY + tierLabelHeight + availableHeight / 2 + 10; // Add 10px offset for better vertical centering
                 
                 tier.nodes.forEach((node, i) => {
                     const x = startX + i * spacing;
                     nodePositions.set(node.id, { x, y, node, tier: tierName });
                 });
             });
+
+            // Helper function to calculate node width based on connectivity
+            const calculateNodeWidth = (connectivity) => {
+                const baseSize = 24;
+                const connectivityBonus = Math.min(connectivity, 10) * 1.5;
+                return baseSize * 2 + connectivityBonus * 2;
+            };
 
             // Draw edges first (so they appear behind nodes)
             edges.forEach(edge => {
@@ -970,11 +985,29 @@ function generateJavaScript(data: any): string {
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 const dx = target.x - source.x;
                 const dy = target.y - source.y;
+                
+                // Calculate node dimensions to ensure edges connect at node boundaries
+                const sourceNode = source.node;
+                const targetNode = target.node;
+                const sourceConnectivity = (sourceNode.inDegree || 0) + (sourceNode.outDegree || 0);
+                const targetConnectivity = (targetNode.inDegree || 0) + (targetNode.outDegree || 0);
+                
+                const baseSize = 24;
+                const sourceWidth = calculateNodeWidth(sourceConnectivity);
+                const targetWidth = calculateNodeWidth(targetConnectivity);
+                
+                // Calculate edge start and end points at node boundaries
+                const angle = Math.atan2(dy, dx);
+                const sourceX = source.x + Math.cos(angle) * (sourceWidth / 2);
+                const sourceY = source.y + Math.sin(angle) * (baseSize / 2);
+                const targetX = target.x - Math.cos(angle) * (targetWidth / 2 + 5); // Add 5px gap for arrow
+                const targetY = target.y - Math.sin(angle) * (baseSize / 2);
+                
                 // Use vertical distance to create better curves for vertically aligned nodes
                 // Minimum offset ensures smooth curves even when dx is near zero
-                const controlPointOffset = Math.max(Math.abs(dx) * 0.5, Math.abs(dy) * 0.3);
+                const controlPointOffset = Math.max(Math.abs(dx) * 0.4, Math.abs(dy) * 0.35, 40);
                 
-                const d = \`M\${source.x},\${source.y} C\${source.x + controlPointOffset},\${source.y} \${target.x - controlPointOffset},\${target.y} \${target.x},\${target.y}\`;
+                const d = \`M\${sourceX},\${sourceY} C\${sourceX + controlPointOffset},\${sourceY} \${targetX - controlPointOffset},\${targetY} \${targetX},\${targetY}\`;
                 
                 path.setAttribute('d', d);
                 path.setAttribute('class', \`topo-edge\${edge.type === 'ownership' ? ' critical-path' : ''}\`);
@@ -1027,8 +1060,9 @@ function generateJavaScript(data: any): string {
 
                 // Node size based on connectivity with better scaling
                 const baseSize = 24;
-                const connectivityBonus = Math.min(node.inDegree + node.outDegree, 10) * 1.5;
-                const nodeWidth = baseSize * 2 + connectivityBonus * 2;
+                const totalConnectivity = node.inDegree + node.outDegree;
+                const connectivityBonus = Math.min(totalConnectivity, 10) * 1.5;
+                const nodeWidth = calculateNodeWidth(totalConnectivity);
                 const nodeHeight = baseSize + connectivityBonus;
 
                 // Main node rectangle with gradient
@@ -1108,17 +1142,19 @@ function generateJavaScript(data: any): string {
                 const textPadding = 16; // 8px padding on each side
                 const maxTextWidth = nodeWidth - textPadding;
                 
-                // Kind label (top)
+                // Kind label (top) - with proper vertical alignment
                 const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 kindText.setAttribute('class', 'topo-label');
-                kindText.setAttribute('y', '-2');
+                kindText.setAttribute('y', '-6');
+                kindText.setAttribute('dominant-baseline', 'middle');
                 g.appendChild(kindText);
                 kindText.textContent = truncateText(node.kind, maxTextWidth, kindText);
 
-                // Name label (bottom)
+                // Name label (bottom) - with proper vertical alignment
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 nameText.setAttribute('class', 'topo-label name');
-                nameText.setAttribute('y', '10');
+                nameText.setAttribute('y', '6');
+                nameText.setAttribute('dominant-baseline', 'middle');
                 g.appendChild(nameText);
                 nameText.textContent = truncateText(node.name, maxTextWidth, nameText);
 
