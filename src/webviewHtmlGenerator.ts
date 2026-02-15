@@ -370,13 +370,13 @@ function generateTopologyTab(): string {
                     </linearGradient>
                     <!-- Arrow markers for different relationship types - Enhanced visibility -->
                     <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
-                        <polygon points="0 0, 10 5, 0 10" fill="var(--vscode-foreground)" opacity="0.6" />
+                        <polygon points="0 0, 10 5, 0 10" fill="var(--vscode-foreground)" opacity="0.7" />
                     </marker>
                     <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
-                        <polygon points="0 0, 10 5, 0 10" fill="#ffa500" opacity="0.9" />
+                        <polygon points="0 0, 10 5, 0 10" fill="#ffa500" opacity="1" />
                     </marker>
                     <marker id="arrowhead-selected" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
-                        <polygon points="0 0, 10 5, 0 10" fill="#0078d4" />
+                        <polygon points="0 0, 10 5, 0 10" fill="#0078d4" opacity="1" />
                     </marker>
                     <!-- Filter for drop shadow -->
                     <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
@@ -993,15 +993,19 @@ function generateJavaScript(data: any): string {
                 const targetConnectivity = (targetNode.inDegree || 0) + (targetNode.outDegree || 0);
                 
                 const baseSize = 24;
+                const sourceConnectivityBonus = Math.min(sourceConnectivity, 10) * 1.5;
+                const targetConnectivityBonus = Math.min(targetConnectivity, 10) * 1.5;
                 const sourceWidth = calculateNodeWidth(sourceConnectivity);
                 const targetWidth = calculateNodeWidth(targetConnectivity);
+                const sourceHeight = baseSize + sourceConnectivityBonus;
+                const targetHeight = baseSize + targetConnectivityBonus;
                 
                 // Calculate edge start and end points at node boundaries
                 const angle = Math.atan2(dy, dx);
                 const sourceX = source.x + Math.cos(angle) * (sourceWidth / 2);
-                const sourceY = source.y + Math.sin(angle) * (baseSize / 2);
+                const sourceY = source.y + Math.sin(angle) * (sourceHeight / 2);
                 const targetX = target.x - Math.cos(angle) * (targetWidth / 2 + 5); // Add 5px gap for arrow
-                const targetY = target.y - Math.sin(angle) * (baseSize / 2);
+                const targetY = target.y - Math.sin(angle) * (targetHeight / 2);
                 
                 // Use vertical distance to create better curves for vertically aligned nodes
                 // Minimum offset ensures smooth curves even when dx is near zero
@@ -1100,7 +1104,10 @@ function generateJavaScript(data: any): string {
                     
                     const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     badgeText.setAttribute('class', 'critical-badge-text');
+                    badgeText.setAttribute('x', '0');
                     badgeText.setAttribute('y', '4');
+                    badgeText.setAttribute('text-anchor', 'middle');
+                    badgeText.setAttribute('dominant-baseline', 'middle');
                     badgeText.textContent = '⚠';
                     criticalBadge.appendChild(badgeText);
                     
@@ -1125,7 +1132,10 @@ function generateJavaScript(data: any): string {
                     
                     const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     badgeText.setAttribute('class', 'connectivity-badge-text');
+                    badgeText.setAttribute('x', '0');
                     badgeText.setAttribute('y', '4');
+                    badgeText.setAttribute('text-anchor', 'middle');
+                    badgeText.setAttribute('dominant-baseline', 'middle');
                     badgeText.textContent = totalConnections;
                     connBadge.appendChild(badgeText);
                     
@@ -1145,7 +1155,9 @@ function generateJavaScript(data: any): string {
                 // Kind label (top) - with proper vertical alignment
                 const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 kindText.setAttribute('class', 'topo-label');
+                kindText.setAttribute('x', '0');
                 kindText.setAttribute('y', '-6');
+                kindText.setAttribute('text-anchor', 'middle');
                 kindText.setAttribute('dominant-baseline', 'middle');
                 g.appendChild(kindText);
                 kindText.textContent = truncateText(node.kind, maxTextWidth, kindText);
@@ -1153,7 +1165,9 @@ function generateJavaScript(data: any): string {
                 // Name label (bottom) - with proper vertical alignment
                 const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 nameText.setAttribute('class', 'topo-label name');
+                nameText.setAttribute('x', '0');
                 nameText.setAttribute('y', '6');
+                nameText.setAttribute('text-anchor', 'middle');
                 nameText.setAttribute('dominant-baseline', 'middle');
                 g.appendChild(nameText);
                 nameText.textContent = truncateText(node.name, maxTextWidth, nameText);
