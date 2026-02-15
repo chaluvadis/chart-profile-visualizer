@@ -506,7 +506,7 @@ body {
     fill: none;
     stroke: var(--vscode-foreground);
     stroke-width: 2;
-    opacity: 0.4;
+    opacity: 0.5;
     marker-end: url(#arrowhead);
     transition: all 0.25s ease;
 }
