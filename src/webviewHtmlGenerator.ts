@@ -8,78 +8,64 @@ import { getIconDataUri, getNormalizedIconName } from "./iconManager";
  * Interface for Kubernetes Secret object structure
  */
 interface SecretObject {
-  data?: Record<string, string>;
-  stringData?: Record<string, string>;
-  [key: string]: any;
+	data?: Record<string, string>;
+	stringData?: Record<string, string>;
+	[key: string]: any;
 }
 
 /**
  * Sanitize a Secret's YAML content by redacting sensitive data fields
  */
 function sanitizeSecretYaml(yamlContent: string): string {
-  try {
-    const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
+	try {
+		const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
 
-    // Type guard to ensure we have a valid object
-    if (!yamlObj || typeof yamlObj !== "object") {
-      return "# Secret data redacted for security";
-    }
+		// Type guard to ensure we have a valid object
+		if (!yamlObj || typeof yamlObj !== "object") {
+			return "# Secret data redacted for security";
+		}
 
-    const secretObj = yamlObj as SecretObject;
+		const secretObj = yamlObj as SecretObject;
 
-    // Redact sensitive fields by replacing values with placeholders
-    const redactField = (
-      obj: Record<string, string>,
-    ): Record<string, string> => {
-      return Object.keys(obj).reduce(
-        (acc, key) => {
-          acc[key] = "***REDACTED***";
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
-    };
+		// Redact sensitive fields by replacing values with placeholders
+		const redactField = (obj: Record<string, string>): Record<string, string> => {
+			return Object.keys(obj).reduce(
+				(acc, key) => {
+					acc[key] = "***REDACTED***";
+					return acc;
+				},
+				{} as Record<string, string>
+			);
+		};
 
-    if (secretObj.data) {
-      secretObj.data = redactField(secretObj.data);
-    }
-    if (secretObj.stringData) {
-      secretObj.stringData = redactField(secretObj.stringData);
-    }
+		if (secretObj.data) {
+			secretObj.data = redactField(secretObj.data);
+		}
+		if (secretObj.stringData) {
+			secretObj.stringData = redactField(secretObj.stringData);
+		}
 
-    return yaml.dump(secretObj);
-  } catch (error) {
-    // If parsing fails, just hide the whole yaml for secrets
-    return "# Secret data redacted for security";
-  }
+		return yaml.dump(secretObj);
+	} catch (error) {
+		// If parsing fails, just hide the whole yaml for secrets
+		return "# Secret data redacted for security";
+	}
 }
 
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
  */
-export function generateEnhancedHtml(
-  webview: vscode.Webview,
-  data: any,
-  extensionUri: vscode.Uri,
-): string {
-  const nonce = getNonce();
+export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensionUri: vscode.Uri): string {
+	const nonce = getNonce();
 
-  // Get local Chart.js and CSS URIs
-  const chartJsUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"),
-  );
-  const stylesUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, "out", "styles.css"),
-  );
+	// Get local Chart.js and CSS URIs
+	const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
+	const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "styles.css"));
 
-  // Generate resource explorer HTML
-  const resourceExplorerHtml = generateResourceExplorer(
-    data.resourceHierarchy,
-    webview,
-    extensionUri,
-  );
+	// Generate resource explorer HTML
+	const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
 
-  return `<!DOCTYPE html>
+	return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -92,9 +78,6 @@ export function generateEnhancedHtml(
     <div class="toolbar">
         <button id="exportYaml" class="toolbar-btn">📄 Export YAML</button>
         <button id="exportJson" class="toolbar-btn">📋 Export JSON</button>
-        <button id="toggleLive" class="toolbar-btn">🔄 Live Mode</button>
-        <button id="expandAll" class="toolbar-btn">➕ Expand All</button>
-        <button id="collapseAll" class="toolbar-btn">➖ Collapse All</button>
         <input type="search" id="searchBox" placeholder="Search resources..." class="search-box">
     </div>
 
@@ -125,7 +108,7 @@ export function generateEnhancedHtml(
 }
 
 function generateOverviewTab(data: any): string {
-  return `
+	return `
         <div class="header">
             <h1 class="chart-title">
                 ${escapeHtml(data.chartName)}
@@ -133,28 +116,9 @@ function generateOverviewTab(data: any): string {
             </h1>
         </div>
 
-        <div class="stats-container">
-            <div class="stat-card">
-                <div class="stat-label">Total Values</div>
-                <div class="stat-value">${data.totalValues}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Overridden Values</div>
-                <div class="stat-value">${data.overriddenCount}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Resources</div>
-                <div class="stat-value">${data.resources.length}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Override Rate</div>
-                <div class="stat-value">${data.totalValues > 0 ? Math.round((data.overriddenCount / data.totalValues) * 100) : 0}%</div>
-            </div>
-        </div>
-
         ${
-          data.architectureNodes && data.architectureNodes.length > 0
-            ? `
+			data.architectureNodes && data.architectureNodes.length > 0
+				? `
         <div class="chart-container">
             <h2>High-Level Architecture
                 <span class="help-tooltip" title="Shows the main components and their connections. Different shapes represent resource types: rounded rectangles (workloads), hexagons (networking), cylinders (storage), documents (configuration), shields (RBAC). Arrows indicate relationships and data flow. Larger nodes are more central to the system.">ⓘ</span>
@@ -173,16 +137,32 @@ function generateOverviewTab(data: any): string {
             <div id="architectureDiagram" class="architecture-diagram"></div>
         </div>
         `
-            : ""
-        }
-
-
+				: ""
+		}
 
         ${
-          data.overriddenValues.length > 0
-            ? `
+			data.overriddenValues.length > 0
+				? `
         <div class="chart-container">
-            <h2>Top Overridden Values</h2>
+            <h2>Overridden Values</h2>
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-label">Total Values</div>
+                    <div class="stat-value">${data.totalValues}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Overridden Values</div>
+                    <div class="stat-value">${data.overriddenCount}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Resources</div>
+                    <div class="stat-value">${data.resources.length}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Override Rate</div>
+                    <div class="stat-value">${data.totalValues > 0 ? Math.round((data.overriddenCount / data.totalValues) * 100) : 0}%</div>
+                </div>
+            </div>
             <table class="values-table">
                 <thead>
                     <tr>
@@ -193,42 +173,63 @@ function generateOverviewTab(data: any): string {
                 </thead>
                 <tbody>
                     ${data.overriddenValues
-                      .map(
-                        (v: any) => `
+						.map(
+							(v: any) => `
                         <tr>
                             <td class="value-key">${escapeHtml(v.key)}</td>
-                            <td class="value-old">${escapeHtml(String(v.baseValue))}</td>
-                            <td class="value-new">${escapeHtml(String(v.envValue))}</td>
+                            <td class="value-old">${escapeHtml(formatValue(v.baseValue))}</td>
+                            <td class="value-new">${escapeHtml(formatValue(v.envValue))}</td>
                         </tr>
-                    `,
-                      )
-                      .join("")}
+                    `
+						)
+						.join("")}
                 </tbody>
             </table>
         </div>
         `
-            : ""
-        }
+				: `
+        <div class="chart-container">
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-label">Total Values</div>
+                    <div class="stat-value">${data.totalValues}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Overridden Values</div>
+                    <div class="stat-value">${data.overriddenCount}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Resources</div>
+                    <div class="stat-value">${data.resources.length}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Override Rate</div>
+                    <div class="stat-value">${data.totalValues > 0 ? Math.round((data.overriddenCount / data.totalValues) * 100) : 0}%</div>
+                </div>
+            </div>
+        </div>
+        `
+		}
     `;
 }
 
 function generateResourceExplorer(
-  hierarchy: ResourceHierarchy,
-  webview: vscode.Webview,
-  extensionUri: vscode.Uri,
+	hierarchy: ResourceHierarchy,
+	webview: vscode.Webview,
+	extensionUri: vscode.Uri
 ): string {
-  if (!hierarchy || hierarchy.totalCount === 0) {
-    return '<div class="no-data"><p>No resources found</p></div>';
-  }
+	if (!hierarchy || hierarchy.totalCount === 0) {
+		return '<div class="no-data"><p>No resources found</p></div>';
+	}
 
-  let html = '<div class="resource-explorer">';
+	let html = '<div class="resource-explorer">';
 
-  for (const [kind, group] of hierarchy.kindGroups) {
-    // Get icon for this resource kind
-    const iconName = getNormalizedIconName(kind);
-    const iconDataUri = getIconDataUri(kind, "dark");
+	for (const [kind, group] of hierarchy.kindGroups) {
+		// Get icon for this resource kind
+		const iconName = getNormalizedIconName(kind);
+		const iconDataUri = getIconDataUri(kind, "dark");
 
-    html += `
+		html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
             <div class="kind-header">
                 <span class="expand-icon">▶</span>
@@ -238,17 +239,14 @@ function generateResourceExplorer(
             <div class="kind-resources" data-collapsed="true">
         `;
 
-    for (const resource of group.resources) {
-      // For secrets, sanitize the YAML to mask sensitive data
-      const displayYaml =
-        resource.kind === "Secret"
-          ? sanitizeSecretYaml(resource.yaml)
-          : resource.yaml;
+		for (const resource of group.resources) {
+			// For secrets, sanitize the YAML to mask sensitive data
+			const displayYaml = resource.kind === "Secret" ? sanitizeSecretYaml(resource.yaml) : resource.yaml;
 
-      // Get icon for this resource
-      const resourceIconUri = getIconDataUri(resource.kind, "dark");
+			// Get icon for this resource
+			const resourceIconUri = getIconDataUri(resource.kind, "dark");
 
-      html += `
+			html += `
             <div class="resource-card" data-color="${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
                 <div class="resource-header">
                     <span class="expand-icon">▶</span>
@@ -263,25 +261,25 @@ function generateResourceExplorer(
                         <pre>${escapeHtml(JSON.stringify(resource.metadata, null, 2))}</pre>
                     </div>
                     ${
-                      Object.keys(resource.spec || {}).length > 0
-                        ? `
+						Object.keys(resource.spec || {}).length > 0
+							? `
                     <div class="detail-section">
                         <h4>Spec</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.spec, null, 2))}</pre>
                     </div>
                     `
-                        : ""
-                    }
+							: ""
+					}
                     ${
-                      resource.kind === "Secret" && resource.data
-                        ? `
+						resource.kind === "Secret" && resource.data
+							? `
                     <div class="detail-section">
                         <h4>Data (masked)</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.data, null, 2))}</pre>
                     </div>
                     `
-                        : ""
-                    }
+							: ""
+					}
                     <div class="detail-section">
                         <h4>Full YAML</h4>
                         <pre class="yaml-content">${escapeHtml(displayYaml)}</pre>
@@ -289,20 +287,20 @@ function generateResourceExplorer(
                 </div>
             </div>
             `;
-    }
+		}
 
-    html += `
+		html += `
             </div>
         </div>
         `;
-  }
+	}
 
-  html += "</div>";
-  return html;
+	html += "</div>";
+	return html;
 }
 
 function generateTopologyTab(): string {
-  return `
+	return `
         <div class="topology-view">
             <div class="topology-header">
                 <div class="topology-title-section">
@@ -433,36 +431,29 @@ function generateTopologyTab(): string {
 }
 
 function generateJavaScript(data: any): string {
-  // Pass architecture data safely
-  const architectureNodes = data.architectureNodes || [];
-  const relationships = data.relationships || [];
-  const safeArchNodes = JSON.stringify(architectureNodes).replace(
-    /</g,
-    "\\u003c",
-  );
-  const safeRelationships = JSON.stringify(relationships).replace(
-    /</g,
-    "\\u003c",
-  );
+	// Pass architecture data safely
+	const architectureNodes = data.architectureNodes || [];
+	const relationships = data.relationships || [];
+	const safeArchNodes = JSON.stringify(architectureNodes).replace(/</g, "\\u003c");
+	const safeRelationships = JSON.stringify(relationships).replace(/</g, "\\u003c");
 
-  // Generate icon data URIs for all unique kinds in the nodes
-  const kindIconMap: Record<string, string> = {};
-  for (const node of architectureNodes) {
-    if (node.kind && !kindIconMap[node.kind]) {
-      try {
-        kindIconMap[node.kind] = getIconDataUri(node.kind, "dark");
-      } catch (error) {
-        // If the icon manager is not initialized or an error occurs,
-        // skip assigning an icon for this kind rather than failing.
-        console.warn(`Failed to get icon for kind ${node.kind}:`, error);
-      }
-    }
-  }
-  const safeIconMap = JSON.stringify(kindIconMap).replace(/</g, "\\u003c");
+	// Generate icon data URIs for all unique kinds in the nodes
+	const kindIconMap: Record<string, string> = {};
+	for (const node of architectureNodes) {
+		if (node.kind && !kindIconMap[node.kind]) {
+			try {
+				kindIconMap[node.kind] = getIconDataUri(node.kind, "dark");
+			} catch (error) {
+				// If the icon manager is not initialized or an error occurs,
+				// skip assigning an icon for this kind rather than failing.
+				console.warn(`Failed to get icon for kind ${node.kind}:`, error);
+			}
+		}
+	}
+	const safeIconMap = JSON.stringify(kindIconMap).replace(/</g, "\\u003c");
 
-  return `
+	return `
         const vscode = acquireVsCodeApi();
-        let liveMode = false;
         let currentZoom = 1;
         let topologyZoom = 1;
         let topologyPanX = 0;
@@ -496,34 +487,6 @@ function generateJavaScript(data: any): string {
 
         document.getElementById('exportJson').addEventListener('click', () => {
             vscode.postMessage({ type: 'exportJson' });
-        });
-
-        document.getElementById('toggleLive').addEventListener('click', (e) => {
-            liveMode = !liveMode;
-            e.target.textContent = liveMode ? '🔄 Live (On)' : '🔄 Live Mode';
-            e.target.style.fontWeight = liveMode ? 'bold' : 'normal';
-            vscode.postMessage({ type: 'toggleLiveMode', enabled: liveMode });
-        });
-
-        document.getElementById('expandAll').addEventListener('click', () => {
-            document.querySelectorAll('.kind-group').forEach(group => {
-                group.classList.add('expanded');
-                const resources = group.querySelector('.kind-resources');
-                if (resources) resources.setAttribute('data-collapsed', 'false');
-            });
-        });
-
-        document.getElementById('collapseAll').addEventListener('click', () => {
-            document.querySelectorAll('.kind-group').forEach(group => {
-                group.classList.remove('expanded');
-                const resources = group.querySelector('.kind-resources');
-                if (resources) resources.setAttribute('data-collapsed', 'true');
-            });
-            document.querySelectorAll('.resource-card').forEach(card => {
-                card.classList.remove('expanded');
-                const details = card.querySelector('.resource-details');
-                if (details) details.setAttribute('data-collapsed', 'true');
-            });
         });
 
         // Search functionality
@@ -600,17 +563,17 @@ function generateJavaScript(data: any): string {
             svg.setAttribute('height', height);
             svg.setAttribute('viewBox', \`0 0 \${width} \${height}\`);
 
-            // Add arrow markers
+            // Add arrow markers - tip at x=10, so refX=9 positions tip at path endpoint
             const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
             const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
             marker.setAttribute('id', 'arrowhead');
             marker.setAttribute('markerWidth', '10');
             marker.setAttribute('markerHeight', '10');
             marker.setAttribute('refX', '9');
-            marker.setAttribute('refY', '3');
+            marker.setAttribute('refY', '5');
             marker.setAttribute('orient', 'auto');
             const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', '0 0, 10 3, 0 6');
+            polygon.setAttribute('points', '0 0, 10 5, 0 10');
             polygon.setAttribute('fill', 'var(--vscode-foreground)');
             polygon.setAttribute('opacity', '0.6');
             marker.appendChild(polygon);
@@ -621,10 +584,10 @@ function generateJavaScript(data: any): string {
             markerCritical.setAttribute('markerWidth', '10');
             markerCritical.setAttribute('markerHeight', '10');
             markerCritical.setAttribute('refX', '9');
-            markerCritical.setAttribute('refY', '3');
+            markerCritical.setAttribute('refY', '5');
             markerCritical.setAttribute('orient', 'auto');
             const polygonCritical = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygonCritical.setAttribute('points', '0 0, 10 3, 0 6');
+            polygonCritical.setAttribute('points', '0 0, 10 5, 0 10');
             polygonCritical.setAttribute('fill', '#ff9800');
             polygonCritical.setAttribute('opacity', '0.8');
             markerCritical.appendChild(polygonCritical);
@@ -641,24 +604,31 @@ function generateJavaScript(data: any): string {
             });
 
             const categoryKeys = Object.keys(categories);
-            const CARD_WIDTH = 120;
             const CARD_HEIGHT = 50;
             const HORIZONTAL_PADDING = 80;
             const VERTICAL_PADDING = 60;
             const MIN_NODE_SPACING = 40;
-            
+            const MIN_CARD_WIDTH = 140;
+            const MAX_CARD_WIDTH = 300;
+            const CHAR_WIDTH_APPROX = 7; // Approximate width per character at 11px font
+
+            // Calculate card width based on longest name in all nodes
+            const maxNameLength = Math.max(...nodes.map(n => n.name.length));
+            const calculatedCardWidth = Math.max(MIN_CARD_WIDTH, Math.min(MAX_CARD_WIDTH, 50 + maxNameLength * CHAR_WIDTH_APPROX));
+            const CARD_WIDTH = calculatedCardWidth;
+
             // Calculate available space
             const availableWidth = width - 2 * HORIZONTAL_PADDING;
             const availableHeight = height - 2 * VERTICAL_PADDING;
             const layerHeight = availableHeight / (categoryKeys.length + 1);
-            
+
             const nodePositions = new Map();
 
             // Position nodes with improved spacing
             categoryKeys.forEach((category, layerIndex) => {
                 const layerNodes = categories[category];
                 const layerY = VERTICAL_PADDING + (layerIndex + 0.5) * layerHeight;
-                
+
                 // Calculate spacing for this layer
                 const totalNodesWidth = layerNodes.length * CARD_WIDTH + (layerNodes.length - 1) * MIN_NODE_SPACING;
                 const startX = (width - totalNodesWidth) / 2 + CARD_WIDTH / 2;
@@ -683,15 +653,15 @@ function generateJavaScript(data: any): string {
                 const dx = target.x - source.x;
                 const dy = target.y - source.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // Skip if nodes are too close
                 if (distance < CARD_WIDTH) return;
-                
+
                 const angle = Math.atan2(dy, dx);
-                
+
                 // Calculate start and end points at node edges
                 let sourceX, sourceY, targetX, targetY;
-                
+
                 if (Math.abs(dx) > Math.abs(dy)) {
                     // Primarily horizontal connection
                     if (dx > 0) {
@@ -719,7 +689,7 @@ function generateJavaScript(data: any): string {
                 // Create smooth bezier curve
                 const midX = (sourceX + targetX) / 2;
                 const midY = (sourceY + targetY) / 2;
-                
+
                 let d;
                 if (Math.abs(dx) > Math.abs(dy)) {
                     d = \`M\${sourceX},\${sourceY} C\${midX},\${sourceY} \${midX},\${targetY} \${targetX},\${targetY}\`;
@@ -748,9 +718,9 @@ function generateJavaScript(data: any): string {
                 g.setAttribute('class', node.isCritical ? 'arch-node critical' : 'arch-node');
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
 
-                // Practical card size - compact but readable
-                const cardWidth = 120;
-                const cardHeight = 50;
+                // Dynamic card size based on name length
+                const cardWidth = CARD_WIDTH;
+                const cardHeight = CARD_HEIGHT;
                 const category = node.category || 'Other';
                 const categoryColor = node.colorCode || '#007acc';
 
@@ -807,13 +777,22 @@ function generateJavaScript(data: any): string {
                 nameText.setAttribute('font-weight', '600');
                 nameText.setAttribute('fill', 'var(--vscode-foreground)');
                 nameText.setAttribute('font-family', 'var(--vscode-font-family)');
-                nameText.textContent = node.name.length > 12 ? node.name.substring(0, 11) + '…' : node.name;
+                
+                // Truncate text if it exceeds card width
+                const maxTextWidth = cardWidth - (iconDataUri ? 40 : 20);
+                const estimatedTextWidth = node.name.length * 7; // CHAR_WIDTH_APPROX for 11px font
+                if (estimatedTextWidth > maxTextWidth) {
+                    const maxChars = Math.floor(maxTextWidth / 7) - 3; // Reserve space for ellipsis
+                    nameText.textContent = node.name.substring(0, maxChars) + '...';
+                } else {
+                    nameText.textContent = node.name;
+                }
                 g.appendChild(nameText);
 
                 // Critical indicator badge
                 if (node.isCritical) {
                     const criticalBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    
+
                     const criticalBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     criticalBg.setAttribute('x', cardWidth / 2 - 20);
                     criticalBg.setAttribute('y', -cardHeight / 2 + 4);
@@ -822,7 +801,7 @@ function generateJavaScript(data: any): string {
                     criticalBg.setAttribute('rx', '3');
                     criticalBg.setAttribute('fill', '#f44336');
                     criticalBadge.appendChild(criticalBg);
-                    
+
                     const criticalText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     criticalText.setAttribute('x', cardWidth / 2 - 12);
                     criticalText.setAttribute('y', -cardHeight / 2 + 14);
@@ -832,7 +811,7 @@ function generateJavaScript(data: any): string {
                     criticalText.setAttribute('fill', '#fff');
                     criticalText.textContent = '!';
                     criticalBadge.appendChild(criticalText);
-                    
+
                     g.appendChild(criticalBadge);
                 }
 
@@ -920,6 +899,15 @@ function generateJavaScript(data: any): string {
             const tierOrder = ['Workload', 'Networking', 'Storage', 'Configuration', 'RBAC', 'Scaling', 'Other'];
             const activeTiers = tierOrder.filter(t => tiers[t].nodes.length > 0);
 
+            // Calculate node width based on longest name
+            const NODE_HEIGHT = 64;
+            const MIN_NODE_WIDTH = 160;
+            const MAX_NODE_WIDTH = 350;
+            const CHAR_WIDTH_APPROX = 8; // Approximate width per character at 13px font
+            const maxNameLength = Math.max(...nodes.map(n => n.name.length));
+            const calculatedNodeWidth = Math.max(MIN_NODE_WIDTH, Math.min(MAX_NODE_WIDTH, 70 + maxNameLength * CHAR_WIDTH_APPROX));
+            const NODE_WIDTH = calculatedNodeWidth;
+
             /**
              * HORIZONTAL TIER LAYOUT ALGORITHM
              *
@@ -937,7 +925,7 @@ function generateJavaScript(data: any): string {
             const minTierHeight = 140; // Increased for 64px tall cards
             const calculatedTierHeight = activeTiers.length > 0 ? (height - 2 * margin - 60) / activeTiers.length : minTierHeight;
             const tierHeight = Math.max(minTierHeight, calculatedTierHeight);
-            const nodeSpacing = 220; // Spacing for 180px wide cards
+            const nodeSpacing = NODE_WIDTH + 40; // Dynamic spacing based on node width
             const startY = margin + 60;
             const tierLabelHeight = 35; // Height reserved for tier label at top of each tier band
 
@@ -1034,7 +1022,7 @@ function generateJavaScript(data: any): string {
                 if (tierNodeCount === 0) return;
 
                 const availableWidth = width - 2 * margin - 100; // More conservative margin
-                const minNodeSpacing = 220; // Match the nodeSpacing constant for 180px cards
+                const minNodeSpacing = NODE_WIDTH + 40; // Dynamic based on calculated node width
 
                 // For multi-node tiers, distribute evenly across full width
                 // For single-node tiers, center the node
@@ -1068,10 +1056,6 @@ function generateJavaScript(data: any): string {
                 });
             });
 
-            // Fixed node dimensions for horizontal card layout
-            const NODE_WIDTH = 180;
-            const NODE_HEIGHT = 64;
-
             // Draw edges first (so they appear behind nodes)
             edges.forEach(edge => {
                 const source = nodePositions.get(edge.source);
@@ -1082,17 +1066,17 @@ function generateJavaScript(data: any): string {
                 const dx = target.x - source.x;
                 const dy = target.y - source.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 // Skip if nodes are too close
                 if (distance < NODE_WIDTH) return;
 
                 // Calculate edge start and end points at node boundaries
                 // For horizontal cards, we want edges to connect from sides
                 const angle = Math.atan2(dy, dx);
-                
+
                 // Determine best connection points based on relative positions
                 let sourceX, sourceY, targetX, targetY;
-                
+
                 if (Math.abs(dx) > Math.abs(dy)) {
                     // Primarily horizontal connection - connect from left/right sides
                     if (dx > 0) {
@@ -1123,11 +1107,11 @@ function generateJavaScript(data: any): string {
 
                 // Create the path with smooth curves
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                
+
                 // Calculate control points for bezier curve
                 const midX = (sourceX + targetX) / 2;
                 const midY = (sourceY + targetY) / 2;
-                
+
                 // Use straight lines with slight curves for cleaner look
                 let d;
                 if (Math.abs(dx) > Math.abs(dy)) {
@@ -1190,9 +1174,9 @@ function generateJavaScript(data: any): string {
                 g.setAttribute('data-tier', tier);
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
 
-                // Node dimensions - practical size for readability
-                const nodeWidth = 180;
-                const nodeHeight = 64;
+                // Node dimensions - dynamically calculated based on name length
+                const nodeWidth = NODE_WIDTH;
+                const nodeHeight = NODE_HEIGHT;
                 const tierColor = tiers[tier]?.color || '#0078d4';
 
                 // Card background with subtle shadow
@@ -1221,7 +1205,7 @@ function generateJavaScript(data: any): string {
                 // Icon on left side
                 const iconDataUri = kindIcons[node.kind];
                 const iconX = -nodeWidth / 2 + 12;
-                
+
                 if (iconDataUri) {
                     const iconImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
                     iconImg.setAttribute('href', iconDataUri);
@@ -1234,7 +1218,7 @@ function generateJavaScript(data: any): string {
 
                 // Text content - practical layout
                 const textStartX = iconDataUri ? iconX + 24 : iconX + 8;
-                const maxTextWidth = nodeWidth - (iconDataUri ? 70 : 54);
+                const maxTextWidth = nodeWidth - (iconDataUri ? 100 : 84);
 
                 // Kind label - resource type
                 const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1259,7 +1243,15 @@ function generateJavaScript(data: any): string {
                 nameText.setAttribute('fill', 'var(--vscode-foreground)');
                 nameText.setAttribute('font-family', 'var(--vscode-font-family)');
                 g.appendChild(nameText);
-                nameText.textContent = truncateText(node.name, maxTextWidth, nameText);
+                
+                // Truncate text if it exceeds available width
+                const estimatedTextWidth = node.name.length * 8; // CHAR_WIDTH_APPROX for 13px font
+                if (estimatedTextWidth > maxTextWidth) {
+                    const maxChars = Math.floor(maxTextWidth / 8) - 3; // Reserve space for ellipsis
+                    nameText.textContent = node.name.substring(0, maxChars) + '...';
+                } else {
+                    nameText.textContent = node.name;
+                }
 
                 // Namespace tag (if present)
                 if (node.namespace) {
@@ -1277,11 +1269,11 @@ function generateJavaScript(data: any): string {
 
                 // Status indicators on right side
                 const indicatorX = nodeWidth / 2 - 14;
-                
+
                 // Critical indicator
                 if (node.isCritical) {
                     const criticalBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    
+
                     const criticalBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     criticalBg.setAttribute('x', indicatorX - 12);
                     criticalBg.setAttribute('y', -10);
@@ -1290,7 +1282,7 @@ function generateJavaScript(data: any): string {
                     criticalBg.setAttribute('rx', '3');
                     criticalBg.setAttribute('fill', '#f44336');
                     criticalBadge.appendChild(criticalBg);
-                    
+
                     const criticalText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     criticalText.setAttribute('x', indicatorX);
                     criticalText.setAttribute('y', 2);
@@ -1300,7 +1292,7 @@ function generateJavaScript(data: any): string {
                     criticalText.setAttribute('fill', '#fff');
                     criticalText.textContent = '!';
                     criticalBadge.appendChild(criticalText);
-                    
+
                     g.appendChild(criticalBadge);
                 }
 
@@ -1309,14 +1301,14 @@ function generateJavaScript(data: any): string {
                 if (totalConnections >= 3) {
                     const connY = node.isCritical ? 14 : 0;
                     const connBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    
+
                     const connBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                     connBg.setAttribute('cx', indicatorX);
                     connBg.setAttribute('cy', connY);
                     connBg.setAttribute('r', '10');
                     connBg.setAttribute('fill', 'var(--vscode-button-secondaryBackground)');
                     connBadge.appendChild(connBg);
-                    
+
                     const connText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     connText.setAttribute('x', indicatorX);
                     connText.setAttribute('y', connY + 3);
@@ -1326,7 +1318,7 @@ function generateJavaScript(data: any): string {
                     connText.setAttribute('fill', 'var(--vscode-button-secondaryForeground)');
                     connText.textContent = totalConnections;
                     connBadge.appendChild(connText);
-                    
+
                     g.appendChild(connBadge);
                 }
 
@@ -1490,7 +1482,7 @@ function generateJavaScript(data: any): string {
 }
 
 function generateChartJsInit(data: any): string {
-  return `
+	return `
         const chartColors = {
             primary: '#007acc',
             secondary: '#68217a',
@@ -1510,8 +1502,8 @@ function generateChartJsInit(data: any): string {
         ];
 
         ${
-          Object.keys(data.resourceCounts || {}).length > 0
-            ? `
+			Object.keys(data.resourceCounts || {}).length > 0
+				? `
         (function() {
             const canvas = document.getElementById('resourceChart');
             if (!canvas) return;
@@ -1629,12 +1621,12 @@ function generateChartJsInit(data: any): string {
             }
         })();
         `
-            : ""
-        }
+				: ""
+		}
 
         ${
-          data.totalValues > 0
-            ? `
+			data.totalValues > 0
+				? `
         (function() {
             const ctx = document.getElementById('valuesChart');
             if (!ctx) return;
@@ -1655,24 +1647,37 @@ function generateChartJsInit(data: any): string {
             });
         })();
         `
-            : ""
-        }
+				: ""
+		}
     `;
 }
 
 function getNonce(): string {
-  return crypto.randomBytes(16).toString("base64");
+	return crypto.randomBytes(16).toString("base64");
+}
+
+/**
+ * Format a value for display, handling objects and arrays properly
+ */
+function formatValue(value: any): string {
+	if (value === null || value === undefined) {
+		return "(not set)";
+	}
+	if (typeof value === "object") {
+		return JSON.stringify(value);
+	}
+	return String(value);
 }
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
 }
 
 function escapeAttr(text: string): string {
-  return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+	return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }

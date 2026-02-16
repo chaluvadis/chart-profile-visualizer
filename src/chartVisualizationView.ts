@@ -5,7 +5,6 @@ import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ChartTreeItem } from "./chartProfilesProvider";
 import { type RenderedResource, renderHelmTemplate } from "./helmRenderer";
-import { LiveUpdateManager } from "./liveUpdateManager";
 import {
 	type ArchitectureNode,
 	buildArchitectureNodes,
@@ -20,7 +19,6 @@ import { generateEnhancedHtml } from "./webviewHtmlGenerator";
 let currentPanel: vscode.WebviewPanel | undefined;
 let currentContext: vscode.ExtensionContext | undefined;
 let currentItem: ChartTreeItem | undefined;
-const liveUpdateManager = new LiveUpdateManager();
 let renderedResources: RenderedResource[] = [];
 
 const defaultNamespace = "default";
@@ -56,7 +54,6 @@ export async function show(context: vscode.ExtensionContext, item: ChartTreeItem
 
 		currentPanel.onDidDispose(
 			() => {
-				liveUpdateManager.disable();
 				currentPanel = undefined;
 			},
 			null,
@@ -117,38 +114,9 @@ async function handleMessage(message: any) {
 			await vscode.env.clipboard.writeText(message.yaml);
 			vscode.window.showInformationMessage("Resource copied to clipboard");
 			break;
-		case "toggleLiveMode":
-			toggleLiveMode(message.enabled);
-			break;
 		case "revealSecret":
 			// Secret reveal would be handled here
 			break;
-	}
-}
-
-/**
- * Toggle live update mode
- */
-function toggleLiveMode(enabled: boolean) {
-	if (!currentItem) {
-		return;
-	}
-
-	if (enabled) {
-		const chartPath = currentItem.chart?.path;
-		if (!chartPath) {
-			vscode.window.showErrorMessage("Chart path not available for live updates");
-			return;
-		}
-		liveUpdateManager.enable(chartPath, async () => {
-			if (currentItem) {
-				await updatePanel(currentItem);
-			}
-		});
-		vscode.window.showInformationMessage("Live mode enabled");
-	} else {
-		liveUpdateManager.disable();
-		vscode.window.showInformationMessage("Live mode disabled");
 	}
 }
 
@@ -290,7 +258,7 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		environment,
 		totalValues,
 		overriddenCount,
-		overriddenValues: overriddenValues.slice(0, 10), // Top 10 for display
+		overriddenValues, // All overridden values
 		resourceCounts,
 		namespaceCounts,
 		templateSources,
@@ -515,8 +483,8 @@ function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
 						(v) => `
                     <tr>
                         <td class="value-key">${escapeHtml(v.key)}</td>
-                        <td class="value-old">${escapeHtml(String(v.baseValue))}</td>
-                        <td class="value-new">${escapeHtml(String(v.envValue))}</td>
+                        <td class="value-old">${escapeHtml(formatValue(v.baseValue))}</td>
+                        <td class="value-new">${escapeHtml(formatValue(v.envValue))}</td>
                     </tr>
                 `
 					)
@@ -828,6 +796,19 @@ function escapeHtml(text: string): string {
 		.replace(/>/g, "&gt;")
 		.replace(/"/g, "&quot;")
 		.replace(/'/g, "&#039;");
+}
+
+/**
+ * Format a value for display, handling objects and arrays properly
+ */
+function formatValue(value: any): string {
+	if (value === null || value === undefined) {
+		return "(not set)";
+	}
+	if (typeof value === "object") {
+		return JSON.stringify(value);
+	}
+	return String(value);
 }
 
 /**
