@@ -132,6 +132,19 @@ body {
     align-items: center;
     gap: 8px;
 }
+.kind-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+.resource-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-right: 6px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
 .kind-header:hover {
     background-color: var(--vscode-list-hoverBackground);
 }
@@ -409,25 +422,31 @@ body {
 }
 .arch-node {
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: filter 0.15s ease;
 }
 .arch-node:hover {
-    opacity: 0.8;
+    filter: brightness(1.08);
 }
-.arch-node.critical {
-    filter: drop-shadow(0 0 4px rgba(255, 152, 0, 0.6));
+.arch-node:hover rect {
+    stroke: var(--vscode-focusBorder);
+    stroke-width: 1.5;
 }
+.arch-node.critical rect {
+    stroke: #f44336 !important;
+    stroke-width: 1.5;
+}
+
 .arch-edge {
     fill: none;
     stroke: var(--vscode-foreground);
     stroke-width: 1.5;
-    opacity: 0.4;
+    opacity: 0.35;
     marker-end: url(#arrowhead);
 }
 .arch-edge.critical-path {
-    stroke: #ff9800;
+    stroke: #f44336;
     stroke-width: 2;
-    opacity: 0.7;
+    opacity: 0.5;
     marker-end: url(#arrowhead-critical);
 }
 .arch-label {
@@ -435,6 +454,7 @@ body {
     fill: var(--vscode-foreground);
     text-anchor: middle;
     pointer-events: none;
+    font-family: var(--vscode-font-family);
 }
 .arch-group-label {
     font-size: 13px;
@@ -471,58 +491,91 @@ body {
 .legend-item {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     font-size: 11px;
+}
+.legend-color-box {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+    border-radius: 3px;
+    border: 1px solid var(--vscode-panel-border);
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.legend-color-box.workload {
+    background-color: #0078d4;
+}
+.legend-color-box.networking {
+    background-color: #107c10;
+}
+.legend-color-box.storage {
+    background-color: #8661c5;
+}
+.legend-color-box.config {
+    background-color: #d83b01;
+}
+.legend-color-box.rbac {
+    background-color: #e81123;
+}
+.legend-color-box.other {
+    background-color: #737373;
 }
 .legend-item svg {
     vertical-align: middle;
 }
 .topo-node {
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: filter 0.15s ease;
 }
 .topo-node[data-filtered="hidden"] {
     display: none;
 }
 .topo-node:hover {
-    filter: brightness(1.15) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-    transform: translateY(-2px);
+    filter: brightness(1.08);
 }
-.topo-node.selected {
-    filter: brightness(1.25) drop-shadow(0 6px 16px rgba(0, 120, 212, 0.6));
+.topo-node:hover .topo-node-rect {
+    stroke: var(--vscode-focusBorder);
+    stroke-width: 1.5;
+}
+.topo-node.selected .topo-node-rect {
+    stroke: var(--vscode-button-background);
+    stroke-width: 2;
 }
 .topo-node-rect {
-    stroke-width: 2;
+    stroke-width: 1;
     stroke: var(--vscode-panel-border);
-    filter: url(#dropShadow);
-    rx: 6;
+    rx: 4;
+    ry: 4;
+    transition: stroke 0.15s ease, stroke-width 0.15s ease;
 }
 .topo-node.critical .topo-node-rect {
-    stroke: #ffa500;
-    stroke-width: 3;
-    filter: url(#criticalGlow);
+    stroke: #f44336;
+    stroke-width: 1.5;
 }
 .topo-edge {
     fill: none;
     stroke: var(--vscode-foreground);
-    stroke-width: 2;
-    opacity: 0.5;
+    stroke-width: 1.5;
+    opacity: 0.4;
     marker-end: url(#arrowhead);
-    transition: all 0.25s ease;
+    transition: all 0.2s ease;
 }
 .topo-edge[data-filtered="hidden"] {
     display: none;
 }
 .topo-edge.highlighted {
     opacity: 1;
-    stroke: #0078d4;
-    stroke-width: 3;
+    stroke: var(--vscode-button-background);
+    stroke-width: 2;
     marker-end: url(#arrowhead-selected);
 }
 .topo-edge.critical-path {
-    stroke: #ffa500;
-    opacity: 0.7;
-    stroke-width: 2.5;
+    stroke: #f44336;
+    opacity: 0.6;
+    stroke-width: 2;
     marker-end: url(#arrowhead-critical);
 }
 .critical-glow {
@@ -533,15 +586,31 @@ body {
     50% { opacity: 0.7; }
 }
 .topo-label {
-    font-size: 12px;
+    font-size: 11px;
     fill: var(--vscode-foreground);
     text-anchor: middle;
     pointer-events: none;
     font-weight: 600;
+    font-family: var(--vscode-font-family);
+}
+.topo-label-kind {
+    font-size: 10px;
+    fill: var(--vscode-descriptionForeground);
+    text-anchor: start;
+    pointer-events: none;
+    font-family: var(--vscode-font-family);
+}
+.topo-label-name {
+    font-size: 12px;
+    fill: var(--vscode-foreground);
+    text-anchor: start;
+    pointer-events: none;
+    font-weight: 500;
+    font-family: var(--vscode-font-family);
 }
 .topo-label.name {
-    font-size: 11px;
-    opacity: 0.9;
+    font-size: 10px;
+    opacity: 0.85;
     font-weight: 500;
 }
 .topo-tier-bg {

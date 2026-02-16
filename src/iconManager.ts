@@ -1,0 +1,287 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as vscode from "vscode";
+
+/**
+ * Kubernetes resource icon manager
+ * Loads and provides SVG icons for Kubernetes resource types
+ */
+
+// Cache for loaded SVG content
+const svgCache = new Map<string, string>();
+
+// Extension context for resolving paths
+let extensionContext: vscode.ExtensionContext;
+
+/**
+ * Initialize the icon manager with extension context
+ */
+export function initializeIconManager(context: vscode.ExtensionContext): void {
+  extensionContext = context;
+}
+
+/**
+ * Get the icon file name for a Kubernetes resource kind
+ */
+export function getIconFileName(kind: string): string {
+  return kind
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
+    .toLowerCase();
+}
+
+/**
+ * Get the path to an icon file
+ */
+export function getIconPath(
+  kind: string,
+  theme: "dark" | "light" = "dark",
+): string {
+  const iconName = getIconFileName(kind);
+  const fileName = `${iconName}-${theme}.svg`;
+  return path.join(extensionContext.extensionPath, "images", "k8s", fileName);
+}
+
+/**
+ * Get VS Code Uri for an icon (for TreeView items)
+ */
+export function getIconUri(
+  kind: string,
+  theme: "dark" | "light" = "dark",
+): vscode.Uri {
+  const iconName = getIconFileName(kind);
+  const fileName = `${iconName}-${theme}.svg`;
+  const iconPath = path.join(
+    extensionContext.extensionPath,
+    "images",
+    "k8s",
+    fileName,
+  );
+
+  // Check if file exists
+  if (!fs.existsSync(iconPath)) {
+    // Fall back to default icon
+    return vscode.Uri.file(
+      path.join(extensionContext.extensionPath, "images", "icon.svg"),
+    );
+  }
+
+  return vscode.Uri.file(iconPath);
+}
+
+/**
+ * Get icon Uri for both light and dark themes (for TreeItem.iconPath)
+ */
+export function getIconUris(kind: string): {
+  light: vscode.Uri;
+  dark: vscode.Uri;
+} {
+  return {
+    light: getIconUri(kind, "light"),
+    dark: getIconUri(kind, "dark"),
+  };
+}
+
+/**
+ * Load SVG content from file
+ */
+export function loadSvgContent(
+  kind: string,
+  theme: "dark" | "light" = "dark",
+): string {
+  const cacheKey = `${kind}-${theme}`;
+
+  if (svgCache.has(cacheKey)) {
+    return svgCache.get(cacheKey)!;
+  }
+
+  const iconPath = getIconPath(kind, theme);
+
+  try {
+    if (fs.existsSync(iconPath)) {
+      let content = fs.readFileSync(iconPath, "utf8");
+
+      // For dark theme icons, ensure the stroke color is visible
+      // Replace any stroke color with a high-contrast color
+      if (theme === "dark") {
+        // Use white stroke for dark theme icons for better visibility
+        content = content.replace(/stroke="[^"]*"/g, 'stroke="#ffffff"');
+      } else {
+        // Use dark stroke for light theme icons
+        content = content.replace(/stroke="[^"]*"/g, 'stroke="#333333"');
+      }
+
+      svgCache.set(cacheKey, content);
+      return content;
+    }
+  } catch (error) {
+    console.warn(`Failed to load icon for ${kind}:`, error);
+  }
+
+  // Return a default placeholder SVG
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${theme === "dark" ? "#ffffff" : "#333333"}" stroke-width="2">
+		<rect x="3" y="3" width="18" height="18" rx="2"/>
+	</svg>`;
+}
+
+/**
+ * Convert SVG to base64 data URI for embedding in HTML
+ */
+export function svgToDataUri(svgContent: string): string {
+  // Encode for data URI
+  const encoded = Buffer.from(svgContent).toString("base64");
+  return `data:image/svg+xml;base64,${encoded}`;
+}
+
+/**
+ * Get icon as base64 data URI for webview embedding
+ */
+export function getIconDataUri(
+  kind: string,
+  theme: "dark" | "light" = "dark",
+): string {
+  const svgContent = loadSvgContent(kind, theme);
+  return svgToDataUri(svgContent);
+}
+
+/**
+ * Get icon as inline SVG for webview (allows CSS styling)
+ */
+export function getInlineSvg(
+  kind: string,
+  theme: "dark" | "light" = "dark",
+  className?: string,
+): string {
+  const svgContent = loadSvgContent(kind, theme);
+
+  // Add class attribute if provided
+  if (className) {
+    return svgContent.replace("<svg", `<svg class="${className}"`);
+  }
+
+  return svgContent;
+}
+
+/**
+ * Preload all icons into cache
+ */
+export function preloadIcons(): void {
+  const k8sDir = path.join(extensionContext.extensionPath, "images", "k8s");
+
+  try {
+    const files = fs.readdirSync(k8sDir);
+
+    for (const file of files) {
+      if (file.endsWith(".svg")) {
+        const match = file.match(/^(.+)-(dark|light)\.svg$/);
+        if (match) {
+          const kind = match[1].replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          const theme = match[2] as "dark" | "light";
+          const cacheKey = `${kind}-${theme}`;
+
+          if (!svgCache.has(cacheKey)) {
+            let content = fs.readFileSync(path.join(k8sDir, file), "utf8");
+
+            // Apply stroke color transformation for visibility
+            if (theme === "dark") {
+              content = content.replace(/stroke="[^"]*"/g, 'stroke="#ffffff"');
+            } else {
+              content = content.replace(/stroke="[^"]*"/g, 'stroke="#333333"');
+            }
+
+            svgCache.set(cacheKey, content);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to preload icons:", error);
+  }
+}
+
+/**
+ * Get all available icon kinds
+ */
+export function getAvailableIconKinds(): string[] {
+  const k8sDir = path.join(extensionContext.extensionPath, "images", "k8s");
+  const kinds = new Set<string>();
+
+  try {
+    const files = fs.readdirSync(k8sDir);
+
+    for (const file of files) {
+      if (file.endsWith(".svg")) {
+        const match = file.match(/^(.+)-dark\.svg$/);
+        if (match) {
+          const kind = match[1].replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          kinds.add(kind);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to get available icons:", error);
+  }
+
+  return Array.from(kinds);
+}
+
+/**
+ * Map of Kubernetes kinds to their icon names
+ */
+export const KIND_ICON_MAP: Record<string, string> = {
+  // Workloads
+  Deployment: "deployment",
+  StatefulSet: "statefulset",
+  DaemonSet: "daemonset",
+  ReplicaSet: "replicaset",
+  Pod: "pod",
+  Job: "job",
+  CronJob: "cronjob",
+
+  // Networking
+  Service: "service",
+  Ingress: "ingress",
+  NetworkPolicy: "networkpolicy",
+
+  // Configuration
+  ConfigMap: "configmap",
+  Secret: "secret",
+
+  // Storage
+  PersistentVolume: "persistentvolume",
+  PersistentVolumeClaim: "persistentvolumeclaim",
+
+  // RBAC
+  Role: "role",
+  RoleBinding: "rolebinding",
+  ClusterRole: "clusterrole",
+  ClusterRoleBinding: "clusterrolebinding",
+  ServiceAccount: "serviceaccount",
+
+  // Scaling
+  HorizontalPodAutoscaler: "horizontalpodautoscaler",
+
+  // Other
+  Namespace: "namespace",
+};
+
+/**
+ * Get the normalized icon name for a Kubernetes kind
+ */
+export function getNormalizedIconName(kind: string): string {
+  return KIND_ICON_MAP[kind] || getIconFileName(kind);
+}
+
+/**
+ * Check if an icon exists for a given kind
+ */
+export function hasIcon(kind: string): boolean {
+  const iconName = getNormalizedIconName(kind);
+  const darkPath = path.join(
+    extensionContext.extensionPath,
+    "images",
+    "k8s",
+    `${iconName}-dark.svg`,
+  );
+  return fs.existsSync(darkPath);
+}

@@ -2,69 +2,84 @@ import * as crypto from "node:crypto";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ResourceHierarchy } from "./resourceVisualizer";
+import { getIconDataUri, getNormalizedIconName } from "./iconManager";
 
 /**
  * Interface for Kubernetes Secret object structure
  */
 interface SecretObject {
-	data?: Record<string, string>;
-	stringData?: Record<string, string>;
-	[key: string]: any;
+  data?: Record<string, string>;
+  stringData?: Record<string, string>;
+  [key: string]: any;
 }
 
 /**
  * Sanitize a Secret's YAML content by redacting sensitive data fields
  */
 function sanitizeSecretYaml(yamlContent: string): string {
-	try {
-		const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
+  try {
+    const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
 
-		// Type guard to ensure we have a valid object
-		if (!yamlObj || typeof yamlObj !== "object") {
-			return "# Secret data redacted for security";
-		}
+    // Type guard to ensure we have a valid object
+    if (!yamlObj || typeof yamlObj !== "object") {
+      return "# Secret data redacted for security";
+    }
 
-		const secretObj = yamlObj as SecretObject;
+    const secretObj = yamlObj as SecretObject;
 
-		// Redact sensitive fields by replacing values with placeholders
-		const redactField = (obj: Record<string, string>): Record<string, string> => {
-			return Object.keys(obj).reduce(
-				(acc, key) => {
-					acc[key] = "***REDACTED***";
-					return acc;
-				},
-				{} as Record<string, string>
-			);
-		};
+    // Redact sensitive fields by replacing values with placeholders
+    const redactField = (
+      obj: Record<string, string>,
+    ): Record<string, string> => {
+      return Object.keys(obj).reduce(
+        (acc, key) => {
+          acc[key] = "***REDACTED***";
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+    };
 
-		if (secretObj.data) {
-			secretObj.data = redactField(secretObj.data);
-		}
-		if (secretObj.stringData) {
-			secretObj.stringData = redactField(secretObj.stringData);
-		}
+    if (secretObj.data) {
+      secretObj.data = redactField(secretObj.data);
+    }
+    if (secretObj.stringData) {
+      secretObj.stringData = redactField(secretObj.stringData);
+    }
 
-		return yaml.dump(secretObj);
-	} catch (error) {
-		// If parsing fails, just hide the whole yaml for secrets
-		return "# Secret data redacted for security";
-	}
+    return yaml.dump(secretObj);
+  } catch (error) {
+    // If parsing fails, just hide the whole yaml for secrets
+    return "# Secret data redacted for security";
+  }
 }
 
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
  */
-export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensionUri: vscode.Uri): string {
-	const nonce = getNonce();
+export function generateEnhancedHtml(
+  webview: vscode.Webview,
+  data: any,
+  extensionUri: vscode.Uri,
+): string {
+  const nonce = getNonce();
 
-	// Get local Chart.js and CSS URIs
-	const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
-	const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "styles.css"));
+  // Get local Chart.js and CSS URIs
+  const chartJsUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"),
+  );
+  const stylesUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(extensionUri, "out", "styles.css"),
+  );
 
-	// Generate resource explorer HTML
-	const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
+  // Generate resource explorer HTML
+  const resourceExplorerHtml = generateResourceExplorer(
+    data.resourceHierarchy,
+    webview,
+    extensionUri,
+  );
 
-	return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -110,7 +125,7 @@ export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensi
 }
 
 function generateOverviewTab(data: any): string {
-	return `
+  return `
         <div class="header">
             <h1 class="chart-title">
                 ${escapeHtml(data.chartName)}
@@ -138,8 +153,8 @@ function generateOverviewTab(data: any): string {
         </div>
 
         ${
-			data.architectureNodes && data.architectureNodes.length > 0
-				? `
+          data.architectureNodes && data.architectureNodes.length > 0
+            ? `
         <div class="chart-container">
             <h2>High-Level Architecture
                 <span class="help-tooltip" title="Shows the main components and their connections. Different shapes represent resource types: rounded rectangles (workloads), hexagons (networking), cylinders (storage), documents (configuration), shields (RBAC). Arrows indicate relationships and data flow. Larger nodes are more central to the system.">ⓘ</span>
@@ -147,25 +162,25 @@ function generateOverviewTab(data: any): string {
             <div class="legend-container">
                 <div class="legend-title">Legend:</div>
                 <div class="legend-items">
-                    <span class="legend-item"><svg width="30" height="20"><rect x="5" y="5" width="20" height="10" rx="3" fill="#007acc" stroke="#333" stroke-width="1"/></svg> Workload</span>
-                    <span class="legend-item"><svg width="30" height="20"><polygon points="15,5 20,10 15,15 10,10" fill="#4caf50" stroke="#333" stroke-width="1"/></svg> Networking</span>
-                    <span class="legend-item"><svg width="30" height="20"><ellipse cx="15" cy="7" rx="7" ry="3" fill="#9c27b0" stroke="#333" stroke-width="1"/><rect x="8" y="7" width="14" height="6" fill="#9c27b0" stroke="none"/><ellipse cx="15" cy="13" rx="7" ry="3" fill="#9c27b0" stroke="#333" stroke-width="1"/></svg> Storage</span>
-                    <span class="legend-item"><svg width="30" height="20"><path d="M5,5 L18,5 L22,9 L22,15 L5,15 Z" fill="#ff9800" stroke="#333" stroke-width="1"/></svg> Config</span>
-                    <span class="legend-item"><svg width="30" height="20"><path d="M15,5 L22,8 L22,12 Q22,14 15,14 Q8,14 8,12 L8,8 Z" fill="#f44336" stroke="#333" stroke-width="1"/></svg> RBAC</span>
-                    <span class="legend-item"><svg width="30" height="20"><circle cx="15" cy="10" r="5" fill="#9e9e9e" stroke="#333" stroke-width="1"/></svg> Other</span>
+                    <span class="legend-item"><span class="legend-color-box workload"></span> Workload</span>
+                    <span class="legend-item"><span class="legend-color-box networking"></span> Networking</span>
+                    <span class="legend-item"><span class="legend-color-box storage"></span> Storage</span>
+                    <span class="legend-item"><span class="legend-color-box config"></span> Config</span>
+                    <span class="legend-item"><span class="legend-color-box rbac"></span> RBAC</span>
+                    <span class="legend-item"><span class="legend-color-box other"></span> Other</span>
                 </div>
             </div>
             <div id="architectureDiagram" class="architecture-diagram"></div>
         </div>
         `
-				: ""
-		}
+            : ""
+        }
 
 
 
         ${
-			data.overriddenValues.length > 0
-				? `
+          data.overriddenValues.length > 0
+            ? `
         <div class="chart-container">
             <h2>Top Overridden Values</h2>
             <table class="values-table">
@@ -178,54 +193,66 @@ function generateOverviewTab(data: any): string {
                 </thead>
                 <tbody>
                     ${data.overriddenValues
-						.map(
-							(v: any) => `
+                      .map(
+                        (v: any) => `
                         <tr>
                             <td class="value-key">${escapeHtml(v.key)}</td>
                             <td class="value-old">${escapeHtml(String(v.baseValue))}</td>
                             <td class="value-new">${escapeHtml(String(v.envValue))}</td>
                         </tr>
-                    `
-						)
-						.join("")}
+                    `,
+                      )
+                      .join("")}
                 </tbody>
             </table>
         </div>
         `
-				: ""
-		}
+            : ""
+        }
     `;
 }
 
 function generateResourceExplorer(
-	hierarchy: ResourceHierarchy,
-	webview: vscode.Webview,
-	extensionUri: vscode.Uri
+  hierarchy: ResourceHierarchy,
+  webview: vscode.Webview,
+  extensionUri: vscode.Uri,
 ): string {
-	if (!hierarchy || hierarchy.totalCount === 0) {
-		return '<div class="no-data"><p>No resources found</p></div>';
-	}
+  if (!hierarchy || hierarchy.totalCount === 0) {
+    return '<div class="no-data"><p>No resources found</p></div>';
+  }
 
-	let html = '<div class="resource-explorer">';
+  let html = '<div class="resource-explorer">';
 
-	for (const [kind, group] of hierarchy.kindGroups) {
-		html += `
+  for (const [kind, group] of hierarchy.kindGroups) {
+    // Get icon for this resource kind
+    const iconName = getNormalizedIconName(kind);
+    const iconDataUri = getIconDataUri(kind, "dark");
+
+    html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
             <div class="kind-header">
                 <span class="expand-icon">▶</span>
+                <img src="${iconDataUri}" class="kind-icon" alt="${escapeHtml(kind)}" />
                 <span class="kind-name" data-color="${group.colorCode}">${escapeHtml(kind)} (${group.count})</span>
             </div>
             <div class="kind-resources" data-collapsed="true">
         `;
 
-		for (const resource of group.resources) {
-			// For secrets, sanitize the YAML to mask sensitive data
-			const displayYaml = resource.kind === "Secret" ? sanitizeSecretYaml(resource.yaml) : resource.yaml;
+    for (const resource of group.resources) {
+      // For secrets, sanitize the YAML to mask sensitive data
+      const displayYaml =
+        resource.kind === "Secret"
+          ? sanitizeSecretYaml(resource.yaml)
+          : resource.yaml;
 
-			html += `
+      // Get icon for this resource
+      const resourceIconUri = getIconDataUri(resource.kind, "dark");
+
+      html += `
             <div class="resource-card" data-color="${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
                 <div class="resource-header">
                     <span class="expand-icon">▶</span>
+                    <img src="${resourceIconUri}" class="resource-icon" alt="${escapeHtml(resource.kind)}" />
                     <strong>${escapeHtml(resource.name)}</strong>
                     ${resource.namespace ? `<span class="namespace-tag">${escapeHtml(resource.namespace)}</span>` : ""}
                     <button class="copy-btn">📋</button>
@@ -236,25 +263,25 @@ function generateResourceExplorer(
                         <pre>${escapeHtml(JSON.stringify(resource.metadata, null, 2))}</pre>
                     </div>
                     ${
-						Object.keys(resource.spec || {}).length > 0
-							? `
+                      Object.keys(resource.spec || {}).length > 0
+                        ? `
                     <div class="detail-section">
                         <h4>Spec</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.spec, null, 2))}</pre>
                     </div>
                     `
-							: ""
-					}
+                        : ""
+                    }
                     ${
-						resource.kind === "Secret" && resource.data
-							? `
+                      resource.kind === "Secret" && resource.data
+                        ? `
                     <div class="detail-section">
                         <h4>Data (masked)</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.data, null, 2))}</pre>
                     </div>
                     `
-							: ""
-					}
+                        : ""
+                    }
                     <div class="detail-section">
                         <h4>Full YAML</h4>
                         <pre class="yaml-content">${escapeHtml(displayYaml)}</pre>
@@ -262,20 +289,20 @@ function generateResourceExplorer(
                 </div>
             </div>
             `;
-		}
+    }
 
-		html += `
+    html += `
             </div>
         </div>
         `;
-	}
+  }
 
-	html += "</div>";
-	return html;
+  html += "</div>";
+  return html;
 }
 
 function generateTopologyTab(): string {
-	return `
+  return `
         <div class="topology-view">
             <div class="topology-header">
                 <div class="topology-title-section">
@@ -368,15 +395,15 @@ function generateTopologyTab(): string {
                         <stop offset="0%" stop-color="rgba(255,255,255,0.1)" stop-opacity="1" />
                         <stop offset="100%" stop-color="rgba(0,0,0,0.1)" stop-opacity="1" />
                     </linearGradient>
-                    <!-- Arrow markers for different relationship types - Enhanced visibility -->
-                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
-                        <polygon points="0 0, 10 5, 0 10" fill="var(--vscode-foreground)" opacity="0.7" />
+                    <!-- Arrow markers for different relationship types - Larger and more visible -->
+                    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                        <polygon points="0 0, 12 6, 0 12" fill="var(--vscode-foreground)" opacity="0.8" />
                     </marker>
-                    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
-                        <polygon points="0 0, 10 5, 0 10" fill="#ffa500" opacity="1" />
+                    <marker id="arrowhead-critical" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                        <polygon points="0 0, 12 6, 0 12" fill="#ffa500" opacity="1" />
                     </marker>
-                    <marker id="arrowhead-selected" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
-                        <polygon points="0 0, 10 5, 0 10" fill="#0078d4" opacity="1" />
+                    <marker id="arrowhead-selected" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                        <polygon points="0 0, 12 6, 0 12" fill="#0078d4" opacity="1" />
                     </marker>
                     <!-- Filter for drop shadow -->
                     <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
@@ -406,19 +433,37 @@ function generateTopologyTab(): string {
 }
 
 function generateJavaScript(data: any): string {
-	// Pass architecture data safely
-	const architectureNodes = data.architectureNodes || [];
-	const relationships = data.relationships || [];
-	const safeArchNodes = JSON.stringify(architectureNodes).replace(/</g, "\\u003c");
-	const safeRelationships = JSON.stringify(relationships).replace(/</g, "\\u003c");
+  // Pass architecture data safely
+  const architectureNodes = data.architectureNodes || [];
+  const relationships = data.relationships || [];
+  const safeArchNodes = JSON.stringify(architectureNodes).replace(
+    /</g,
+    "\\u003c",
+  );
+  const safeRelationships = JSON.stringify(relationships).replace(
+    /</g,
+    "\\u003c",
+  );
 
-	return `
+  // Generate icon data URIs for all unique kinds in the nodes
+  const kindIconMap: Record<string, string> = {};
+  for (const node of architectureNodes) {
+    if (node.kind && !kindIconMap[node.kind]) {
+      kindIconMap[node.kind] = getIconDataUri(node.kind, "dark");
+    }
+  }
+  const safeIconMap = JSON.stringify(kindIconMap).replace(/</g, "\\u003c");
+
+  return `
         const vscode = acquireVsCodeApi();
         let liveMode = false;
         let currentZoom = 1;
         let topologyZoom = 1;
         let topologyPanX = 0;
         let topologyPanY = 0;
+
+        // Icon data URIs for each resource kind
+        const kindIcons = ${safeIconMap};
 
         // Topology layout constants
         const MAX_AUTO_FIT_ZOOM = 1.5; // Maximum zoom level when auto-fitting content to screen
@@ -580,7 +625,7 @@ function generateJavaScript(data: any): string {
             defs.appendChild(markerCritical);
             svg.appendChild(defs);
 
-            // Simple hierarchical layout: group by category, arrange in layers
+            // Improved hierarchical layout with better spacing
             const categories = {};
             nodes.forEach(node => {
                 if (!categories[node.category]) {
@@ -590,36 +635,93 @@ function generateJavaScript(data: any): string {
             });
 
             const categoryKeys = Object.keys(categories);
-            const layerHeight = height / (categoryKeys.length + 1);
+            const CARD_WIDTH = 120;
+            const CARD_HEIGHT = 50;
+            const HORIZONTAL_PADDING = 80;
+            const VERTICAL_PADDING = 60;
+            const MIN_NODE_SPACING = 40;
+            
+            // Calculate available space
+            const availableWidth = width - 2 * HORIZONTAL_PADDING;
+            const availableHeight = height - 2 * VERTICAL_PADDING;
+            const layerHeight = availableHeight / (categoryKeys.length + 1);
+            
             const nodePositions = new Map();
 
-            // Position nodes
+            // Position nodes with improved spacing
             categoryKeys.forEach((category, layerIndex) => {
                 const layerNodes = categories[category];
-                const layerY = (layerIndex + 1) * layerHeight;
-                const nodeWidth = Math.min(width / (layerNodes.length + 1), 150);
+                const layerY = VERTICAL_PADDING + (layerIndex + 0.5) * layerHeight;
+                
+                // Calculate spacing for this layer
+                const totalNodesWidth = layerNodes.length * CARD_WIDTH + (layerNodes.length - 1) * MIN_NODE_SPACING;
+                const startX = (width - totalNodesWidth) / 2 + CARD_WIDTH / 2;
 
                 layerNodes.forEach((node, i) => {
-                    const x = ((i + 1) * width) / (layerNodes.length + 1);
-                    const y = layerY;
-                    nodePositions.set(node.id, { x, y, node });
+                    const x = startX + i * (CARD_WIDTH + MIN_NODE_SPACING);
+                    nodePositions.set(node.id, { x, y: layerY, node });
                 });
             });
 
             // Draw edges first (so they appear behind nodes)
             const edgesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-            // Control point offset for quadratic bezier curve - creates a gentle arc between nodes
-            // Negative offset creates an upward curve, making edge direction clearer
-            const CURVE_OFFSET = 30;
+            const NODE_HALF_WIDTH = CARD_WIDTH / 2;
+            const NODE_HALF_HEIGHT = CARD_HEIGHT / 2;
 
             edges.forEach(edge => {
                 const source = nodePositions.get(edge.source);
                 const target = nodePositions.get(edge.target);
                 if (!source || !target) return;
 
+                // Calculate edge endpoints at node boundaries
+                const dx = target.x - source.x;
+                const dy = target.y - source.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Skip if nodes are too close
+                if (distance < CARD_WIDTH) return;
+                
+                const angle = Math.atan2(dy, dx);
+                
+                // Calculate start and end points at node edges
+                let sourceX, sourceY, targetX, targetY;
+                
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Primarily horizontal connection
+                    if (dx > 0) {
+                        sourceX = source.x + NODE_HALF_WIDTH;
+                        targetX = target.x - NODE_HALF_WIDTH - 6;
+                    } else {
+                        sourceX = source.x - NODE_HALF_WIDTH;
+                        targetX = target.x + NODE_HALF_WIDTH + 6;
+                    }
+                    sourceY = source.y;
+                    targetY = target.y;
+                } else {
+                    // Primarily vertical connection
+                    if (dy > 0) {
+                        sourceY = source.y + NODE_HALF_HEIGHT;
+                        targetY = target.y - NODE_HALF_HEIGHT - 6;
+                    } else {
+                        sourceY = source.y - NODE_HALF_HEIGHT;
+                        targetY = target.y + NODE_HALF_HEIGHT + 6;
+                    }
+                    sourceX = source.x;
+                    targetX = target.x;
+                }
+
+                // Create smooth bezier curve
+                const midX = (sourceX + targetX) / 2;
+                const midY = (sourceY + targetY) / 2;
+                
+                let d;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    d = \`M\${sourceX},\${sourceY} C\${midX},\${sourceY} \${midX},\${targetY} \${targetX},\${targetY}\`;
+                } else {
+                    d = \`M\${sourceX},\${sourceY} C\${sourceX},\${midY} \${targetX},\${midY} \${targetX},\${targetY}\`;
+                }
+
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                const d = \`M\${source.x},\${source.y} Q\${(source.x + target.x)/2},\${(source.y + target.y)/2 - CURVE_OFFSET} \${target.x},\${target.y}\`;
                 path.setAttribute('d', d);
                 path.setAttribute('class', 'arch-edge');
                 path.setAttribute('marker-end', 'url(#arrowhead)');
@@ -633,116 +735,104 @@ function generateJavaScript(data: any): string {
             });
             svg.appendChild(edgesGroup);
 
-            // Draw nodes with different shapes based on category
+            // Draw nodes with practical DevOps-focused design
             const nodesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             nodePositions.forEach(({ x, y, node }) => {
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 g.setAttribute('class', node.isCritical ? 'arch-node critical' : 'arch-node');
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
 
-                // Node size based on degree
-                const size = 30 + Math.min(node.inDegree + node.outDegree, 10) * 3;
-                const strokeWidth = node.isCritical ? '3' : '2';
-
-                // Create different shapes based on category
-                let shape;
+                // Practical card size - compact but readable
+                const cardWidth = 120;
+                const cardHeight = 50;
                 const category = node.category || 'Other';
+                const categoryColor = node.colorCode || '#007acc';
 
-                if (category === 'Workload') {
-                    // Rounded rectangle for workloads
-                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    shape.setAttribute('x', -size/2);
-                    shape.setAttribute('y', -size/2);
-                    shape.setAttribute('width', size);
-                    shape.setAttribute('height', size);
-                    shape.setAttribute('rx', '8');
-                } else if (category === 'Storage') {
-                    // Cylinder shape for storage (approximated with ellipse stack)
-                    const cylinderGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                // Card background
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', -cardWidth / 2);
+                rect.setAttribute('y', -cardHeight / 2);
+                rect.setAttribute('width', cardWidth);
+                rect.setAttribute('height', cardHeight);
+                rect.setAttribute('rx', '4');
+                rect.setAttribute('fill', 'var(--vscode-editor-background)');
+                rect.setAttribute('stroke', node.isCritical ? '#f44336' : 'var(--vscode-panel-border)');
+                rect.setAttribute('stroke-width', node.isCritical ? '1.5' : '1');
+                g.appendChild(rect);
 
-                    const topEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-                    topEllipse.setAttribute('cx', '0');
-                    topEllipse.setAttribute('cy', -size/3);
-                    topEllipse.setAttribute('rx', size/2);
-                    topEllipse.setAttribute('ry', size/6);
-                    topEllipse.setAttribute('fill', node.colorCode || '#9c27b0');
-                    topEllipse.setAttribute('stroke', 'var(--vscode-panel-border)');
-                    topEllipse.setAttribute('stroke-width', strokeWidth);
+                // Left accent bar - category indicator
+                const accentBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                accentBar.setAttribute('x', -cardWidth / 2);
+                accentBar.setAttribute('y', -cardHeight / 2);
+                accentBar.setAttribute('width', '4');
+                accentBar.setAttribute('height', cardHeight);
+                accentBar.setAttribute('fill', categoryColor);
+                g.appendChild(accentBar);
 
-                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    rect.setAttribute('x', -size/2);
-                    rect.setAttribute('y', -size/3);
-                    rect.setAttribute('width', size);
-                    rect.setAttribute('height', size * 2/3);
-                    rect.setAttribute('fill', node.colorCode || '#9c27b0');
-                    rect.setAttribute('stroke', 'none');
-
-                    const bottomEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-                    bottomEllipse.setAttribute('cx', '0');
-                    bottomEllipse.setAttribute('cy', size/3);
-                    bottomEllipse.setAttribute('rx', size/2);
-                    bottomEllipse.setAttribute('ry', size/6);
-                    bottomEllipse.setAttribute('fill', node.colorCode || '#9c27b0');
-                    bottomEllipse.setAttribute('stroke', 'var(--vscode-panel-border)');
-                    bottomEllipse.setAttribute('stroke-width', strokeWidth);
-
-                    cylinderGroup.appendChild(rect);
-                    cylinderGroup.appendChild(topEllipse);
-                    cylinderGroup.appendChild(bottomEllipse);
-                    g.appendChild(cylinderGroup);
-                    shape = null; // Already added to g
-                } else if (category === 'Networking') {
-                    // Hexagon for networking
-                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                    const hexPoints = [
-                        [size/2, 0],
-                        [size/4, size/2],
-                        [-size/4, size/2],
-                        [-size/2, 0],
-                        [-size/4, -size/2],
-                        [size/4, -size/2]
-                    ].map(p => p.join(',')).join(' ');
-                    shape.setAttribute('points', hexPoints);
-                } else if (category === 'Configuration') {
-                    // Document shape for configuration (approximated with path)
-                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    const docPath = \`M\${-size/2},\${-size/2} L\${size/4},\${-size/2} L\${size/2},\${-size/4} L\${size/2},\${size/2} L\${-size/2},\${size/2} Z\`;
-                    shape.setAttribute('d', docPath);
-                } else if (category === 'RBAC') {
-                    // Shield shape for RBAC
-                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    const shieldPath = \`M0,\${-size/2} L\${size/2},\${-size/4} L\${size/2},\${size/4} Q\${size/2},\${size/2} 0,\${size/2} Q\${-size/2},\${size/2} \${-size/2},\${size/4} L\${-size/2},\${-size/4} Z\`;
-                    shape.setAttribute('d', shieldPath);
-                } else {
-                    // Circle for other types
-                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    shape.setAttribute('r', size/2);
+                // Icon
+                const iconDataUri = kindIcons[node.kind];
+                if (iconDataUri) {
+                    const iconImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                    iconImg.setAttribute('href', iconDataUri);
+                    iconImg.setAttribute('x', -cardWidth / 2 + 10);
+                    iconImg.setAttribute('y', -9);
+                    iconImg.setAttribute('width', 16);
+                    iconImg.setAttribute('height', 16);
+                    g.appendChild(iconImg);
                 }
 
-                if (shape) {
-                    shape.setAttribute('fill', node.colorCode || '#007acc');
-                    shape.setAttribute('stroke', 'var(--vscode-panel-border)');
-                    shape.setAttribute('stroke-width', strokeWidth);
-                    g.appendChild(shape);
-                }
-
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                text.setAttribute('class', 'arch-label');
-                text.setAttribute('y', size/2 + 15);
-                text.textContent = node.name.substring(0, 12);
-                g.appendChild(text);
-
+                // Kind label - resource type
                 const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                kindText.setAttribute('class', 'arch-label');
-                kindText.setAttribute('y', size/2 + 28);
+                kindText.setAttribute('x', iconDataUri ? -cardWidth / 2 + 30 : -cardWidth / 2 + 10);
+                kindText.setAttribute('y', -4);
+                kindText.setAttribute('text-anchor', 'start');
                 kindText.setAttribute('font-size', '9');
-                kindText.setAttribute('opacity', '0.7');
+                kindText.setAttribute('fill', 'var(--vscode-descriptionForeground)');
+                kindText.setAttribute('font-family', 'var(--vscode-font-family)');
                 kindText.textContent = node.kind;
                 g.appendChild(kindText);
 
-                // Tooltip
+                // Name label - resource name (most important)
+                const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                nameText.setAttribute('x', iconDataUri ? -cardWidth / 2 + 30 : -cardWidth / 2 + 10);
+                nameText.setAttribute('y', 10);
+                nameText.setAttribute('text-anchor', 'start');
+                nameText.setAttribute('font-size', '11');
+                nameText.setAttribute('font-weight', '600');
+                nameText.setAttribute('fill', 'var(--vscode-foreground)');
+                nameText.setAttribute('font-family', 'var(--vscode-font-family)');
+                nameText.textContent = node.name.length > 12 ? node.name.substring(0, 11) + '…' : node.name;
+                g.appendChild(nameText);
+
+                // Critical indicator badge
+                if (node.isCritical) {
+                    const criticalBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    
+                    const criticalBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    criticalBg.setAttribute('x', cardWidth / 2 - 20);
+                    criticalBg.setAttribute('y', -cardHeight / 2 + 4);
+                    criticalBg.setAttribute('width', 16);
+                    criticalBg.setAttribute('height', 16);
+                    criticalBg.setAttribute('rx', '3');
+                    criticalBg.setAttribute('fill', '#f44336');
+                    criticalBadge.appendChild(criticalBg);
+                    
+                    const criticalText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    criticalText.setAttribute('x', cardWidth / 2 - 12);
+                    criticalText.setAttribute('y', -cardHeight / 2 + 14);
+                    criticalText.setAttribute('text-anchor', 'middle');
+                    criticalText.setAttribute('font-size', '10');
+                    criticalText.setAttribute('font-weight', '600');
+                    criticalText.setAttribute('fill', '#fff');
+                    criticalText.textContent = '!';
+                    criticalBadge.appendChild(criticalText);
+                    
+                    g.appendChild(criticalBadge);
+                }
+
+                // Tooltip with practical information
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = \`\${node.kind}: \${node.name}\nCategory: \${category}\nIn: \${node.inDegree}, Out: \${node.outDegree}\${node.isCritical ? ' (Critical)' : ''}\`;
+                title.textContent = \`\${node.kind}: \${node.name}\nCategory: \${category}\nConnections: \${node.inDegree + node.outDegree}\${node.isCritical ? '\\n⚠ Critical Resource' : ''}\`;
                 g.appendChild(title);
 
                 nodesGroup.appendChild(g);
@@ -836,12 +926,12 @@ function generateJavaScript(data: any): string {
              * - Nodes within a tier are distributed horizontally
              * - Better utilization of widescreen displays
              */
-            const margin = 50;
-            // Ensure minimum tier height for readability, with better spacing for larger nodes
-            const minTierHeight = 140; // Increased from 120 to accommodate larger nodes
+            const margin = 60;
+            // Ensure minimum tier height for readability
+            const minTierHeight = 140; // Increased for 64px tall cards
             const calculatedTierHeight = activeTiers.length > 0 ? (height - 2 * margin - 60) / activeTiers.length : minTierHeight;
             const tierHeight = Math.max(minTierHeight, calculatedTierHeight);
-            const nodeSpacing = 140; // Increased from 100 for larger nodes
+            const nodeSpacing = 220; // Spacing for 180px wide cards
             const startY = margin + 60;
             const tierLabelHeight = 35; // Height reserved for tier label at top of each tier band
 
@@ -938,7 +1028,7 @@ function generateJavaScript(data: any): string {
                 if (tierNodeCount === 0) return;
 
                 const availableWidth = width - 2 * margin - 100; // More conservative margin
-                const minNodeSpacing = 160; // Increased from 120 for larger nodes to prevent overlap
+                const minNodeSpacing = 220; // Match the nodeSpacing constant for 180px cards
 
                 // For multi-node tiers, distribute evenly across full width
                 // For single-node tiers, center the node
@@ -972,21 +1062,9 @@ function generateJavaScript(data: any): string {
                 });
             });
 
-            // Helper function to calculate node width based on connectivity
-            // Increased base size for better text visibility
-            const calculateNodeWidth = (connectivity) => {
-                const baseSize = 50; // Increased from 24 for better text fit
-                const connectivityBonus = Math.min(connectivity, 10) * 3;
-                return baseSize * 2 + connectivityBonus * 2;
-            };
-
-            // Helper function to calculate node height based on connectivity
-            // Ensures enough height for two lines of text (kind + name)
-            const calculateNodeHeight = (connectivity) => {
-                const baseHeight = 45; // Minimum height for two text lines with padding
-                const connectivityBonus = Math.min(connectivity, 10) * 2;
-                return baseHeight + connectivityBonus;
-            };
+            // Fixed node dimensions for horizontal card layout
+            const NODE_WIDTH = 180;
+            const NODE_HEIGHT = 64;
 
             // Draw edges first (so they appear behind nodes)
             edges.forEach(edge => {
@@ -994,40 +1072,74 @@ function generateJavaScript(data: any): string {
                 const target = nodePositions.get(edge.target);
                 if (!source || !target) return;
 
-                // Use smooth cubic bezier curves for better aesthetics
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                // Calculate direction and distance
                 const dx = target.x - source.x;
                 const dy = target.y - source.y;
-
-                // Calculate node dimensions to ensure edges connect at node boundaries
-                const sourceNode = source.node;
-                const targetNode = target.node;
-                const sourceConnectivity = (sourceNode.inDegree || 0) + (sourceNode.outDegree || 0);
-                const targetConnectivity = (targetNode.inDegree || 0) + (targetNode.outDegree || 0);
-
-                const sourceWidth = calculateNodeWidth(sourceConnectivity);
-                const targetWidth = calculateNodeWidth(targetConnectivity);
-                const sourceHeight = calculateNodeHeight(sourceConnectivity);
-                const targetHeight = calculateNodeHeight(targetConnectivity);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Skip if nodes are too close
+                if (distance < NODE_WIDTH) return;
 
                 // Calculate edge start and end points at node boundaries
+                // For horizontal cards, we want edges to connect from sides
                 const angle = Math.atan2(dy, dx);
-                const sourceX = source.x + Math.cos(angle) * (sourceWidth / 2);
-                const sourceY = source.y + Math.sin(angle) * (sourceHeight / 2);
-                const targetX = target.x - Math.cos(angle) * (targetWidth / 2 + 5); // Add 5px gap for arrow
-                const targetY = target.y - Math.sin(angle) * (targetHeight / 2);
+                
+                // Determine best connection points based on relative positions
+                let sourceX, sourceY, targetX, targetY;
+                
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Primarily horizontal connection - connect from left/right sides
+                    if (dx > 0) {
+                        // Target is to the right
+                        sourceX = source.x + NODE_WIDTH / 2;
+                        targetX = target.x - NODE_WIDTH / 2 - 8;
+                    } else {
+                        // Target is to the left
+                        sourceX = source.x - NODE_WIDTH / 2;
+                        targetX = target.x + NODE_WIDTH / 2 + 8;
+                    }
+                    sourceY = source.y;
+                    targetY = target.y;
+                } else {
+                    // Primarily vertical connection - connect from top/bottom
+                    if (dy > 0) {
+                        // Target is below
+                        sourceY = source.y + NODE_HEIGHT / 2;
+                        targetY = target.y - NODE_HEIGHT / 2 - 8;
+                    } else {
+                        // Target is above
+                        sourceY = source.y - NODE_HEIGHT / 2;
+                        targetY = target.y + NODE_HEIGHT / 2 + 8;
+                    }
+                    sourceX = source.x;
+                    targetX = target.x;
+                }
 
-                // Use vertical distance to create better curves for vertically aligned nodes
-                // Minimum offset ensures smooth curves even when dx is near zero
-                const controlPointOffset = Math.max(Math.abs(dx) * 0.4, Math.abs(dy) * 0.35, 40);
-
-                const d = \`M\${sourceX},\${sourceY} C\${sourceX + controlPointOffset},\${sourceY} \${targetX - controlPointOffset},\${targetY} \${targetX},\${targetY}\`;
+                // Create the path with smooth curves
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                
+                // Calculate control points for bezier curve
+                const midX = (sourceX + targetX) / 2;
+                const midY = (sourceY + targetY) / 2;
+                
+                // Use straight lines with slight curves for cleaner look
+                let d;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Horizontal curve
+                    d = \`M\${sourceX},\${sourceY} C\${midX},\${sourceY} \${midX},\${targetY} \${targetX},\${targetY}\`;
+                } else {
+                    // Vertical curve
+                    d = \`M\${sourceX},\${sourceY} C\${sourceX},\${midY} \${targetX},\${midY} \${targetX},\${targetY}\`;
+                }
 
                 path.setAttribute('d', d);
                 path.setAttribute('class', \`topo-edge\${edge.type === 'ownership' ? ' critical-path' : ''}\`);
                 path.setAttribute('data-source', edge.source);
                 path.setAttribute('data-target', edge.target);
                 path.setAttribute('stroke', edge.type === 'ownership' ? '#ffa500' : 'var(--vscode-foreground)');
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('marker-end', edge.type === 'ownership' ? 'url(#arrowhead-critical)' : 'url(#arrowhead)');
 
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
                 title.textContent = \`\${edge.source} → \${edge.target}\\nType: \${edge.type || 'connection'}\${edge.label ? \`\\n\${edge.label}\` : ''}\`;
@@ -1063,7 +1175,7 @@ function generateJavaScript(data: any): string {
                 return truncated.length > 0 ? truncated + ELLIPSIS : ELLIPSIS;
             };
 
-            // Draw nodes with modern card design
+            // Draw nodes with practical DevOps-focused design
             let selectedNode = null;
             nodePositions.forEach(({ x, y, node, tier }) => {
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -1072,122 +1184,145 @@ function generateJavaScript(data: any): string {
                 g.setAttribute('data-tier', tier);
                 g.setAttribute('transform', \`translate(\${x}, \${y})\`);
 
-                // Node size based on connectivity with better scaling
-                const totalConnectivity = node.inDegree + node.outDegree;
+                // Node dimensions - practical size for readability
+                const nodeWidth = 180;
+                const nodeHeight = 64;
+                const tierColor = tiers[tier]?.color || '#0078d4';
 
-                // Badge text vertical offset for proper centering
-                const BADGE_TEXT_Y_OFFSET = 4;
-                const nodeWidth = calculateNodeWidth(totalConnectivity);
-                const nodeHeight = calculateNodeHeight(totalConnectivity);
-
-                // Main node rectangle with gradient
+                // Card background with subtle shadow
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 rect.setAttribute('class', 'topo-node-rect');
                 rect.setAttribute('x', -nodeWidth / 2);
                 rect.setAttribute('y', -nodeHeight / 2);
                 rect.setAttribute('width', nodeWidth);
                 rect.setAttribute('height', nodeHeight);
-                rect.setAttribute('fill', node.colorCode || tiers[tier]?.color || '#0078d4');
-                rect.setAttribute('opacity', '0.9');
+                rect.setAttribute('rx', '4');
+                rect.setAttribute('fill', 'var(--vscode-editor-background)');
+                rect.setAttribute('stroke', node.isCritical ? '#f44336' : 'var(--vscode-panel-border)');
+                rect.setAttribute('stroke-width', node.isCritical ? '1.5' : '1');
                 g.appendChild(rect);
 
-                // Gradient overlay for depth
-                const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                overlay.setAttribute('x', -nodeWidth / 2);
-                overlay.setAttribute('y', -nodeHeight / 2);
-                overlay.setAttribute('width', nodeWidth);
-                overlay.setAttribute('height', nodeHeight);
-                overlay.setAttribute('fill', 'url(#nodeGradient)');
-                overlay.setAttribute('rx', '6');
-                overlay.setAttribute('pointer-events', 'none');
-                g.appendChild(overlay);
+                // Left accent bar - category indicator
+                const accentBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                accentBar.setAttribute('x', -nodeWidth / 2);
+                accentBar.setAttribute('y', -nodeHeight / 2);
+                accentBar.setAttribute('width', '4');
+                accentBar.setAttribute('height', nodeHeight);
+                accentBar.setAttribute('rx', '0');
+                accentBar.setAttribute('fill', tierColor);
+                g.appendChild(accentBar);
 
-                // Critical badge
+                // Icon on left side
+                const iconDataUri = kindIcons[node.kind];
+                const iconX = -nodeWidth / 2 + 12;
+                
+                if (iconDataUri) {
+                    const iconImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                    iconImg.setAttribute('href', iconDataUri);
+                    iconImg.setAttribute('x', iconX);
+                    iconImg.setAttribute('y', -10);
+                    iconImg.setAttribute('width', 18);
+                    iconImg.setAttribute('height', 18);
+                    g.appendChild(iconImg);
+                }
+
+                // Text content - practical layout
+                const textStartX = iconDataUri ? iconX + 24 : iconX + 8;
+                const maxTextWidth = nodeWidth - (iconDataUri ? 70 : 54);
+
+                // Kind label - resource type
+                const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                kindText.setAttribute('x', textStartX);
+                kindText.setAttribute('y', -8);
+                kindText.setAttribute('text-anchor', 'start');
+                kindText.setAttribute('dominant-baseline', 'middle');
+                kindText.setAttribute('font-size', '10');
+                kindText.setAttribute('fill', 'var(--vscode-descriptionForeground)');
+                kindText.setAttribute('font-family', 'var(--vscode-font-family)');
+                kindText.textContent = node.kind;
+                g.appendChild(kindText);
+
+                // Name label - resource name (most important)
+                const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                nameText.setAttribute('x', textStartX);
+                nameText.setAttribute('y', 6);
+                nameText.setAttribute('text-anchor', 'start');
+                nameText.setAttribute('dominant-baseline', 'middle');
+                nameText.setAttribute('font-size', '13');
+                nameText.setAttribute('font-weight', '600');
+                nameText.setAttribute('fill', 'var(--vscode-foreground)');
+                nameText.setAttribute('font-family', 'var(--vscode-font-family)');
+                g.appendChild(nameText);
+                nameText.textContent = truncateText(node.name, maxTextWidth, nameText);
+
+                // Namespace tag (if present)
+                if (node.namespace) {
+                    const nsText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    nsText.setAttribute('x', textStartX);
+                    nsText.setAttribute('y', 20);
+                    nsText.setAttribute('text-anchor', 'start');
+                    nsText.setAttribute('dominant-baseline', 'middle');
+                    nsText.setAttribute('font-size', '9');
+                    nsText.setAttribute('fill', 'var(--vscode-descriptionForeground)');
+                    nsText.setAttribute('font-family', 'var(--vscode-font-family)');
+                    nsText.textContent = \`ns: \${node.namespace}\`;
+                    g.appendChild(nsText);
+                }
+
+                // Status indicators on right side
+                const indicatorX = nodeWidth / 2 - 14;
+                
+                // Critical indicator
                 if (node.isCritical) {
                     const criticalBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    criticalBadge.setAttribute('class', 'critical-badge critical-glow');
-                    criticalBadge.setAttribute('transform', \`translate(\${nodeWidth / 2 - 8}, \${-nodeHeight / 2 + 8})\`);
-
-                    const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    badgeBg.setAttribute('class', 'critical-badge-bg');
-                    badgeBg.setAttribute('r', '10');
-                    criticalBadge.appendChild(badgeBg);
-
-                    const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    badgeText.setAttribute('class', 'critical-badge-text');
-                    badgeText.setAttribute('x', '0');
-                    badgeText.setAttribute('y', BADGE_TEXT_Y_OFFSET);
-                    badgeText.setAttribute('text-anchor', 'middle');
-                    badgeText.setAttribute('dominant-baseline', 'middle');
-                    badgeText.textContent = '⚠';
-                    criticalBadge.appendChild(badgeText);
-
-                    const badgeTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                    badgeTitle.textContent = 'Critical Resource - High importance in system architecture';
-                    criticalBadge.appendChild(badgeTitle);
-
+                    
+                    const criticalBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    criticalBg.setAttribute('x', indicatorX - 12);
+                    criticalBg.setAttribute('y', -10);
+                    criticalBg.setAttribute('width', 24);
+                    criticalBg.setAttribute('height', 20);
+                    criticalBg.setAttribute('rx', '3');
+                    criticalBg.setAttribute('fill', '#f44336');
+                    criticalBadge.appendChild(criticalBg);
+                    
+                    const criticalText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    criticalText.setAttribute('x', indicatorX);
+                    criticalText.setAttribute('y', 2);
+                    criticalText.setAttribute('text-anchor', 'middle');
+                    criticalText.setAttribute('font-size', '10');
+                    criticalText.setAttribute('font-weight', '600');
+                    criticalText.setAttribute('fill', '#fff');
+                    criticalText.textContent = '!';
+                    criticalBadge.appendChild(criticalText);
+                    
                     g.appendChild(criticalBadge);
                 }
 
-                // High connectivity badge
+                // Connectivity indicator
                 const totalConnections = node.inDegree + node.outDegree;
-                if (totalConnections >= 5) {
+                if (totalConnections >= 3) {
+                    const connY = node.isCritical ? 14 : 0;
                     const connBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    connBadge.setAttribute('class', 'connectivity-badge');
-                    connBadge.setAttribute('transform', \`translate(\${-nodeWidth / 2 + 8}, \${-nodeHeight / 2 + 8})\`);
-
-                    const badgeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    badgeCircle.setAttribute('class', 'connectivity-badge-circle');
-                    badgeCircle.setAttribute('r', '10');
-                    connBadge.appendChild(badgeCircle);
-
-                    const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    badgeText.setAttribute('class', 'connectivity-badge-text');
-                    badgeText.setAttribute('x', '0');
-                    badgeText.setAttribute('y', BADGE_TEXT_Y_OFFSET);
-                    badgeText.setAttribute('text-anchor', 'middle');
-                    badgeText.setAttribute('dominant-baseline', 'middle');
-                    badgeText.textContent = totalConnections;
-                    connBadge.appendChild(badgeText);
-
-                    const badgeTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                    badgeTitle.textContent = \`High Connectivity: \${totalConnections} connections (In: \${node.inDegree}, Out: \${node.outDegree})\`;
-                    connBadge.appendChild(badgeTitle);
-
+                    
+                    const connBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    connBg.setAttribute('cx', indicatorX);
+                    connBg.setAttribute('cy', connY);
+                    connBg.setAttribute('r', '10');
+                    connBg.setAttribute('fill', 'var(--vscode-button-secondaryBackground)');
+                    connBadge.appendChild(connBg);
+                    
+                    const connText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    connText.setAttribute('x', indicatorX);
+                    connText.setAttribute('y', connY + 3);
+                    connText.setAttribute('text-anchor', 'middle');
+                    connText.setAttribute('font-size', '9');
+                    connText.setAttribute('font-weight', '600');
+                    connText.setAttribute('fill', 'var(--vscode-button-secondaryForeground)');
+                    connText.textContent = totalConnections;
+                    connBadge.appendChild(connText);
+                    
                     g.appendChild(connBadge);
                 }
-
-                // Node labels with smart truncation to fit within node bounds
-                // Text is dynamically measured and truncated with ellipsis if needed
-                // to ensure labels always stay within the node box boundaries
-                const textPadding = 20; // 10px padding on each side for larger boxes
-                const maxTextWidth = nodeWidth - textPadding;
-
-                // Calculate vertical positions for two-line text layout
-                // With larger boxes, we have more room for text
-                const textLineHeight = 14; // Height between text lines
-                const kindTextY = -textLineHeight / 2; // Kind label slightly above center
-                const nameTextY = textLineHeight / 2;  // Name label slightly below center
-
-                // Kind label (top) - with proper vertical alignment for larger boxes
-                const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                kindText.setAttribute('class', 'topo-label');
-                kindText.setAttribute('x', '0');
-                kindText.setAttribute('y', kindTextY);
-                kindText.setAttribute('text-anchor', 'middle');
-                kindText.setAttribute('dominant-baseline', 'middle');
-                g.appendChild(kindText);
-                kindText.textContent = truncateText(node.kind, maxTextWidth, kindText);
-
-                // Name label (bottom) - with proper vertical alignment for larger boxes
-                const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                nameText.setAttribute('class', 'topo-label name');
-                nameText.setAttribute('x', '0');
-                nameText.setAttribute('y', nameTextY);
-                nameText.setAttribute('text-anchor', 'middle');
-                nameText.setAttribute('dominant-baseline', 'middle');
-                g.appendChild(nameText);
-                nameText.textContent = truncateText(node.name, maxTextWidth, nameText);
 
                 // Enhanced tooltip
                 const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
@@ -1349,7 +1484,7 @@ function generateJavaScript(data: any): string {
 }
 
 function generateChartJsInit(data: any): string {
-	return `
+  return `
         const chartColors = {
             primary: '#007acc',
             secondary: '#68217a',
@@ -1369,8 +1504,8 @@ function generateChartJsInit(data: any): string {
         ];
 
         ${
-			Object.keys(data.resourceCounts || {}).length > 0
-				? `
+          Object.keys(data.resourceCounts || {}).length > 0
+            ? `
         (function() {
             const canvas = document.getElementById('resourceChart');
             if (!canvas) return;
@@ -1488,12 +1623,12 @@ function generateChartJsInit(data: any): string {
             }
         })();
         `
-				: ""
-		}
+            : ""
+        }
 
         ${
-			data.totalValues > 0
-				? `
+          data.totalValues > 0
+            ? `
         (function() {
             const ctx = document.getElementById('valuesChart');
             if (!ctx) return;
@@ -1514,24 +1649,24 @@ function generateChartJsInit(data: any): string {
             });
         })();
         `
-				: ""
-		}
+            : ""
+        }
     `;
 }
 
 function getNonce(): string {
-	return crypto.randomBytes(16).toString("base64");
+  return crypto.randomBytes(16).toString("base64");
 }
 
 function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function escapeAttr(text: string): string {
-	return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
