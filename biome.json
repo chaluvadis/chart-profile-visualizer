@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.1/schema.json",
 	"files": {
 		"includes": ["src/**/*.ts", "test/**/*.js"]
 	},
@@ -16,9 +16,11 @@
 		}
 	},
 	"assist": {
-		"source": {
-			"organizeImports": {
-				"enabled": false
+		"actions": {
+			"source": {
+				"organizeImports": {
+					"level": "off"
+				}
 			}
 		}
 	},
@@ -45,10 +47,6 @@
 			"correctness": {
 				"noUnusedVariables": "off",
 				"noUnusedFunctionParameters": "off"
-			},
-			"best-practices": {
-				"noConsole": "off",
-				"noDebugger": "off"
 			}
 		}
 	}

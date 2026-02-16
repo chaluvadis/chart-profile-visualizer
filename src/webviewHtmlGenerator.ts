@@ -777,7 +777,16 @@ function generateJavaScript(data: any): string {
                 nameText.setAttribute('font-weight', '600');
                 nameText.setAttribute('fill', 'var(--vscode-foreground)');
                 nameText.setAttribute('font-family', 'var(--vscode-font-family)');
-                nameText.textContent = node.name;
+                
+                // Truncate text if it exceeds card width
+                const maxTextWidth = cardWidth - (iconDataUri ? 40 : 20);
+                const estimatedTextWidth = node.name.length * 7; // CHAR_WIDTH_APPROX for 11px font
+                if (estimatedTextWidth > maxTextWidth) {
+                    const maxChars = Math.floor(maxTextWidth / 7) - 3; // Reserve space for ellipsis
+                    nameText.textContent = node.name.substring(0, maxChars) + '...';
+                } else {
+                    nameText.textContent = node.name;
+                }
                 g.appendChild(nameText);
 
                 // Critical indicator badge
@@ -1234,7 +1243,15 @@ function generateJavaScript(data: any): string {
                 nameText.setAttribute('fill', 'var(--vscode-foreground)');
                 nameText.setAttribute('font-family', 'var(--vscode-font-family)');
                 g.appendChild(nameText);
-                nameText.textContent = node.name;
+                
+                // Truncate text if it exceeds available width
+                const estimatedTextWidth = node.name.length * 8; // CHAR_WIDTH_APPROX for 13px font
+                if (estimatedTextWidth > maxTextWidth) {
+                    const maxChars = Math.floor(maxTextWidth / 8) - 3; // Reserve space for ellipsis
+                    nameText.textContent = node.name.substring(0, maxChars) + '...';
+                } else {
+                    nameText.textContent = node.name;
+                }
 
                 // Namespace tag (if present)
                 if (node.namespace) {
