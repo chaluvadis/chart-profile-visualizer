@@ -158,18 +158,25 @@ export class KubernetesConnector {
   }
 
   /**
+   * Escape shell argument to prevent command injection
+   */
+  private shellEscape(value: string): string {
+    return `'${value.replace(/'/g, "'\\''")}'`;
+  }
+
+  /**
    * Build kubectl command with optional kubeconfig and context
    */
   private buildCommand(baseCommand: string, namespace?: string): string {
     let cmd = "kubectl";
     if (this.kubeconfig) {
-      cmd += ` --kubeconfig="${this.kubeconfig}"`;
+      cmd += ` --kubeconfig=${this.shellEscape(this.kubeconfig)}`;
     }
     if (this.context) {
-      cmd += ` --context="${this.context}"`;
+      cmd += ` --context=${this.shellEscape(this.context)}`;
     }
     if (namespace) {
-      cmd += ` -n "${namespace}"`;
+      cmd += ` -n ${this.shellEscape(namespace)}`;
     }
     return `${cmd} ${baseCommand}`;
   }
@@ -333,8 +340,8 @@ export class KubernetesConnector {
       const endpoints = yaml.load(stdout) as any;
 
       const subsets = endpoints.subsets || [];
-      let readyAddresses: string[] = [];
-      let notReadyAddresses: string[] = [];
+      const readyAddresses: string[] = [];
+      const notReadyAddresses: string[] = [];
 
       for (const subset of subsets) {
         const addresses = subset.addresses || [];
@@ -728,15 +735,14 @@ export class KubernetesConnector {
       const os = await import("node:os");
       const path = await import("node:path");
 
-      const tmpFile = path.join(
-        os.tmpdir(),
-        `kubectl-validate-${Date.now()}.yaml`,
-      );
+      // Use mkdtemp for secure temp file creation
+      const tmpDir = await tmp.mkdtemp(path.join(os.tmpdir(), "kubectl-validate-"));
+      const tmpFile = path.join(tmpDir, "resource.yaml");
       await tmp.writeFile(tmpFile, resourceYaml);
 
       try {
         const cmd = this.buildCommand(
-          `apply --dry-run=client --validate=true -f "${tmpFile}"`,
+          `apply --dry-run=client --validate=true -f ${this.shellEscape(tmpFile)}`,
           ns,
         );
         await exec(cmd, { timeout: 10000 });
@@ -744,7 +750,7 @@ export class KubernetesConnector {
         // Also try server-side validation if connected
         try {
           const serverCmd = this.buildCommand(
-            `apply --dry-run=server --validate=true -f "${tmpFile}"`,
+            `apply --dry-run=server --validate=true -f ${this.shellEscape(tmpFile)}`,
             ns,
           );
           await exec(serverCmd, { timeout: 15000 });
@@ -753,7 +759,7 @@ export class KubernetesConnector {
           warnings.push(`Server validation: ${serverError.message}`);
         }
       } finally {
-        await tmp.unlink(tmpFile).catch(() => {});
+        await tmp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
       }
 
       return { valid: errors.length === 0, errors, warnings };
@@ -875,8 +881,11 @@ export function getKubernetesConnector(options?: {
   context?: string;
   namespace?: string;
 }): KubernetesConnector {
-  if (!connectorInstance || options) {
+  // Always create a new instance if options are provided to avoid stale configuration
+  if (options) {
     connectorInstance = new KubernetesConnector(options);
+  } else if (!connectorInstance) {
+    connectorInstance = new KubernetesConnector();
   }
   return connectorInstance;
 }

@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
 import {
   KubernetesConnector,
-  ResourceRuntimeState,
-  ClusterInfo,
-  HelmRelease,
+  type ResourceRuntimeState,
+  type ClusterInfo,
+  type HelmRelease,
 } from "./kubernetesConnector";
 import { renderHelmTemplate } from "./helmRenderer";
 
@@ -45,6 +45,13 @@ export class RuntimeStateManager {
 
   constructor() {
     this.connector = new KubernetesConnector();
+  }
+
+  /**
+   * Escape shell argument to prevent command injection
+   */
+  private shellEscape(value: string): string {
+    return `'${value.replace(/'/g, "'\\''")}'`;
   }
 
   /**
@@ -269,9 +276,9 @@ export class RuntimeStateManager {
       const { promisify } = await import("node:util");
       const execAsync = promisify(exec);
 
-      let cmd = `kubectl logs ${podName} -n ${ns} --tail=${tailLines}`;
+      let cmd = `kubectl logs ${this.shellEscape(podName)} -n ${this.shellEscape(ns)} --tail=${tailLines}`;
       if (container) {
-        cmd += ` -c ${container}`;
+        cmd += ` -c ${this.shellEscape(container)}`;
       }
 
       const { stdout } = await execAsync(cmd, { timeout: 10000 });
@@ -297,7 +304,7 @@ export class RuntimeStateManager {
       const { promisify } = await import("node:util");
       const execAsync = promisify(exec);
 
-      const cmd = `kubectl get ${kind} ${name} -n ${ns} -o yaml`;
+      const cmd = `kubectl get ${this.shellEscape(kind)} ${this.shellEscape(name)} -n ${this.shellEscape(ns)} -o yaml`;
       const { stdout } = await execAsync(cmd, { timeout: 10000 });
       return stdout;
     } catch (error: unknown) {

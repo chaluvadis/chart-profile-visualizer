@@ -449,7 +449,13 @@ function generateJavaScript(data: any): string {
   const kindIconMap: Record<string, string> = {};
   for (const node of architectureNodes) {
     if (node.kind && !kindIconMap[node.kind]) {
-      kindIconMap[node.kind] = getIconDataUri(node.kind, "dark");
+      try {
+        kindIconMap[node.kind] = getIconDataUri(node.kind, "dark");
+      } catch (error) {
+        // If the icon manager is not initialized or an error occurs,
+        // skip assigning an icon for this kind rather than failing.
+        console.warn(`Failed to get icon for kind ${node.kind}:`, error);
+      }
     }
   }
   const safeIconMap = JSON.stringify(kindIconMap).replace(/</g, "\\u003c");
