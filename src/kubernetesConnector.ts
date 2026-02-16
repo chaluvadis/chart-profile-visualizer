@@ -731,14 +731,14 @@ export class KubernetesConnector {
     try {
       // Use kubectl apply --dry-run=client for schema validation
       // Write to temp file and use -f flag since exec doesn't support stdin input
-      const tmp = await import("node:fs/promises");
+      const fs = await import("node:fs/promises");
       const os = await import("node:os");
       const path = await import("node:path");
 
       // Use mkdtemp for secure temp file creation
-      const tmpDir = await tmp.mkdtemp(path.join(os.tmpdir(), "kubectl-validate-"));
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "kubectl-validate-"));
       const tmpFile = path.join(tmpDir, "resource.yaml");
-      await tmp.writeFile(tmpFile, resourceYaml);
+      await fs.writeFile(tmpFile, resourceYaml);
 
       try {
         const cmd = this.buildCommand(
@@ -759,7 +759,7 @@ export class KubernetesConnector {
           warnings.push(`Server validation: ${serverError.message}`);
         }
       } finally {
-        await tmp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+        await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
       }
 
       return { valid: errors.length === 0, errors, warnings };
