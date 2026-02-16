@@ -1,114 +1,169 @@
 {
-	"name": "chart-profile-visualizer",
-	"displayName": "Chart Profile Visualizer",
-	"description": "Visualize Helm charts across environments with value merging and template rendering",
-	"version": "0.0.1",
-	"publisher": "nomad-in-code",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/chaluvadis/chart-profile-visualizer.git"
-	},
-	"icon":"./images/icon-light.png",
-	"bugs": {
-		"url": "https://github.com/chaluvadis/chart-profile-visualizer/issues"
-	},
-	"engines": {
-		"vscode": "^1.109.0",
-		"node": ">=24.0.0"
-	},
-	"categories": [
-		"Other",
-		"Visualization",
-		"Programming Languages",
-		"Debuggers",
-		"Linters"
-	],
-	"activationEvents": [
-		"workspaceContains:**/Chart.yaml"
-	],
-	"main": "./out/extension.js",
-	"contributes": {
-		"views": {
-			"explorer": [
-				{
+  "name": "chart-profile-visualizer",
+  "displayName": "Chart Profile Visualizer",
+  "description": "Visualize Helm charts across environments with value merging and template rendering",
+  "version": "0.0.1",
+  "publisher": "nomad-in-code",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaluvadis/chart-profile-visualizer.git"
+  },
+  "icon": "./images/icon-light.png",
+  "bugs": {
+    "url": "https://github.com/chaluvadis/chart-profile-visualizer/issues"
+  },
+  "engines": {
+    "vscode": "^1.109.0",
+    "node": ">=24.0.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization",
+    "Programming Languages",
+    "Debuggers",
+    "Linters"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/Chart.yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
           "icon": "images/icon.svg",
-					"id": "chartProfiles",
-					"name": "Chart Profiles"
-				}
-			]
-		},
-		"commands": [
-			{
-				"command": "chartProfiles.refreshCharts",
-				"title": "Refresh Charts",
-				"icon": "$(refresh)"
-			},
-			{
-				"command": "chartProfiles.viewRenderedYaml",
-				"title": "View Rendered YAML"
-			},
-			{
-				"command": "chartProfiles.visualizeChart",
-				"title": "Visualize Chart"
-			},
-			{
-				"command": "chartProfiles.compareEnvironments",
-				"title": "Compare Environments",
-				"icon": "$(diff)"
-			},
-			{
-				"command": "chartProfiles.exportResources",
-				"title": "Export Resources",
-				"icon": "$(export)"
-			}
-		],
-		"menus": {
-			"view/title": [
-				{
-					"command": "chartProfiles.refreshCharts",
-					"when": "view == chartProfiles",
-					"group": "navigation"
-				},
-				{
-					"command": "chartProfiles.compareEnvironments",
-					"when": "view == chartProfiles",
-					"group": "navigation"
-				}
-			],
-			"commandPalette": [
-				{
-					"command": "chartProfiles.visualizeChart",
-					"when": "false"
-				},
-				{
-					"command": "chartProfiles.viewRenderedYaml",
-					"when": "false"
-				}
-			]
-		}
-	},
-	"scripts": {
-		"compile": "node esbuild.js",
-		"package": "npm run compile && vsce package --no-dependencies",
-		"format": "biome format --write .",
-		"format:check": "biome format .",
-		"lint": "biome lint .",
-		"lint:fix": "biome lint --write .",
-		"check": "biome check .",
-		"check:fix": "biome check --write ."
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^2.3.14",
-		"@types/js-yaml": "^4.0.9",
-		"@types/node": "^25.2.3",
-		"@types/vscode": "^1.109.0",
-		"@vscode/vsce": "^3.7.1",
-		"esbuild": "^0.27.3",
-		"typescript": "^5.9.3"
-	},
-	"dependencies": {
-		"chart.js": "^4.5.1",
-		"js-yaml": "^4.1.1"
-	},
-	"license": "MIT"
+          "id": "chartProfiles",
+          "name": "Chart Profiles"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "chartProfiles.refreshCharts",
+        "title": "Refresh Charts",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "chartProfiles.viewRenderedYaml",
+        "title": "View Rendered YAML"
+      },
+      {
+        "command": "chartProfiles.visualizeChart",
+        "title": "Visualize Chart"
+      },
+      {
+        "command": "chartProfiles.compareEnvironments",
+        "title": "Compare Environments",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "chartProfiles.exportResources",
+        "title": "Export Resources",
+        "icon": "$(export)"
+      },
+      {
+        "command": "chartProfiles.validateChart",
+        "title": "Validate Chart",
+        "icon": "$(check)"
+      },
+      {
+        "command": "chartProfiles.checkClusterStatus",
+        "title": "Check Cluster Status",
+        "icon": "$(server)"
+      },
+      {
+        "command": "chartProfiles.checkRuntimeState",
+        "title": "Check Runtime State",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "chartProfiles.planUpgrade",
+        "title": "Plan Upgrade",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "chartProfiles.assessRollback",
+        "title": "Assess Rollback",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "chartProfiles.viewDependencies",
+        "title": "View Dependencies",
+        "icon": "$(type-hierarchy)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "chartProfiles.refreshCharts",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        },
+        {
+          "command": "chartProfiles.compareEnvironments",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        },
+        {
+          "command": "chartProfiles.checkClusterStatus",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "chartProfiles.visualizeChart",
+          "when": "false"
+        },
+        {
+          "command": "chartProfiles.viewRenderedYaml",
+          "when": "false"
+        },
+        {
+          "command": "chartProfiles.validateChart",
+          "when": "false"
+        },
+        {
+          "command": "chartProfiles.checkRuntimeState",
+          "when": "false"
+        },
+        {
+          "command": "chartProfiles.planUpgrade",
+          "when": "false"
+        },
+        {
+          "command": "chartProfiles.assessRollback",
+          "when": "false"
+        },
+        {
+          "command": "chartProfiles.viewDependencies",
+          "when": "false"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "package": "npm run compile && vsce package --no-dependencies",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.14",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.2.3",
+    "@types/vscode": "^1.109.0",
+    "@vscode/vsce": "^3.7.1",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "js-yaml": "^4.1.1"
+  },
+  "license": "MIT"
 }
