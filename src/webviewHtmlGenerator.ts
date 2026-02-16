@@ -366,14 +366,14 @@ function generateTopologyTab(): string {
                         <stop offset="0%" stop-color="rgba(255,255,255,0.1)" stop-opacity="1" />
                         <stop offset="100%" stop-color="rgba(0,0,0,0.1)" stop-opacity="1" />
                     </linearGradient>
-                    <!-- Arrow markers for different relationship types - Larger and more visible -->
-                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                    <!-- Arrow markers for different relationship types - Tip at path endpoint -->
+                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
                         <polygon points="0 0, 10 5, 0 10" fill="var(--vscode-foreground)" opacity="0.8" />
                     </marker>
-                    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
                         <polygon points="0 0, 10 5, 0 10" fill="#ffa500" opacity="1" />
                     </marker>
-                    <marker id="arrowhead-selected" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                    <marker id="arrowhead-selected" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
                         <polygon points="0 0, 10 5, 0 10" fill="#0078d4" opacity="1" />
                     </marker>
                     <!-- Filter for drop shadow -->

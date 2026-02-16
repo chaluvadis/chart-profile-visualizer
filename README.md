@@ -4,14 +4,12 @@ A VS Code extension for visualizing Helm charts across multiple environments wit
 
 ## Features
 
-- 🏗️ **High-Level Architecture Diagram** - Visualize system architecture with shape-coded nodes (workloads, networking, storage, config, RBAC) and directional arrows showing data flow
-- 🗺️ **Enhanced Topology View** - Interactive tier-based swimlane layout with critical node highlighting, connectivity badges, and click-to-highlight relationships
 - 📊 **Interactive Chart Visualization** - View value overrides and chart statistics with multiple visualization tabs
+- 🏗️ **Resource Architecture Diagram** - Interactive tier-based visualization with critical node highlighting, connectivity badges, and relationship arrows
 - 🎯 **Resource Explorer** - Browse all Kubernetes resources with full configuration details in a collapsible hierarchy
 - 🔍 **Search & Filter** - Instantly search resources by name, kind, namespace, or labels
 - 🔗 **Relationship Detection** - Automatically detect and visualize connections between resources (Services, Ingress, ConfigMaps, Secrets, etc.)
 - 📤 **Export Resources** - Export rendered resources as YAML or JSON files
-- 🔄 **Live Mode** - Auto-refresh visualization when chart files change
 - 🔀 **Environment Comparison** - Compare resources between two environments to see what changed
 - 📝 **Rendered Templates** - View fully rendered Helm templates with merged values
 - 🎨 **Kubernetes Icons** - Official-style icons for all resource types with dark/light theme support
@@ -58,18 +56,25 @@ The extension automatically activates when you open a workspace containing Helm 
 For each environment, you can:
 
 #### 1. Visualize Chart
-- Click "Visualize Chart" to open an interactive dashboard with three tabs:
+- Click "Visualize Chart" to open an interactive dashboard with two tabs:
 
 **Overview Tab:**
-  - **High-Level Architecture Diagram** - Visual representation of system architecture using distinct shapes:
-    - Different shapes for resource types: rounded rectangles (workloads), hexagons (networking), cylinders (storage), documents (configuration), shields (RBAC)
-    - Directional arrows showing relationships and data flow
-    - Node size reflects connectivity (larger = more connections)
-    - Critical nodes highlighted based on centrality
-    - Color-coded by resource category
-    - Interactive legend explaining visual elements
-  - Detailed override comparison table
-  - Namespace and template statistics
+  - **Chart Header** - Displays chart name with environment badge
+  - **Resource Architecture Diagram** - Modern, interactive visualization of system architecture:
+    - **Horizontal tier layout** - Resources organized in horizontal bands by category (Workload, Networking, Storage, Configuration, RBAC, Scaling)
+    - **Modern node design** - Card-based nodes with icons, accent bars, and clean typography
+    - **Directional arrows** - Clear arrows showing relationships and data flow between resources
+    - **Visual hierarchy** - Clear spacing and grouping with color-coded tier backgrounds
+    - **Interactive legend** - Visual guide showing tier colors and special indicators
+    - **Smart filtering** - Dropdown to focus on specific resource tiers
+    - **Resource statistics** - Header displays resource and connection counts
+    - **Critical indicators** - Warning badges for critical resources
+    - **Connectivity badges** - Badges showing connection count for highly connected nodes
+    - **Interactive selection** - Click nodes to highlight their relationships
+    - **Enhanced tooltips** - Detailed resource metadata with connection statistics
+    - **Advanced controls** - Zoom in/out, reset view, fit-to-screen, and mouse-based pan/zoom
+  - **Statistics Cards** - Total Values, Overridden Values, Resources count, and Override Rate
+  - **Overridden Values Table** - Complete list of all overridden values with base and environment values
 
 **Resources Tab:**
   - Complete resource explorer with collapsible hierarchy
@@ -82,35 +87,17 @@ For each environment, you can:
   - Search functionality to filter resources instantly
   - Expand/collapse all controls
 
-**Topology Tab:**
-  - **Redesigned System Topology** - Modern, intuitive visualization of system architecture:
-    - **Horizontal tier layout** - Resources organized in horizontal bands by category (Workload, Networking, Storage, Configuration, RBAC, Scaling)
-    - **Modern node design** - Card-based nodes with gradients, shadows, and smooth animations
-    - **Visual hierarchy** - Clear spacing and grouping with color-coded tier backgrounds
-    - **Interactive legend** - Visual guide showing tier colors and special indicators
-    - **Smart filtering** - Dropdown to focus on specific resource tiers
-    - **Resource statistics** - Header displays resource and connection counts
-    - **Critical indicators** - Orange warning badges (⚠) for critical resources
-    - **Connectivity badges** - Blue badges showing connection count for highly connected nodes (5+)
-    - **Interactive selection** - Click nodes to highlight their relationships with smooth transitions
-    - **Enhanced tooltips** - Detailed resource metadata with connection statistics
-    - **Smooth edge routing** - Cubic bezier curves for cleaner, more readable connections
-    - **Advanced controls** - Zoom in/out, reset view, fit-to-screen, and mouse-based pan/zoom
-    - **Responsive design** - Adapts to different panel sizes and screen resolutions
-  - Relationships detected:
-    - Service selectors to workloads
-    - Ingress routing to services
-    - ConfigMap and Secret references
-    - Volume claims and mounts
-    - RBAC bindings
-    - Owner references
+**Relationships Detected:**
+  - Service selectors to workloads
+  - Ingress routing to services
+  - ConfigMap and Secret references
+  - Volume claims and mounts
+  - RBAC bindings
+  - Owner references
 
 **Toolbar Features:**
   - 📄 **Export YAML** - Save all rendered resources to a YAML file
   - 📋 **Export JSON** - Save all rendered resources to a JSON file
-  - 🔄 **Live Mode** - Enable auto-refresh when chart files change
-  - ➕ **Expand All** - Expand all resource groups and details
-  - ➖ **Collapse All** - Collapse all resource groups and details
   - 🔍 **Search Box** - Filter resources by name, kind, namespace, or labels
 
 #### 2. View Merged Values
@@ -144,7 +131,7 @@ The extension can be customized through VS Code settings:
 
 ### `chartProfiles.ignoredDirectories`
 
-**Type:** `array`  
+**Type:** `array`
 **Default:** `[]`
 
 Additional directories to ignore when discovering Helm charts. The extension always ignores common directories like `node_modules`, `.git`, `.vscode`, `dist`, `out`, `build`, and hidden directories (starting with `.`).
@@ -229,43 +216,6 @@ pnpm run watch
 # Create VSIX package
 pnpm run package
 ```
-
-### Project Structure
-```
-src/
-├── extension.ts                 # Extension entry point & command registration
-├── chartProfilesProvider.ts     # Tree view provider
-├── chartVisualizationView.ts    # Main visualization view controller
-├── webviewHtmlGenerator.ts      # Enhanced HTML generation for webview
-├── resourceVisualizer.ts        # Resource parsing & hierarchy builder
-├── relationshipDetector.ts      # Resource relationship detection & architecture nodes
-├── environmentDiff.ts           # Environment comparison logic
-├── liveUpdateManager.ts         # File watching & auto-refresh
-├── helmChart.ts                 # Chart discovery
-├── helmRenderer.ts              # Template rendering with Helm CLI
-├── valuesMerger.ts              # Value merging logic
-└── renderedYamlView.ts          # YAML display
-
-images/
-├── icon.svg                     # Extension icon (dark theme)
-├── icon-light.svg               # Extension icon (light theme)
-└── k8s/                         # Kubernetes resource icons
-    ├── deployment-dark.svg
-    ├── deployment-light.svg
-    ├── service-dark.svg
-    ├── service-light.svg
-    └── ... (40+ icons for all resource types)
-```
-
-## Troubleshooting
-
-### Charts not showing in tree view
-- Ensure your workspace contains `Chart.yaml` files
-- Check that files follow Helm chart structure
-- If using ignored directories, verify they're not blocking chart discovery
-- Reload the window (Ctrl+Shift+P → "Reload Window")
-- Check if charts are in directories configured in `chartProfiles.ignoredDirectories`
-
 ### Environments not appearing
 - Ensure environment-specific values files follow the pattern `values-*.yaml` or `values-*.yml`
 - Check file permissions and that files are readable
