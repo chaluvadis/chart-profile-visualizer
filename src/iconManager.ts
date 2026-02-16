@@ -37,6 +37,9 @@ export function getIconPath(
   kind: string,
   theme: "dark" | "light" = "dark",
 ): string {
+  if (!extensionContext) {
+    throw new Error("Icon manager not initialized. Call initializeIconManager() first.");
+  }
   const iconName = getIconFileName(kind);
   const fileName = `${iconName}-${theme}.svg`;
   return path.join(extensionContext.extensionPath, "images", "k8s", fileName);
@@ -49,6 +52,9 @@ export function getIconUri(
   kind: string,
   theme: "dark" | "light" = "dark",
 ): vscode.Uri {
+  if (!extensionContext) {
+    throw new Error("Icon manager not initialized. Call initializeIconManager() first.");
+  }
   const iconName = getIconFileName(kind);
   const fileName = `${iconName}-${theme}.svg`;
   const iconPath = path.join(

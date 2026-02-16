@@ -121,18 +121,25 @@ export class HelmReleaseManager {
   }
 
   /**
+   * Escape shell argument to prevent command injection
+   */
+  private shellEscape(value: string): string {
+    return `'${value.replace(/'/g, "'\\''")}'`;
+  }
+
+  /**
    * Build helm command with optional kubeconfig and context
    */
   private buildHelmCommand(baseCommand: string, namespace?: string): string {
     let cmd = "helm";
     if (this.kubeconfig) {
-      cmd += ` --kubeconfig="${this.kubeconfig}"`;
+      cmd += ` --kubeconfig=${this.shellEscape(this.kubeconfig)}`;
     }
     if (this.context) {
-      cmd += ` --kube-context="${this.context}"`;
+      cmd += ` --kube-context=${this.shellEscape(this.context)}`;
     }
     if (namespace) {
-      cmd += ` -n "${namespace}"`;
+      cmd += ` -n ${this.shellEscape(namespace)}`;
     }
     return `${cmd} ${baseCommand}`;
   }
@@ -803,8 +810,11 @@ export function getHelmReleaseManager(options?: {
   kubeconfig?: string;
   context?: string;
 }): HelmReleaseManager {
-  if (!managerInstance || options) {
+  // Always create a new instance if options are provided to avoid stale configuration
+  if (options) {
     managerInstance = new HelmReleaseManager(options);
+  } else if (!managerInstance) {
+    managerInstance = new HelmReleaseManager();
   }
   return managerInstance;
 }
