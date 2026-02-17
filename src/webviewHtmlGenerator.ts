@@ -2,7 +2,7 @@ import * as crypto from "node:crypto";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ResourceHierarchy } from "./resourceVisualizer";
-import { getNormalizedIconName, getIconDataUriWithFallback } from "./iconManager";
+import { getIconDataUriWithFallback } from "./iconManager";
 
 /**
  * Interface for Kubernetes Secret object structure
@@ -198,9 +198,8 @@ function generateResourceExplorer(
 	let html = '<div class="resource-explorer">';
 
 	for (const [kind, group] of hierarchy.kindGroups) {
-		// Get icon for this resource kind
-		const iconName = getNormalizedIconName(kind);
-		const iconDataUri = getIconDataUriWithFallback(iconName, group.category, "dark");
+		// Get icon for this resource kind with fallback
+		const iconDataUri = getIconDataUriWithFallback(kind, group.category, "dark");
 
 		html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
