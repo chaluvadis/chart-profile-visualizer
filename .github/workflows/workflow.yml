@@ -44,20 +44,17 @@ jobs:
         shell: bash
         run: |
           OUT="chart-profile-visualizer-${TAG}.vsix"
-          echo "VSIX_NAME=${OUT}" >> $GITHUB_ENV
+          echo "OUT=${OUT}" >> $GITHUB_ENV
           echo "Packaging VSIX -> ${OUT}"
-          pnpm exec vsce package --out "${OUT}"
-
-      - name: Check VSCE token
+          pnpm exec vsce package --no-dependencies --ignore-engines --out "${OUT}"
         shell: bash
+
+      - name: Get version from tag
+        id: get_version
         run: |
-          if [ -z "${{ secrets.VSCE_TOKEN }}" ]; then
-            echo "ERROR: VSCE_TOKEN secret is not set."
-            exit 1
-          fi
+          echo "VSIX_NAME=$(ls *.vsix | head -n 1)" >> $GITHUB_ENV
 
       - name: Publish to Visual Studio Marketplace
-        shell: bash
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
           VSIX_NAME: ${{ env.VSIX_NAME }}
