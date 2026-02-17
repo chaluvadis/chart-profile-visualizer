@@ -2,7 +2,7 @@ import * as crypto from "node:crypto";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ResourceHierarchy } from "./resourceVisualizer";
-import { getIconDataUri, getNormalizedIconName } from "./iconManager";
+import { getIconDataUriWithFallback } from "./iconManager";
 
 /**
  * Interface for Kubernetes Secret object structure
@@ -198,9 +198,8 @@ function generateResourceExplorer(
 	let html = '<div class="resource-explorer">';
 
 	for (const [kind, group] of hierarchy.kindGroups) {
-		// Get icon for this resource kind
-		const iconName = getNormalizedIconName(kind);
-		const iconDataUri = getIconDataUri(kind, "dark");
+		// Get icon for this resource kind with fallback
+		const iconDataUri = getIconDataUriWithFallback(kind, group.category, "dark");
 
 		html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
@@ -217,7 +216,7 @@ function generateResourceExplorer(
 			const displayYaml = resource.kind === "Secret" ? sanitizeSecretYaml(resource.yaml) : resource.yaml;
 
 			// Get icon for this resource
-			const resourceIconUri = getIconDataUri(resource.kind, "dark");
+			const resourceIconUri = getIconDataUriWithFallback(resource.kind, resource.category, "dark");
 
 			html += `
             <div class="resource-card" data-color="${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
@@ -415,7 +414,7 @@ function generateJavaScript(data: any): string {
 	for (const node of architectureNodes) {
 		if (node.kind && !kindIconMap[node.kind]) {
 			try {
-				kindIconMap[node.kind] = getIconDataUri(node.kind, "dark");
+				kindIconMap[node.kind] = getIconDataUriWithFallback(node.kind, node.category, "dark");
 			} catch (error) {
 				// If the icon manager is not initialized or an error occurs,
 				// skip assigning an icon for this kind rather than failing.

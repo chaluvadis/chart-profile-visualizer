@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { findHelmCharts, type HelmChart } from "./helmChart";
-import { getIconUris, hasIcon } from "./iconManager";
+import { getIconUris, hasIcon, getNormalizedIconName } from "./iconManager";
 
 export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<ChartTreeItem | undefined | null> = new vscode.EventEmitter<
@@ -304,41 +304,36 @@ export class ChartTreeItem extends vscode.TreeItem {
 	}
 
 	private getIcon(): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
-		if (this.type === "chart") {
-			// Use custom package icon if available, otherwise fall back to theme icon
-			if (hasIcon("package")) {
-				return getIconUris("package");
+		// Helper function to get icon with fallback using normalized name
+		const getCustomIcon = (kind: string): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } => {
+			const normalizedKind = getNormalizedIconName(kind);
+			if (hasIcon(normalizedKind)) {
+				return getIconUris(normalizedKind);
 			}
-			return new vscode.ThemeIcon("package");
+			// Return VS Code theme icon as fallback
+			return new vscode.ThemeIcon(kind.toLowerCase());
+		};
+
+		if (this.type === "chart") {
+			// Use custom package icon for Helm charts
+			return getCustomIcon("package");
 		} else if (this.type === "environment") {
 			// Add visual indicator for environments with no overrides
 			const hasOverrides = this._hasOverrides ?? false;
 			if (!hasOverrides && this.environment !== "default") {
 				return new vscode.ThemeIcon("circle-outline"); // hollow icon for no overrides
 			}
-			// Use custom environment icon
-			if (hasIcon("namespace")) {
-				return getIconUris("namespace");
-			}
-			return new vscode.ThemeIcon("server-environment");
+			// Use namespace icon for environments
+			return getCustomIcon("namespace");
 		} else if (this.action === "visualize") {
-			// Use custom graph/topology icon
-			if (hasIcon("networkpolicy")) {
-				return getIconUris("networkpolicy");
-			}
-			return new vscode.ThemeIcon("graph");
+			// Use deployment/graph icon for visualize action
+			return getCustomIcon("deployment");
 		} else if (this.action === "values") {
 			// Use configmap icon for values
-			if (hasIcon("configmap")) {
-				return getIconUris("configmap");
-			}
-			return new vscode.ThemeIcon("file-code");
+			return getCustomIcon("configmap");
 		} else if (this.action === "rendered") {
 			// Use deployment icon for rendered output
-			if (hasIcon("deployment")) {
-				return getIconUris("deployment");
-			}
-			return new vscode.ThemeIcon("output");
+			return getCustomIcon("deployment");
 		} else if (this.action === "validate") {
 			return new vscode.ThemeIcon("check");
 		} else if (this.action === "runtime") {
