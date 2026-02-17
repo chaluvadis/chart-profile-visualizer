@@ -1,17 +1,9 @@
 name: Build & Publish VS Code Extension
 
 on:
-  release:
-    types: [created]
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g., v1.0.0)'
-        required: false
-        type: string
+      - 'v*.*.*'   # only runs on tag creation
 
 permissions:
   contents: write
@@ -21,32 +13,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout latest main
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
-
-      - name: Ensure commit/tag is from main
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG_COMMIT=$(git rev-parse "$GITHUB_REF")
-            MAIN_COMMIT=$(git rev-parse origin/main)
-            if ! git merge-base --is-ancestor "$TAG_COMMIT" "$MAIN_COMMIT"; then
-              echo "Tag does not point to main branch. Skipping workflow."
-              exit 0
-            fi
-          elif [[ "${GITHUB_REF}" != refs/heads/main && "${GITHUB_EVENT_NAME}" != "release" ]]; then
-            echo "Workflow triggered from non-main branch. Skipping."
-            exit 0
-          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'pnpm'
+          node-version: 24
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -57,49 +32,27 @@ jobs:
       - name: Compile TypeScript
         run: pnpm run compile
 
-      - name: Install vsce
-        run: pnpm add -g @vscode/vsce
-
-      - name: Determine tag
-        id: tag
+      - name: Package extension
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            TAG="${{ github.event.inputs.tag }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          elif [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
-            TAG="${{ github.event.release.tag_name }}"
-          else
-            TAG="dev-$(date +%Y%m%d%H%M%S)"
+          TAG="${{ github.ref_name }}"
+          if [ -z "$TAG" ]; then
+            TAG="$(echo "${GITHUB_SHA}" | cut -c1-7)"
           fi
-          echo "TAG=${TAG}" >> $GITHUB_ENV
-          echo "Using tag: ${TAG}"
-
-      - name: Package VS Code Extension
-        id: package
-        shell: bash
-        run: |
           OUT="chart-profile-visualizer-${TAG}.vsix"
-          echo "VSIX_NAME=${OUT}" >> $GITHUB_ENV
+          echo "OUT=${OUT}" >> $GITHUB_ENV
           echo "Packaging VSIX -> ${OUT}"
-          pnpm exec vsce package --out "${OUT}"
-
-      - name: Check VSCE token
+          pnpm exec vsce package --no-dependencies --ignore-engines --out "${OUT}"
         shell: bash
+
+      - name: Get version from tag
+        id: get_version
         run: |
-          if [ -z "${{ secrets.VSCE_TOKEN }}" ]; then
-            echo "ERROR: VSCE_TOKEN secret is not set."
-            exit 1
-          fi
+          echo "VSIX_NAME=$(ls *.vsix | head -n 1)" >> $GITHUB_ENV
 
       - name: Publish to Visual Studio Marketplace
-        shell: bash
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
-          VSIX_NAME: ${{ env.VSIX_NAME }}
-        run: |
-          echo "Publishing ${VSIX_NAME} with tag ${TAG}"
-          pnpm exec vsce publish --packagePath "${VSIX_NAME}" --pat "${VSCE_TOKEN}" --version "${TAG#v}"
+        run: pnpm exec vsce publish --packagePath "${VSIX_NAME}" --pat "${VSCE_TOKEN}"
 
       - name: Upload VSIX artifact and create GitHub Release
         uses: softprops/action-gh-release@v2
