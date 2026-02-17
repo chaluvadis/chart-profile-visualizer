@@ -13,16 +13,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
-
+          node-version: 24  
+          
       - name: Install pnpm
         run: npm install -g pnpm
 
@@ -32,12 +33,16 @@ jobs:
       - name: Compile TypeScript
         run: pnpm run compile
 
-      - name: Package extension
+      - name: Determine tag
+        id: tag
         run: |
-          TAG="${{ github.ref_name }}"
-          if [ -z "$TAG" ]; then
-            TAG="$(echo "${GITHUB_SHA}" | cut -c1-7)"
-          fi
+          TAG="${GITHUB_REF_NAME}"
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "Using tag: ${TAG}"
+
+      - name: Package VS Code Extension
+        shell: bash
+        run: |
           OUT="chart-profile-visualizer-${TAG}.vsix"
           echo "OUT=${OUT}" >> $GITHUB_ENV
           echo "Packaging VSIX -> ${OUT}"
@@ -52,7 +57,10 @@ jobs:
       - name: Publish to Visual Studio Marketplace
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
-        run: pnpm exec vsce publish --packagePath "${VSIX_NAME}" --pat "${VSCE_TOKEN}"
+          VSIX_NAME: ${{ env.VSIX_NAME }}
+        run: |
+          echo "Publishing ${VSIX_NAME} with tag ${TAG}"
+          pnpm run package --packagePath "${VSIX_NAME}" --pat "${VSCE_TOKEN}" --version "${TAG#v}"
 
       - name: Upload VSIX artifact and create GitHub Release
         uses: softprops/action-gh-release@v2
