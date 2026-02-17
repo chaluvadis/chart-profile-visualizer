@@ -13,8 +13,7 @@
     "url": "https://github.com/chaluvadis/chart-profile-visualizer/issues"
   },
   "engines": {
-    "vscode": "^1.109.0",
-    "node": ">=24.0.0"
+    "vscode": "^1.109.0"
   },
   "categories": [
     "Other",
