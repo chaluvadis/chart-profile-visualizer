@@ -22,9 +22,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24  # updated to Node 24
-          cache: 'pnpm'
-
+          node-version: 24  
+          
       - name: Install pnpm
         run: npm install -g pnpm
 
@@ -64,7 +63,7 @@ jobs:
           VSIX_NAME: ${{ env.VSIX_NAME }}
         run: |
           echo "Publishing ${VSIX_NAME} with tag ${TAG}"
-          pnpm exec vsce publish --packagePath "${VSIX_NAME}" --pat "${VSCE_TOKEN}" --version "${TAG#v}"
+          pnpm run package --packagePath "${VSIX_NAME}" --pat "${VSCE_TOKEN}" --version "${TAG#v}"
 
       - name: Upload VSIX artifact and create GitHub Release
         uses: softprops/action-gh-release@v2
