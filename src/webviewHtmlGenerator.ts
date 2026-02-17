@@ -84,7 +84,6 @@ export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensi
     <div class="tabs">
         <button class="tab-btn active" data-tab="overview">Overview</button>
         <button class="tab-btn" data-tab="resources">Resources</button>
-        <button class="tab-btn" data-tab="topology">Topology</button>
     </div>
 
     <div id="overview" class="tab-content active">
@@ -93,10 +92,6 @@ export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensi
 
     <div id="resources" class="tab-content">
         ${resourceExplorerHtml}
-    </div>
-
-    <div id="topology" class="tab-content">
-        ${generateTopologyTab()}
     </div>
 
     <script src="${chartJsUri}" nonce="${nonce}"></script>
@@ -116,29 +111,7 @@ function generateOverviewTab(data: any): string {
             </h1>
         </div>
 
-        ${
-			data.architectureNodes && data.architectureNodes.length > 0
-				? `
-        <div class="chart-container">
-            <h2>High-Level Architecture
-                <span class="help-tooltip" title="Shows the main components and their connections. Different shapes represent resource types: rounded rectangles (workloads), hexagons (networking), cylinders (storage), documents (configuration), shields (RBAC). Arrows indicate relationships and data flow. Larger nodes are more central to the system.">ⓘ</span>
-            </h2>
-            <div class="legend-container">
-                <div class="legend-title">Legend:</div>
-                <div class="legend-items">
-                    <span class="legend-item"><span class="legend-color-box workload"></span> Workload</span>
-                    <span class="legend-item"><span class="legend-color-box networking"></span> Networking</span>
-                    <span class="legend-item"><span class="legend-color-box storage"></span> Storage</span>
-                    <span class="legend-item"><span class="legend-color-box config"></span> Config</span>
-                    <span class="legend-item"><span class="legend-color-box rbac"></span> RBAC</span>
-                    <span class="legend-item"><span class="legend-color-box other"></span> Other</span>
-                </div>
-            </div>
-            <div id="architectureDiagram" class="architecture-diagram"></div>
-        </div>
-        `
-				: ""
-		}
+        ${generateTopologyTab()}
 
         ${
 			data.overriddenValues.length > 0
@@ -304,7 +277,7 @@ function generateTopologyTab(): string {
         <div class="topology-view">
             <div class="topology-header">
                 <div class="topology-title-section">
-                    <h2>System Topology
+                    <h2>Resource Architecture
                         <span class="help-tooltip" title="Interactive system architecture view organized by resource tiers. Click nodes to highlight relationships. Use controls to zoom, pan, and filter. Critical nodes are marked with badges. Connection counts show integration complexity.">ⓘ</span>
                     </h2>
                     <div class="topology-info">
@@ -393,15 +366,15 @@ function generateTopologyTab(): string {
                         <stop offset="0%" stop-color="rgba(255,255,255,0.1)" stop-opacity="1" />
                         <stop offset="100%" stop-color="rgba(0,0,0,0.1)" stop-opacity="1" />
                     </linearGradient>
-                    <!-- Arrow markers for different relationship types - Larger and more visible -->
-                    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
-                        <polygon points="0 0, 12 6, 0 12" fill="var(--vscode-foreground)" opacity="0.8" />
+                    <!-- Arrow markers for different relationship types - Tip at path endpoint -->
+                    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
+                        <polygon points="0 0, 10 5, 0 10" fill="var(--vscode-foreground)" opacity="0.8" />
                     </marker>
-                    <marker id="arrowhead-critical" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
-                        <polygon points="0 0, 12 6, 0 12" fill="#ffa500" opacity="1" />
+                    <marker id="arrowhead-critical" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
+                        <polygon points="0 0, 10 5, 0 10" fill="#ffa500" opacity="1" />
                     </marker>
-                    <marker id="arrowhead-selected" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
-                        <polygon points="0 0, 12 6, 0 12" fill="#0078d4" opacity="1" />
+                    <marker id="arrowhead-selected" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
+                        <polygon points="0 0, 10 5, 0 10" fill="#0078d4" opacity="1" />
                     </marker>
                     <!-- Filter for drop shadow -->
                     <filter id="dropShadow" x="-50%" y="-50%" width="200%" height="200%">
@@ -473,12 +446,11 @@ function generateJavaScript(data: any): string {
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 btn.classList.add('active');
                 document.getElementById(tabName).classList.add('active');
-
-                if (tabName === 'topology') {
-                    initTopology();
-                }
             });
         });
+
+        // Initialize topology on page load since it's now in the Overview tab
+        initTopology();
 
         // Toolbar actions
         document.getElementById('exportYaml').addEventListener('click', () => {
@@ -537,305 +509,6 @@ function generateJavaScript(data: any): string {
                 return;
             }
         });
-
-        // Architecture diagram rendering
-        function initArchitectureDiagram() {
-            const container = document.getElementById('architectureDiagram');
-            if (!container) return;
-            if (container.hasAttribute('data-initialized')) return;
-            container.setAttribute('data-initialized', 'true');
-
-            const nodes = ${safeArchNodes};
-            const edges = ${safeRelationships};
-
-            if (nodes.length === 0) {
-                container.innerHTML = '<div class="no-data">No resources to display</div>';
-                return;
-            }
-
-            // Create SVG
-            const width = container.clientWidth;
-            const height = 500;
-
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('class', 'arch-svg');
-            svg.setAttribute('width', width);
-            svg.setAttribute('height', height);
-            svg.setAttribute('viewBox', \`0 0 \${width} \${height}\`);
-
-            // Add arrow markers - tip at x=10, so refX=9 positions tip at path endpoint
-            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-            marker.setAttribute('id', 'arrowhead');
-            marker.setAttribute('markerWidth', '10');
-            marker.setAttribute('markerHeight', '10');
-            marker.setAttribute('refX', '9');
-            marker.setAttribute('refY', '5');
-            marker.setAttribute('orient', 'auto');
-            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', '0 0, 10 5, 0 10');
-            polygon.setAttribute('fill', 'var(--vscode-foreground)');
-            polygon.setAttribute('opacity', '0.6');
-            marker.appendChild(polygon);
-            defs.appendChild(marker);
-
-            const markerCritical = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-            markerCritical.setAttribute('id', 'arrowhead-critical');
-            markerCritical.setAttribute('markerWidth', '10');
-            markerCritical.setAttribute('markerHeight', '10');
-            markerCritical.setAttribute('refX', '9');
-            markerCritical.setAttribute('refY', '5');
-            markerCritical.setAttribute('orient', 'auto');
-            const polygonCritical = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygonCritical.setAttribute('points', '0 0, 10 5, 0 10');
-            polygonCritical.setAttribute('fill', '#ff9800');
-            polygonCritical.setAttribute('opacity', '0.8');
-            markerCritical.appendChild(polygonCritical);
-            defs.appendChild(markerCritical);
-            svg.appendChild(defs);
-
-            // Improved hierarchical layout with better spacing
-            const categories = {};
-            nodes.forEach(node => {
-                if (!categories[node.category]) {
-                    categories[node.category] = [];
-                }
-                categories[node.category].push(node);
-            });
-
-            const categoryKeys = Object.keys(categories);
-            const CARD_HEIGHT = 50;
-            const HORIZONTAL_PADDING = 80;
-            const VERTICAL_PADDING = 60;
-            const MIN_NODE_SPACING = 40;
-            const MIN_CARD_WIDTH = 140;
-            const MAX_CARD_WIDTH = 300;
-            const CHAR_WIDTH_APPROX = 7; // Approximate width per character at 11px font
-
-            // Calculate card width based on longest name in all nodes
-            const maxNameLength = Math.max(...nodes.map(n => n.name.length));
-            const calculatedCardWidth = Math.max(MIN_CARD_WIDTH, Math.min(MAX_CARD_WIDTH, 50 + maxNameLength * CHAR_WIDTH_APPROX));
-            const CARD_WIDTH = calculatedCardWidth;
-
-            // Calculate available space
-            const availableWidth = width - 2 * HORIZONTAL_PADDING;
-            const availableHeight = height - 2 * VERTICAL_PADDING;
-            const layerHeight = availableHeight / (categoryKeys.length + 1);
-
-            const nodePositions = new Map();
-
-            // Position nodes with improved spacing
-            categoryKeys.forEach((category, layerIndex) => {
-                const layerNodes = categories[category];
-                const layerY = VERTICAL_PADDING + (layerIndex + 0.5) * layerHeight;
-
-                // Calculate spacing for this layer
-                const totalNodesWidth = layerNodes.length * CARD_WIDTH + (layerNodes.length - 1) * MIN_NODE_SPACING;
-                const startX = (width - totalNodesWidth) / 2 + CARD_WIDTH / 2;
-
-                layerNodes.forEach((node, i) => {
-                    const x = startX + i * (CARD_WIDTH + MIN_NODE_SPACING);
-                    nodePositions.set(node.id, { x, y: layerY, node });
-                });
-            });
-
-            // Draw edges first (so they appear behind nodes)
-            const edgesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            const NODE_HALF_WIDTH = CARD_WIDTH / 2;
-            const NODE_HALF_HEIGHT = CARD_HEIGHT / 2;
-
-            edges.forEach(edge => {
-                const source = nodePositions.get(edge.source);
-                const target = nodePositions.get(edge.target);
-                if (!source || !target) return;
-
-                // Calculate edge endpoints at node boundaries
-                const dx = target.x - source.x;
-                const dy = target.y - source.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                // Skip if nodes are too close
-                if (distance < CARD_WIDTH) return;
-
-                const angle = Math.atan2(dy, dx);
-
-                // Calculate start and end points at node edges
-                let sourceX, sourceY, targetX, targetY;
-
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    // Primarily horizontal connection
-                    if (dx > 0) {
-                        sourceX = source.x + NODE_HALF_WIDTH;
-                        targetX = target.x - NODE_HALF_WIDTH - 6;
-                    } else {
-                        sourceX = source.x - NODE_HALF_WIDTH;
-                        targetX = target.x + NODE_HALF_WIDTH + 6;
-                    }
-                    sourceY = source.y;
-                    targetY = target.y;
-                } else {
-                    // Primarily vertical connection
-                    if (dy > 0) {
-                        sourceY = source.y + NODE_HALF_HEIGHT;
-                        targetY = target.y - NODE_HALF_HEIGHT - 6;
-                    } else {
-                        sourceY = source.y - NODE_HALF_HEIGHT;
-                        targetY = target.y + NODE_HALF_HEIGHT + 6;
-                    }
-                    sourceX = source.x;
-                    targetX = target.x;
-                }
-
-                // Create smooth bezier curve
-                const midX = (sourceX + targetX) / 2;
-                const midY = (sourceY + targetY) / 2;
-
-                let d;
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    d = \`M\${sourceX},\${sourceY} C\${midX},\${sourceY} \${midX},\${targetY} \${targetX},\${targetY}\`;
-                } else {
-                    d = \`M\${sourceX},\${sourceY} C\${sourceX},\${midY} \${targetX},\${midY} \${targetX},\${targetY}\`;
-                }
-
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.setAttribute('d', d);
-                path.setAttribute('class', 'arch-edge');
-                path.setAttribute('marker-end', 'url(#arrowhead)');
-
-                // Title for tooltip
-                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = \`\${edge.source} → \${edge.target} (\${edge.label || edge.type})\`;
-                path.appendChild(title);
-
-                edgesGroup.appendChild(path);
-            });
-            svg.appendChild(edgesGroup);
-
-            // Draw nodes with practical DevOps-focused design
-            const nodesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            nodePositions.forEach(({ x, y, node }) => {
-                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                g.setAttribute('class', node.isCritical ? 'arch-node critical' : 'arch-node');
-                g.setAttribute('transform', \`translate(\${x}, \${y})\`);
-
-                // Dynamic card size based on name length
-                const cardWidth = CARD_WIDTH;
-                const cardHeight = CARD_HEIGHT;
-                const category = node.category || 'Other';
-                const categoryColor = node.colorCode || '#007acc';
-
-                // Card background
-                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                rect.setAttribute('x', -cardWidth / 2);
-                rect.setAttribute('y', -cardHeight / 2);
-                rect.setAttribute('width', cardWidth);
-                rect.setAttribute('height', cardHeight);
-                rect.setAttribute('rx', '4');
-                rect.setAttribute('fill', 'var(--vscode-editor-background)');
-                rect.setAttribute('stroke', node.isCritical ? '#f44336' : 'var(--vscode-panel-border)');
-                rect.setAttribute('stroke-width', node.isCritical ? '1.5' : '1');
-                g.appendChild(rect);
-
-                // Left accent bar - category indicator
-                const accentBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                accentBar.setAttribute('x', -cardWidth / 2);
-                accentBar.setAttribute('y', -cardHeight / 2);
-                accentBar.setAttribute('width', '4');
-                accentBar.setAttribute('height', cardHeight);
-                accentBar.setAttribute('fill', categoryColor);
-                g.appendChild(accentBar);
-
-                // Icon
-                const iconDataUri = kindIcons[node.kind];
-                if (iconDataUri) {
-                    const iconImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-                    iconImg.setAttribute('href', iconDataUri);
-                    iconImg.setAttribute('x', -cardWidth / 2 + 10);
-                    iconImg.setAttribute('y', -9);
-                    iconImg.setAttribute('width', 16);
-                    iconImg.setAttribute('height', 16);
-                    g.appendChild(iconImg);
-                }
-
-                // Kind label - resource type
-                const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                kindText.setAttribute('x', iconDataUri ? -cardWidth / 2 + 30 : -cardWidth / 2 + 10);
-                kindText.setAttribute('y', -4);
-                kindText.setAttribute('text-anchor', 'start');
-                kindText.setAttribute('font-size', '9');
-                kindText.setAttribute('fill', 'var(--vscode-descriptionForeground)');
-                kindText.setAttribute('font-family', 'var(--vscode-font-family)');
-                kindText.textContent = node.kind;
-                g.appendChild(kindText);
-
-                // Name label - resource name (most important)
-                const nameText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                nameText.setAttribute('x', iconDataUri ? -cardWidth / 2 + 30 : -cardWidth / 2 + 10);
-                nameText.setAttribute('y', 10);
-                nameText.setAttribute('text-anchor', 'start');
-                nameText.setAttribute('font-size', '11');
-                nameText.setAttribute('font-weight', '600');
-                nameText.setAttribute('fill', 'var(--vscode-foreground)');
-                nameText.setAttribute('font-family', 'var(--vscode-font-family)');
-                
-                // Truncate text if it exceeds card width
-                const maxTextWidth = cardWidth - (iconDataUri ? 40 : 20);
-                const estimatedTextWidth = node.name.length * 7; // CHAR_WIDTH_APPROX for 11px font
-                if (estimatedTextWidth > maxTextWidth) {
-                    const maxChars = Math.floor(maxTextWidth / 7) - 3; // Reserve space for ellipsis
-                    nameText.textContent = node.name.substring(0, maxChars) + '...';
-                } else {
-                    nameText.textContent = node.name;
-                }
-                g.appendChild(nameText);
-
-                // Critical indicator badge
-                if (node.isCritical) {
-                    const criticalBadge = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-                    const criticalBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    criticalBg.setAttribute('x', cardWidth / 2 - 20);
-                    criticalBg.setAttribute('y', -cardHeight / 2 + 4);
-                    criticalBg.setAttribute('width', 16);
-                    criticalBg.setAttribute('height', 16);
-                    criticalBg.setAttribute('rx', '3');
-                    criticalBg.setAttribute('fill', '#f44336');
-                    criticalBadge.appendChild(criticalBg);
-
-                    const criticalText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    criticalText.setAttribute('x', cardWidth / 2 - 12);
-                    criticalText.setAttribute('y', -cardHeight / 2 + 14);
-                    criticalText.setAttribute('text-anchor', 'middle');
-                    criticalText.setAttribute('font-size', '10');
-                    criticalText.setAttribute('font-weight', '600');
-                    criticalText.setAttribute('fill', '#fff');
-                    criticalText.textContent = '!';
-                    criticalBadge.appendChild(criticalText);
-
-                    g.appendChild(criticalBadge);
-                }
-
-                // Tooltip with practical information
-                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = \`\${node.kind}: \${node.name}\nCategory: \${category}\nConnections: \${node.inDegree + node.outDegree}\${node.isCritical ? '\\n⚠ Critical Resource' : ''}\`;
-                g.appendChild(title);
-
-                nodesGroup.appendChild(g);
-            });
-            svg.appendChild(nodesGroup);
-
-            container.appendChild(svg);
-        }
-
-        // Initialize architecture diagram when overview tab is loaded
-        // Use requestIdleCallback if available (modern browsers), otherwise fall back to setTimeout
-        if (document.getElementById('architectureDiagram')) {
-            if (typeof requestIdleCallback !== 'undefined') {
-                requestIdleCallback(initArchitectureDiagram, { timeout: 500 });
-            } else {
-                setTimeout(initArchitectureDiagram, 0);
-            }
-        }
 
         // Enhanced Topology view with relationships
         /**
@@ -900,12 +573,15 @@ function generateJavaScript(data: any): string {
             const activeTiers = tierOrder.filter(t => tiers[t].nodes.length > 0);
 
             // Calculate node width based on longest name
+            // Account for: left accent bar (4px) + icon area (30px) + text + right indicator space (30px)
             const NODE_HEIGHT = 64;
-            const MIN_NODE_WIDTH = 160;
-            const MAX_NODE_WIDTH = 350;
+            const MIN_NODE_WIDTH = 180;
+            const MAX_NODE_WIDTH = 400;
             const CHAR_WIDTH_APPROX = 8; // Approximate width per character at 13px font
+            const LEFT_RESERVED = 60; // Accent bar + icon + padding
+            const RIGHT_RESERVED = 40; // Indicator space on right
             const maxNameLength = Math.max(...nodes.map(n => n.name.length));
-            const calculatedNodeWidth = Math.max(MIN_NODE_WIDTH, Math.min(MAX_NODE_WIDTH, 70 + maxNameLength * CHAR_WIDTH_APPROX));
+            const calculatedNodeWidth = Math.max(MIN_NODE_WIDTH, Math.min(MAX_NODE_WIDTH, LEFT_RESERVED + maxNameLength * CHAR_WIDTH_APPROX + RIGHT_RESERVED));
             const NODE_WIDTH = calculatedNodeWidth;
 
             /**
@@ -1082,11 +758,11 @@ function generateJavaScript(data: any): string {
                     if (dx > 0) {
                         // Target is to the right
                         sourceX = source.x + NODE_WIDTH / 2;
-                        targetX = target.x - NODE_WIDTH / 2 - 8;
+                        targetX = target.x - NODE_WIDTH / 2 - 10;
                     } else {
                         // Target is to the left
                         sourceX = source.x - NODE_WIDTH / 2;
-                        targetX = target.x + NODE_WIDTH / 2 + 8;
+                        targetX = target.x + NODE_WIDTH / 2 + 10;
                     }
                     sourceY = source.y;
                     targetY = target.y;
@@ -1095,11 +771,11 @@ function generateJavaScript(data: any): string {
                     if (dy > 0) {
                         // Target is below
                         sourceY = source.y + NODE_HEIGHT / 2;
-                        targetY = target.y - NODE_HEIGHT / 2 - 8;
+                        targetY = target.y - NODE_HEIGHT / 2 - 10;
                     } else {
                         // Target is above
                         sourceY = source.y - NODE_HEIGHT / 2;
-                        targetY = target.y + NODE_HEIGHT / 2 + 8;
+                        targetY = target.y + NODE_HEIGHT / 2 + 10;
                     }
                     sourceX = source.x;
                     targetX = target.x;
@@ -1218,7 +894,6 @@ function generateJavaScript(data: any): string {
 
                 // Text content - practical layout
                 const textStartX = iconDataUri ? iconX + 24 : iconX + 8;
-                const maxTextWidth = nodeWidth - (iconDataUri ? 100 : 84);
 
                 // Kind label - resource type
                 const kindText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1242,16 +917,8 @@ function generateJavaScript(data: any): string {
                 nameText.setAttribute('font-weight', '600');
                 nameText.setAttribute('fill', 'var(--vscode-foreground)');
                 nameText.setAttribute('font-family', 'var(--vscode-font-family)');
+                nameText.textContent = node.name;
                 g.appendChild(nameText);
-                
-                // Truncate text if it exceeds available width
-                const estimatedTextWidth = node.name.length * 8; // CHAR_WIDTH_APPROX for 13px font
-                if (estimatedTextWidth > maxTextWidth) {
-                    const maxChars = Math.floor(maxTextWidth / 8) - 3; // Reserve space for ellipsis
-                    nameText.textContent = node.name.substring(0, maxChars) + '...';
-                } else {
-                    nameText.textContent = node.name;
-                }
 
                 // Namespace tag (if present)
                 if (node.namespace) {

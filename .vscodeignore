@@ -14,3 +14,6 @@ pnpm-lock.yaml
 examples/**
 docs/**
 test/**
+esbuild.js
+biome.json
+package.json
