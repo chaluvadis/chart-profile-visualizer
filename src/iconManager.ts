@@ -38,7 +38,9 @@ export function getIconPath(
   theme: "dark" | "light" = "dark",
 ): string {
   if (!extensionContext) {
-    throw new Error("Icon manager not initialized. Call initializeIconManager() first.");
+    throw new Error(
+      "Icon manager not initialized. Call initializeIconManager() first.",
+    );
   }
   const iconName = getIconFileName(kind);
   const fileName = `${iconName}-${theme}.svg`;
@@ -53,7 +55,9 @@ export function getIconUri(
   theme: "dark" | "light" = "dark",
 ): vscode.Uri {
   if (!extensionContext) {
-    throw new Error("Icon manager not initialized. Call initializeIconManager() first.");
+    throw new Error(
+      "Icon manager not initialized. Call initializeIconManager() first.",
+    );
   }
   const iconName = getIconFileName(kind);
   const fileName = `${iconName}-${theme}.svg`;
@@ -237,45 +241,115 @@ export function getAvailableIconKinds(): string[] {
 export const KIND_ICON_MAP: Record<string, string> = {
   // Workloads
   Deployment: "deployment",
+  Deployments: "deployment",
   StatefulSet: "statefulset",
+  StatefulSets: "statefulset",
   DaemonSet: "daemonset",
+  DaemonSets: "daemonset",
   ReplicaSet: "replicaset",
+  ReplicaSets: "replicaset",
   Pod: "pod",
+  Pods: "pod",
   Job: "job",
+  Jobs: "job",
   CronJob: "cronjob",
+  CronJobs: "cronjob",
 
   // Networking
   Service: "service",
+  Services: "service",
   Ingress: "ingress",
+  Ingresses: "ingress",
   NetworkPolicy: "networkpolicy",
+  NetworkPolicies: "networkpolicy",
+  Endpoint: "service",
+  Endpoints: "service",
+  EndpointSlice: "service",
+  EndpointSlices: "service",
 
   // Configuration
   ConfigMap: "configmap",
+  ConfigMaps: "configmap",
   Secret: "secret",
+  Secrets: "secret",
 
   // Storage
   PersistentVolume: "persistentvolume",
+  PersistentVolumes: "persistentvolume",
   PersistentVolumeClaim: "persistentvolumeclaim",
+  PersistentVolumeClaims: "persistentvolumeclaim",
+  StorageClass: "persistentvolume",
+  StorageClasses: "persistentvolume",
 
   // RBAC
   Role: "role",
+  Roles: "role",
   RoleBinding: "rolebinding",
+  RoleBindings: "rolebinding",
   ClusterRole: "clusterrole",
   ClusterRoleBinding: "clusterrolebinding",
+  ClusterRoleBindings: "clusterrolebinding",
   ServiceAccount: "serviceaccount",
+  ServiceAccounts: "serviceaccount",
 
   // Scaling
   HorizontalPodAutoscaler: "horizontalpodautoscaler",
+  HorizontalPodAutoscalers: "horizontalpodautoscaler",
 
   // Other
   Namespace: "namespace",
+  Namespaces: "namespace",
+  Node: "pod",
+  Nodes: "pod",
+  Event: "pod",
+  Events: "pod",
+
+  // Helm-specific
+  Package: "package",
+  HelmChart: "package",
+  Chart: "package",
 };
 
 /**
  * Get the normalized icon name for a Kubernetes kind
+ * Handles plural forms, different casings, and provides fallback
  */
 export function getNormalizedIconName(kind: string): string {
-  return KIND_ICON_MAP[kind] || getIconFileName(kind);
+  // First try exact match
+  if (KIND_ICON_MAP[kind]) {
+    return KIND_ICON_MAP[kind];
+  }
+
+  // Try singular form (remove trailing 's')
+  if (kind.endsWith("s") && KIND_ICON_MAP[kind.slice(0, -1)]) {
+    return KIND_ICON_MAP[kind.slice(0, -1)];
+  }
+
+  // Try with first letter lowercase
+  const lowerKind = kind.charAt(0).toLowerCase() + kind.slice(1);
+  if (KIND_ICON_MAP[lowerKind]) {
+    return KIND_ICON_MAP[lowerKind];
+  }
+
+  // Fall back to file name conversion
+  return getIconFileName(kind);
+}
+
+/**
+ * Get fallback icon based on category
+ * Used when no specific icon exists for a resource kind
+ */
+export function getFallbackIconByCategory(category: string): string {
+  const categoryIcons: Record<string, string> = {
+    Workload: "deployment",
+    Networking: "service",
+    Storage: "persistentvolume",
+    Configuration: "configmap",
+    RBAC: "role",
+    Scaling: "horizontalpodautoscaler",
+    Other: "deployment",
+  };
+  return categoryIcons[category] || "deployment";
 }
 
 /**
@@ -290,4 +364,37 @@ export function hasIcon(kind: string): boolean {
     `${iconName}-dark.svg`,
   );
   return fs.existsSync(darkPath);
+}
+
+/**
+ * Get icon data URI with automatic fallback
+ * If icon doesn't exist for the given kind, falls back to category-based icon
+ */
+export function getIconDataUriWithFallback(
+  kind: string,
+  category: string,
+  theme: "dark" | "light" = "dark",
+): string {
+  try {
+    const normalizedKind = getNormalizedIconName(kind);
+    // Try to get the specific icon
+    if (hasIcon(normalizedKind)) {
+      return getIconDataUri(normalizedKind, theme);
+    }
+  } catch (error) {
+    console.warn(`Failed to get icon for ${kind}, trying fallback:`, error);
+  }
+
+  // Fallback to category-based icon
+  const fallbackIcon = getFallbackIconByCategory(category);
+  try {
+    return getIconDataUri(fallbackIcon, theme);
+  } catch (error) {
+    console.warn(
+      `Failed to get fallback icon for category ${category}:`,
+      error,
+    );
+    // Ultimate fallback - return empty string, CSS will handle display
+    return "";
+  }
 }
