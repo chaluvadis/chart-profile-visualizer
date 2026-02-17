@@ -1,6 +1,6 @@
 {
   "name": "chart-profile-visualizer",
-  "displayName": "Chart Profile Visualizer",
+  "displayName": "Helm Chart Profile Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
   "version": "0.0.1",
   "publisher": "nomad-in-code",
@@ -143,7 +143,7 @@
   },
   "scripts": {
     "compile": "node esbuild.js",
-    "package": "npm run compile && vsce package --no-dependencies",
+    "package": "pnpm run compile && vsce package --no-dependencies --ignore-engines",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
