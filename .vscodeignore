@@ -17,3 +17,7 @@ test/**
 esbuild.js
 biome.json
 package.json
+.github
+esbuild.js
+biome.json
+package.json
