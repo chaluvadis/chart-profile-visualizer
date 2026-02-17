@@ -2,88 +2,70 @@ import * as crypto from "node:crypto";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ResourceHierarchy } from "./resourceVisualizer";
-import {
-  getIconDataUri,
-  getNormalizedIconName,
-  getIconDataUriWithFallback,
-} from "./iconManager";
+import { getNormalizedIconName, getIconDataUriWithFallback } from "./iconManager";
 
 /**
  * Interface for Kubernetes Secret object structure
  */
 interface SecretObject {
-  data?: Record<string, string>;
-  stringData?: Record<string, string>;
-  [key: string]: any;
+	data?: Record<string, string>;
+	stringData?: Record<string, string>;
+	[key: string]: any;
 }
 
 /**
  * Sanitize a Secret's YAML content by redacting sensitive data fields
  */
 function sanitizeSecretYaml(yamlContent: string): string {
-  try {
-    const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
+	try {
+		const yamlObj = yaml.load(yamlContent.replace(/^#.*$/gm, "").trim());
 
-    // Type guard to ensure we have a valid object
-    if (!yamlObj || typeof yamlObj !== "object") {
-      return "# Secret data redacted for security";
-    }
+		// Type guard to ensure we have a valid object
+		if (!yamlObj || typeof yamlObj !== "object") {
+			return "# Secret data redacted for security";
+		}
 
-    const secretObj = yamlObj as SecretObject;
+		const secretObj = yamlObj as SecretObject;
 
-    // Redact sensitive fields by replacing values with placeholders
-    const redactField = (
-      obj: Record<string, string>,
-    ): Record<string, string> => {
-      return Object.keys(obj).reduce(
-        (acc, key) => {
-          acc[key] = "***REDACTED***";
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
-    };
+		// Redact sensitive fields by replacing values with placeholders
+		const redactField = (obj: Record<string, string>): Record<string, string> => {
+			return Object.keys(obj).reduce(
+				(acc, key) => {
+					acc[key] = "***REDACTED***";
+					return acc;
+				},
+				{} as Record<string, string>
+			);
+		};
 
-    if (secretObj.data) {
-      secretObj.data = redactField(secretObj.data);
-    }
-    if (secretObj.stringData) {
-      secretObj.stringData = redactField(secretObj.stringData);
-    }
+		if (secretObj.data) {
+			secretObj.data = redactField(secretObj.data);
+		}
+		if (secretObj.stringData) {
+			secretObj.stringData = redactField(secretObj.stringData);
+		}
 
-    return yaml.dump(secretObj);
-  } catch (error) {
-    // If parsing fails, just hide the whole yaml for secrets
-    return "# Secret data redacted for security";
-  }
+		return yaml.dump(secretObj);
+	} catch (error) {
+		// If parsing fails, just hide the whole yaml for secrets
+		return "# Secret data redacted for security";
+	}
 }
 
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
  */
-export function generateEnhancedHtml(
-  webview: vscode.Webview,
-  data: any,
-  extensionUri: vscode.Uri,
-): string {
-  const nonce = getNonce();
+export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensionUri: vscode.Uri): string {
+	const nonce = getNonce();
 
-  // Get local Chart.js and CSS URIs
-  const chartJsUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"),
-  );
-  const stylesUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, "out", "styles.css"),
-  );
+	// Get local Chart.js and CSS URIs
+	const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
+	const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "styles.css"));
 
-  // Generate resource explorer HTML
-  const resourceExplorerHtml = generateResourceExplorer(
-    data.resourceHierarchy,
-    webview,
-    extensionUri,
-  );
+	// Generate resource explorer HTML
+	const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
 
-  return `<!DOCTYPE html>
+	return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -121,7 +103,7 @@ export function generateEnhancedHtml(
 }
 
 function generateOverviewTab(data: any): string {
-  return `
+	return `
         <div class="header">
             <h1 class="chart-title">
                 ${escapeHtml(data.chartName)}
@@ -132,8 +114,8 @@ function generateOverviewTab(data: any): string {
         ${generateTopologyTab()}
 
         ${
-          data.overriddenValues.length > 0
-            ? `
+			data.overriddenValues.length > 0
+				? `
         <div class="chart-container">
             <h2>Overridden Values</h2>
             <div class="stats-container">
@@ -164,21 +146,21 @@ function generateOverviewTab(data: any): string {
                 </thead>
                 <tbody>
                     ${data.overriddenValues
-                      .map(
-                        (v: any) => `
+						.map(
+							(v: any) => `
                         <tr>
                             <td class="value-key">${escapeHtml(v.key)}</td>
                             <td class="value-old">${escapeHtml(formatValue(v.baseValue))}</td>
                             <td class="value-new">${escapeHtml(formatValue(v.envValue))}</td>
                         </tr>
-                    `,
-                      )
-                      .join("")}
+                    `
+						)
+						.join("")}
                 </tbody>
             </table>
         </div>
         `
-            : `
+				: `
         <div class="chart-container">
             <div class="stats-container">
                 <div class="stat-card">
@@ -200,27 +182,27 @@ function generateOverviewTab(data: any): string {
             </div>
         </div>
         `
-        }
+		}
     `;
 }
 
 function generateResourceExplorer(
-  hierarchy: ResourceHierarchy,
-  webview: vscode.Webview,
-  extensionUri: vscode.Uri,
+	hierarchy: ResourceHierarchy,
+	webview: vscode.Webview,
+	extensionUri: vscode.Uri
 ): string {
-  if (!hierarchy || hierarchy.totalCount === 0) {
-    return '<div class="no-data"><p>No resources found</p></div>';
-  }
+	if (!hierarchy || hierarchy.totalCount === 0) {
+		return '<div class="no-data"><p>No resources found</p></div>';
+	}
 
-  let html = '<div class="resource-explorer">';
+	let html = '<div class="resource-explorer">';
 
-  for (const [kind, group] of hierarchy.kindGroups) {
-    // Get icon for this resource kind
-    const iconName = getNormalizedIconName(kind);
-    const iconDataUri = getIconDataUri(kind, "dark");
+	for (const [kind, group] of hierarchy.kindGroups) {
+		// Get icon for this resource kind
+		const iconName = getNormalizedIconName(kind);
+		const iconDataUri = getIconDataUriWithFallback(iconName, group.category, "dark");
 
-    html += `
+		html += `
         <div class="kind-group" data-kind="${escapeHtml(kind)}">
             <div class="kind-header">
                 <span class="expand-icon">▶</span>
@@ -230,17 +212,14 @@ function generateResourceExplorer(
             <div class="kind-resources" data-collapsed="true">
         `;
 
-    for (const resource of group.resources) {
-      // For secrets, sanitize the YAML to mask sensitive data
-      const displayYaml =
-        resource.kind === "Secret"
-          ? sanitizeSecretYaml(resource.yaml)
-          : resource.yaml;
+		for (const resource of group.resources) {
+			// For secrets, sanitize the YAML to mask sensitive data
+			const displayYaml = resource.kind === "Secret" ? sanitizeSecretYaml(resource.yaml) : resource.yaml;
 
-      // Get icon for this resource
-      const resourceIconUri = getIconDataUri(resource.kind, "dark");
+			// Get icon for this resource
+			const resourceIconUri = getIconDataUriWithFallback(resource.kind, resource.category, "dark");
 
-      html += `
+			html += `
             <div class="resource-card" data-color="${group.colorCode}" data-resource-name="${escapeAttr(resource.name)}">
                 <div class="resource-header">
                     <span class="expand-icon">▶</span>
@@ -255,25 +234,25 @@ function generateResourceExplorer(
                         <pre>${escapeHtml(JSON.stringify(resource.metadata, null, 2))}</pre>
                     </div>
                     ${
-                      Object.keys(resource.spec || {}).length > 0
-                        ? `
+						Object.keys(resource.spec || {}).length > 0
+							? `
                     <div class="detail-section">
                         <h4>Spec</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.spec, null, 2))}</pre>
                     </div>
                     `
-                        : ""
-                    }
+							: ""
+					}
                     ${
-                      resource.kind === "Secret" && resource.data
-                        ? `
+						resource.kind === "Secret" && resource.data
+							? `
                     <div class="detail-section">
                         <h4>Data (masked)</h4>
                         <pre>${escapeHtml(JSON.stringify(resource.data, null, 2))}</pre>
                     </div>
                     `
-                        : ""
-                    }
+							: ""
+					}
                     <div class="detail-section">
                         <h4>Full YAML</h4>
                         <pre class="yaml-content">${escapeHtml(displayYaml)}</pre>
@@ -281,20 +260,20 @@ function generateResourceExplorer(
                 </div>
             </div>
             `;
-    }
+		}
 
-    html += `
+		html += `
             </div>
         </div>
         `;
-  }
+	}
 
-  html += "</div>";
-  return html;
+	html += "</div>";
+	return html;
 }
 
 function generateTopologyTab(): string {
-  return `
+	return `
         <div class="topology-view">
             <div class="topology-header">
                 <div class="topology-title-section">
@@ -425,41 +404,28 @@ function generateTopologyTab(): string {
 }
 
 function generateJavaScript(data: any): string {
-  // Pass architecture data safely
-  const architectureNodes = data.architectureNodes || [];
-  const relationships = data.relationships || [];
-  const safeArchNodes = JSON.stringify(architectureNodes).replace(
-    /</g,
-    "\\u003c",
-  );
-  const safeRelationships = JSON.stringify(relationships).replace(
-    /</g,
-    "\\u003c",
-  );
+	// Pass architecture data safely
+	const architectureNodes = data.architectureNodes || [];
+	const relationships = data.relationships || [];
+	const safeArchNodes = JSON.stringify(architectureNodes).replace(/</g, "\\u003c");
+	const safeRelationships = JSON.stringify(relationships).replace(/</g, "\\u003c");
 
-  // Generate icon data URIs for all unique kinds in the nodes
-  // Default to dark theme, webview will switch based on VS Code theme
-  // Uses category-based fallback when specific icon doesn't exist
-  const kindIconMap: Record<string, string> = {};
-  for (const node of architectureNodes) {
-    if (node.kind && !kindIconMap[node.kind]) {
-      try {
-        // Use fallback function that tries specific icon, then category-based icon
-        kindIconMap[node.kind] = getIconDataUriWithFallback(
-          node.kind,
-          node.category || "Other",
-          "dark",
-        );
-      } catch (error) {
-        // If the icon manager is not initialized or an error occurs,
-        // skip assigning an icon for this kind rather than failing.
-        console.warn(`Failed to get icon for kind ${node.kind}:`, error);
-      }
-    }
-  }
-  const safeIconMap = JSON.stringify(kindIconMap).replace(/</g, "\\u003c");
+	// Generate icon data URIs for all unique kinds in the nodes
+	const kindIconMap: Record<string, string> = {};
+	for (const node of architectureNodes) {
+		if (node.kind && !kindIconMap[node.kind]) {
+			try {
+				kindIconMap[node.kind] = getIconDataUriWithFallback(node.kind, node.category, "dark");
+			} catch (error) {
+				// If the icon manager is not initialized or an error occurs,
+				// skip assigning an icon for this kind rather than failing.
+				console.warn(`Failed to get icon for kind ${node.kind}:`, error);
+			}
+		}
+	}
+	const safeIconMap = JSON.stringify(kindIconMap).replace(/</g, "\\u003c");
 
-  return `
+	return `
         const vscode = acquireVsCodeApi();
         let currentZoom = 1;
         let topologyZoom = 1;
@@ -1183,7 +1149,7 @@ function generateJavaScript(data: any): string {
 }
 
 function generateChartJsInit(data: any): string {
-  return `
+	return `
         const chartColors = {
             primary: '#007acc',
             secondary: '#68217a',
@@ -1203,8 +1169,8 @@ function generateChartJsInit(data: any): string {
         ];
 
         ${
-          Object.keys(data.resourceCounts || {}).length > 0
-            ? `
+			Object.keys(data.resourceCounts || {}).length > 0
+				? `
         (function() {
             const canvas = document.getElementById('resourceChart');
             if (!canvas) return;
@@ -1322,12 +1288,12 @@ function generateChartJsInit(data: any): string {
             }
         })();
         `
-            : ""
-        }
+				: ""
+		}
 
         ${
-          data.totalValues > 0
-            ? `
+			data.totalValues > 0
+				? `
         (function() {
             const ctx = document.getElementById('valuesChart');
             if (!ctx) return;
@@ -1348,37 +1314,37 @@ function generateChartJsInit(data: any): string {
             });
         })();
         `
-            : ""
-        }
+				: ""
+		}
     `;
 }
 
 function getNonce(): string {
-  return crypto.randomBytes(16).toString("base64");
+	return crypto.randomBytes(16).toString("base64");
 }
 
 /**
  * Format a value for display, handling objects and arrays properly
  */
 function formatValue(value: any): string {
-  if (value === null || value === undefined) {
-    return "(not set)";
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
+	if (value === null || value === undefined) {
+		return "(not set)";
+	}
+	if (typeof value === "object") {
+		return JSON.stringify(value);
+	}
+	return String(value);
 }
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
 }
 
 function escapeAttr(text: string): string {
-  return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+	return text.replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
