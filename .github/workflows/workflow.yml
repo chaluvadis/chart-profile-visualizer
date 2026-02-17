@@ -41,19 +41,7 @@ jobs:
       run: pnpm run compile
 
     - name: Package extension
-      run: |
-        # Install vsce globally
-        pnpm add -g @vscode/vsce
-
-        # Determine output filename based on tag or SHA
-        TAG="${{ github.ref_name }}"
-        if [ -z "$TAG" ]; then
-          TAG="$(echo "${GITHUB_SHA}" | cut -c1-7)"
-        fi
-        OUT="chart-profile-visualizer-${TAG}.vsix"
-        echo "OUT=${OUT}" >> $GITHUB_ENV
-        echo "Packaging VSIX -> ${OUT}"
-        npx vsce package --out "${OUT}"
+      run: pnpm run package
 
     - name: Get VSIX name
       id: get_version
