@@ -2,6 +2,8 @@
 
 A VS Code extension for visualizing Helm charts across multiple environments with value merging and interactive chart visualization.
 
+![Build & Release VS Code Extension](https://github.com/chaluvadis/chart-profile-visualizer/actions/workflows/workflow.yml/badge.svg)
+
 ## Features
 
 - 📊 **Interactive Chart Visualization** - View value overrides and chart statistics with multiple visualization tabs
