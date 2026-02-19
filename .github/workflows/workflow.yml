@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -44,7 +44,7 @@ jobs:
           OUT="chart-profile-visualizer-${TAG}.vsix"
           echo "OUT=${OUT}" >> $GITHUB_ENV
           echo "Packaging VSIX -> ${OUT}"
-          pnpm exec vsce package --no-dependencies --ignore-engines --out "${OUT}"
+          pnpm exec vsce package --no-dependencies --out "${OUT}"
         shell: bash
 
       - name: Get version from tag
@@ -53,9 +53,7 @@ jobs:
           echo "VSIX_NAME=$(ls *.vsix | head -n 1)" >> $GITHUB_ENV
 
       - name: Publish to Visual Studio Marketplace
-        env:
-          VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
-        run: pnpm exec vsce publish --packagePath "${VSIX_NAME}" --pat "${VSCE_TOKEN}"
+        run: pnpm exec vsce publish --packagePath "${{ env.VSIX_NAME }}" --pat "${{ secrets.VSCE_TOKEN }}"
 
       - name: Upload VSIX artifact and create GitHub Release
         uses: softprops/action-gh-release@v2
