@@ -1,4 +1,4 @@
-# Helm Chart Profile Visualizer
+# Helm Chart Visualizer
 
 A VS Code extension for visualizing Helm charts across multiple environments with value merging and interactive chart visualization.
 
@@ -6,7 +6,7 @@ A VS Code extension for visualizing Helm charts across multiple environments wit
 
 ## Demo
 
-![Extension Demo](images/screen_record.gif)
+![Extension Demo](https://github.com/chaluvadis/chart-profile-visualizer/raw/HEAD/images/screen_record.gif)
 
 ## Features
 
@@ -22,12 +22,14 @@ A VS Code extension for visualizing Helm charts across multiple environments wit
 ## Installation
 
 ### From VSIX File
+
 1. Download the `.vsix` file from the releases page
 2. Open VS Code → Extensions (Ctrl+Shift+X)
 3. Click "..." → "Install from VSIX..."
 4. Select the downloaded file
 
 ### From Source
+
 ```bash
 git clone https://github.com/chaluvadis/chart-profile-visualizer.git
 cd chart-profile-visualizer
@@ -41,6 +43,7 @@ pnpm run package
 The extension activates automatically when you open a workspace containing Helm charts (directories with `Chart.yaml`).
 
 ### Viewing Charts
+
 1. Open the **Explorer** sidebar
 2. Find the **Chart Profiles** view
 3. Expand to see charts and their environments
@@ -57,6 +60,7 @@ The extension activates automatically when you open a workspace containing Helm 
 ### Commands
 
 Access via Command Palette (Ctrl+Shift+P):
+
 - **Compare Environments** - Compare two environments side-by-side
 - **Check Cluster Status** - View Kubernetes cluster connection
 - **Refresh Charts** - Reload all charts from workspace
@@ -83,14 +87,14 @@ Any file matching `values-*.yaml` or `values-*.yml` is detected as an environmen
 
 ## Supported Kubernetes Resources
 
-| Category | Resources |
-|----------|-----------|
-| Workloads | Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob, Pod |
-| Networking | Service, Ingress, NetworkPolicy |
-| Configuration | ConfigMap, Secret |
-| Storage | PersistentVolumeClaim, PersistentVolume |
-| RBAC | Role, RoleBinding, ClusterRole, ClusterRoleBinding, ServiceAccount |
-| Scaling | HorizontalPodAutoscaler |
+| Category      | Resources                                                          |
+| ------------- | ------------------------------------------------------------------ |
+| Workloads     | Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob, Pod  |
+| Networking    | Service, Ingress, NetworkPolicy                                    |
+| Configuration | ConfigMap, Secret                                                  |
+| Storage       | PersistentVolumeClaim, PersistentVolume                            |
+| RBAC          | Role, RoleBinding, ClusterRole, ClusterRoleBinding, ServiceAccount |
+| Scaling       | HorizontalPodAutoscaler                                            |
 
 ## Configuration
 
