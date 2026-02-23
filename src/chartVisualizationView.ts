@@ -1,4 +1,4 @@
-import * as crypto from "node:crypto";
+import { Buffer } from "node:buffer";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
@@ -14,11 +14,29 @@ import {
 import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
 import { mergeValues } from "./valuesMerger";
 import { generateEnhancedHtml } from "./webviewHtmlGenerator";
+import { getKubernetesConnector } from "./kubernetesConnector";
+import { getRuntimeStateManager } from "./runtimeStateManager";
+
+/**
+ * Kubernetes Secret resource structure
+ */
+interface KubernetesSecret {
+	apiVersion: string;
+	kind: string;
+	metadata?: {
+		name?: string;
+		namespace?: string;
+		annotations?: Record<string, string>;
+		labels?: Record<string, string>;
+	};
+	type?: string;
+	data?: Record<string, string>;
+	stringData?: Record<string, string>;
+}
 
 // Module-level state (singleton pattern for VSCode extension)
 let currentPanel: vscode.WebviewPanel | undefined;
 let currentContext: vscode.ExtensionContext | undefined;
-let currentItem: ChartTreeItem | undefined;
 let renderedResources: RenderedResource[] = [];
 
 const defaultNamespace = "default";
@@ -30,7 +48,6 @@ export async function show(context: vscode.ExtensionContext, item: ChartTreeItem
 	}
 
 	currentContext = context;
-	currentItem = item;
 
 	const columnToShowIn = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
 
@@ -112,12 +129,145 @@ async function handleMessage(message: any) {
 			break;
 		case "copyResource":
 			await vscode.env.clipboard.writeText(message.yaml);
-			vscode.window.showInformationMessage("Resource copied to clipboard");
+			vscode.window.showInformationMessage("Resource YAML copied to clipboard");
 			break;
 		case "revealSecret":
-			// Secret reveal would be handled here
+			await revealSecret(message.secretName, message.namespace);
 			break;
 	}
+}
+
+/**
+ * Reveal secret data from the Kubernetes cluster
+ * Fetches the actual secret values and displays them in a new document
+ */
+async function revealSecret(secretName: string, namespace?: string): Promise<void> {
+	const connector = getKubernetesConnector();
+	const runtimeStateManager = getRuntimeStateManager();
+
+	// Check if connected to cluster
+	const clusterInfo = await connector.getClusterInfo();
+	if (!clusterInfo.connected) {
+		vscode.window.showErrorMessage("Not connected to Kubernetes cluster. Cannot reveal secret data.");
+		return;
+	}
+
+	// Check if kubectl is available
+	const kubectlAvailable = await connector.isKubectlAvailable();
+	if (!kubectlAvailable) {
+		vscode.window.showErrorMessage("kubectl is not available. Install kubectl to reveal secret data.");
+		return;
+	}
+
+	await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: `Fetching secret "${secretName}"...`,
+			cancellable: false,
+		},
+		async () => {
+			try {
+				const ns = namespace || clusterInfo.namespace || "default";
+
+				// Get the secret YAML from cluster using runtime state manager
+				const secretYaml = await runtimeStateManager.getResourceYaml("secret", secretName, ns);
+
+				// Parse the secret with proper typing
+				const secretObj = yaml.load(secretYaml) as KubernetesSecret;
+
+				if (!secretObj || !secretObj.data) {
+					vscode.window.showWarningMessage(
+						`Secret "${secretName}" has no data field or could not be parsed.`
+					);
+					return;
+				}
+
+				// Decode base64 values
+				const decodedData: Record<string, string> = {};
+				const data = secretObj.data;
+
+				for (const [key, base64Value] of Object.entries(data)) {
+					try {
+						// Decode base64 to string
+						const decoded = Buffer.from(base64Value, "base64").toString("utf8");
+						decodedData[key] = decoded;
+					} catch {
+						// If decoding fails, show the raw base64
+						decodedData[key] = `[base64 decode failed] ${base64Value}`;
+					}
+				}
+
+				// Build the revealed secret document
+				const lines: string[] = [];
+				lines.push("# ═══════════════════════════════════════════════════════════════");
+				lines.push("# ⚠️  REVEALED SECRET DATA - HANDLE WITH CARE");
+				lines.push("# ═══════════════════════════════════════════════════════════════");
+				lines.push(`# Secret: ${secretName}`);
+				lines.push(`# Namespace: ${ns}`);
+				lines.push(`# Revealed at: ${new Date().toISOString()}`);
+				lines.push("# ═══════════════════════════════════════════════════════════════");
+				lines.push("");
+				lines.push("## Original Secret (with base64 encoded data)");
+				lines.push("```yaml");
+				lines.push(
+					yaml.dump(
+						{
+							apiVersion: secretObj.apiVersion,
+							kind: secretObj.kind,
+							metadata: {
+								name: secretObj.metadata?.name,
+								namespace: secretObj.metadata?.namespace,
+							},
+							type: secretObj.type,
+							data: secretObj.data,
+						},
+						{ indent: 2 }
+					)
+				);
+				lines.push("```");
+				lines.push("");
+				lines.push("## Decoded Secret Data");
+				lines.push("```yaml");
+				lines.push(yaml.dump(decodedData, { indent: 2 }));
+				lines.push("```");
+				lines.push("");
+				lines.push("# ═══════════════════════════════════════════════════════════════");
+				lines.push("# ⚠️  SECURITY WARNING");
+				lines.push("# ═══════════════════════════════════════════════════════════════");
+				lines.push("# - This document contains sensitive data");
+				lines.push("# - Do not commit this file to version control");
+				lines.push("# - Close this document after reviewing");
+				lines.push("# - Consider using Kubernetes secrets management best practices");
+				lines.push("# ═══════════════════════════════════════════════════════════════");
+
+				// Open in a new document
+				const doc = await vscode.workspace.openTextDocument({
+					content: lines.join("\n"),
+					language: "markdown",
+				});
+
+				await vscode.window.showTextDocument(doc, {
+					preview: true,
+					viewColumn: vscode.ViewColumn.Beside,
+				});
+
+				// Show warning message
+				vscode.window.showWarningMessage(
+					`Secret "${secretName}" revealed. This document contains sensitive data.`
+				);
+			} catch (error: unknown) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+
+				if (errorMessage.includes("NotFound") || errorMessage.includes("not found")) {
+					vscode.window.showErrorMessage(
+						`Secret "${secretName}" not found in namespace "${namespace || "default"}". The secret may not be deployed yet.`
+					);
+				} else {
+					vscode.window.showErrorMessage(`Failed to reveal secret: ${errorMessage}`);
+				}
+			}
+		}
+	);
 }
 
 /**
@@ -269,460 +419,6 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	};
 }
 
-function getHtmlContent(webview: vscode.Webview, data: ChartData): string {
-	const nonce = getNonce();
-	const styleNonce = getNonce();
-
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; style-src 'nonce-${styleNonce}';">
-    <title>Chart Visualization</title>
-    <style nonce="${styleNonce}">
-        body {
-            font-family: var(--vscode-font-family);
-            color: var(--vscode-foreground);
-            background-color: var(--vscode-editor-background);
-            padding: 20px;
-            margin: 0;
-        }
-        h1, h2 {
-            color: var(--vscode-foreground);
-        }
-        .header {
-            border-bottom: 2px solid var(--vscode-panel-border);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-        .chart-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 0;
-        }
-        .environment-badge {
-            display: inline-block;
-            background-color: var(--vscode-badge-background);
-            color: var(--vscode-badge-foreground);
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 14px;
-            margin-left: 10px;
-        }
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .stat-card {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 8px;
-            padding: 15px;
-        }
-        .stat-label {
-            font-size: 12px;
-            color: var(--vscode-descriptionForeground);
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-        .stat-value {
-            font-size: 28px;
-            font-weight: bold;
-            color: var(--vscode-foreground);
-        }
-        .chart-container {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            max-height: 60vh;
-            overflow: auto;
-        }
-        .chart-canvas {
-            width: 100%;
-            max-width: 100%;
-            /* height will be set dynamically in JS based on bar count */
-        }
-        .values-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        .values-table th,
-        .values-table td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid var(--vscode-panel-border);
-        }
-        .values-table th {
-            background-color: var(--vscode-editor-inactiveSelectionBackground);
-            font-weight: bold;
-        }
-        .value-key {
-            font-family: var(--vscode-editor-font-family);
-            color: var(--vscode-textLink-foreground);
-        }
-        .value-old {
-            color: var(--vscode-descriptionForeground);
-            text-decoration: line-through;
-        }
-        .value-new {
-            color: var(--vscode-gitDecoration-modifiedResourceForeground);
-            font-weight: bold;
-        }
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: var(--vscode-descriptionForeground);
-        }
-        .template-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .template-item {
-            background-color: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-panel-border);
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-family: var(--vscode-editor-font-family);
-            font-size: 12px;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1 class="chart-title">
-            ${escapeHtml(data.chartName)}
-            <span class="environment-badge">${escapeHtml(data.environment)}</span>
-        </h1>
-    </div>
-
-    <div class="stats-container">
-        <div class="stat-card">
-            <div class="stat-label">Total Values</div>
-            <div class="stat-value">${data.totalValues}</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Overridden Values</div>
-            <div class="stat-value">${data.overriddenCount}</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Override Rate</div>
-            <div class="stat-value">${data.totalValues > 0 ? Math.round((data.overriddenCount / data.totalValues) * 100) : 0}%</div>
-        </div>
-    </div>
-
-    ${
-		Object.keys(data.resourceCounts).length > 0
-			? `
-    <div class="chart-container">
-        <h2>Resource Type Distribution</h2>
-        <canvas id="resourceChart" class="chart-canvas"></canvas>
-    </div>
-    `
-			: ""
-	}
-
-    ${
-		data.totalValues > 0
-			? `
-    <div class="chart-container">
-        <h2>Values: Overridden vs Base</h2>
-        <canvas id="valuesChart" class="chart-canvas"></canvas>
-    </div>
-    `
-			: ""
-	}
-
-    ${
-		Object.keys(data.namespaceCounts).length > 1
-			? `
-    <div class="chart-container">
-        <h2>Namespace Distribution</h2>
-        <canvas id="namespaceChart" class="chart-canvas"></canvas>
-    </div>
-    `
-			: ""
-	}
-
-    ${
-		data.templateSources.length > 0
-			? `
-    <div class="chart-container">
-        <h2>Template Sources</h2>
-        <div class="template-list">
-            ${data.templateSources.map((t) => `<div class="template-item">📄 ${escapeHtml(t)}</div>`).join("")}
-        </div>
-    </div>
-    `
-			: ""
-	}
-
-    ${
-		data.overriddenValues.length > 0
-			? `
-    <div class="chart-container">
-        <h2>Top Overridden Values</h2>
-        <table class="values-table">
-            <thead>
-                <tr>
-                    <th>Key</th>
-                    <th>Base Value</th>
-                    <th>Environment Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${data.overriddenValues
-					.map(
-						(v) => `
-                    <tr>
-                        <td class="value-key">${escapeHtml(v.key)}</td>
-                        <td class="value-old">${escapeHtml(formatValue(v.baseValue))}</td>
-                        <td class="value-new">${escapeHtml(formatValue(v.envValue))}</td>
-                    </tr>
-                `
-					)
-					.join("")}
-            </tbody>
-        </table>
-    </div>
-    `
-			: `
-    <div class="no-data">
-        <p>No value overrides found for this environment.</p>
-    </div>
-    `
-	}
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" nonce="${nonce}"></script>
-    <script nonce="${nonce}">
-        const chartColors = {
-            primary: '#007acc',
-            secondary: '#68217a',
-            success: '#4caf50',
-            warning: '#ff9800',
-            danger: '#f44336',
-            info: '#2196f3',
-            light: '#9e9e9e',
-            dark: '#424242'
-        };
-
-        const colorPalette = [
-            chartColors.primary,
-            chartColors.secondary,
-            chartColors.success,
-            chartColors.warning,
-            chartColors.info,
-            chartColors.danger,
-            chartColors.light
-        ];
-
-        const chartDefaults = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: {
-                        color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    ticks: {
-                        color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
-                    },
-                    grid: {
-                        color: 'rgba(128, 128, 128, 0.2)'
-                    }
-                },
-                y: {
-                    ticks: {
-                        color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
-                    },
-                    grid: {
-                        color: 'rgba(128, 128, 128, 0.2)'
-                    }
-                }
-            }
-        };
-
-        ${
-			Object.keys(data.resourceCounts).length > 0
-				? `
-        // Resource Type Distribution (Bar Chart)
-        (function() {
-            const canvas = document.getElementById('resourceChart');
-            if (!canvas) return;
-
-            const resourceData = ${JSON.stringify(data.resourceCounts)};
-            let labels = Object.keys(resourceData);
-            let values = Object.values(resourceData);
-
-            // Aggregate long tail for readability & performance
-            const MAX_BARS = 60;
-            if (labels.length > MAX_BARS) {
-                const pairs = labels.map((l, i) => ({ l, v: Number(values[i]) || 0 }));
-                pairs.sort((a, b) => b.v - a.v);
-                const top = pairs.slice(0, MAX_BARS);
-                const othersTotal = pairs.slice(MAX_BARS).reduce((sum, p) => sum + p.v, 0);
-                labels = top.map(p => p.l).concat('Others');
-                values = top.map(p => p.v).concat(othersTotal);
-            }
-
-            // Decide orientation based on bar count
-            const useHorizontal = labels.length > 20;
-            const indexAxis = useHorizontal ? 'y' : 'x';
-
-            // Dynamic canvas height proportional to bars (kept within viewport)
-            const perBarPx = 24; // bar height when horizontal
-            const basePx = 120;  // padding and legend space
-            const maxPx = Math.round(window.innerHeight * 0.6);
-            const targetHeight = useHorizontal
-                ? Math.min(maxPx, basePx + (labels.length * perBarPx))
-                : 300; // default for vertical
-            canvas.style.height = \`\${targetHeight}px\`;
-
-            const foreground = getComputedStyle(document.body).getPropertyValue('--vscode-foreground');
-            const gridColor = 'rgba(128, 128, 128, 0.2)';
-
-            function initChart() {
-                // Destroy any previous instance to avoid leaks
-                const existing = window.resourceChartInstance;
-                if (existing) { try { existing.destroy(); } catch {} }
-
-                const chart = new Chart(canvas, {
-                    type: 'bar',
-                    data: {
-                        labels,
-                        datasets: [{
-                            label: 'Resource Count',
-                            data: values,
-                            backgroundColor: colorPalette.slice(0, labels.length),
-                            borderColor: colorPalette.slice(0, labels.length),
-                            borderWidth: 1,
-                        }]
-                    },
-                    options: {
-                        indexAxis,
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: false,        // faster
-                        parsing: false,          // bypass parsing overhead
-                        interaction: { mode: 'nearest', intersect: false },
-                        plugins: {
-                            legend: {
-                                display: false,
-                                labels: { color: foreground }
-                            },
-                            title: { display: false },
-                            tooltip: {
-                                enabled: labels.length <= 200 // avoid heavy tooltips for huge sets
-                            }
-                        },
-                        // Reduce event listeners for massive datasets
-                        events: labels.length > 200 ? [] : undefined,
-                        scales: {
-                            x: {
-                                ticks: {
-                                    color: foreground,
-                                    autoSkip: true,
-                                    maxRotation: 45,
-                                    sampleSize: 100,
-                                },
-                                grid: { color: gridColor },
-                                beginAtZero: true,
-                            },
-                            y: {
-                                ticks: {
-                                    color: foreground,
-                                    autoSkip: true,
-                                    sampleSize: 100,
-                                },
-                                grid: { color: gridColor },
-                                beginAtZero: true,
-                            }
-                        }
-                    }
-                });
-                window.resourceChartInstance = chart;
-
-                // Resize handling for horizontal bars
-                if (useHorizontal && 'ResizeObserver' in window) {
-                    const ro = new ResizeObserver(() => {
-                        const maxPx = Math.round(window.innerHeight * 0.6);
-                        const newHeight = Math.min(maxPx, basePx + (labels.length * perBarPx));
-                        canvas.style.height = \`\${newHeight}px\`;
-                        const inst = window.resourceChartInstance;
-                        if (inst) { try { inst.resize(); } catch {} }
-                    });
-                    ro.observe(document.body);
-                }
-            }
-
-            // Lazy init to avoid blocking UI
-            if ('requestIdleCallback' in window) {
-                window.requestIdleCallback(initChart, { timeout: 500 });
-            } else {
-                setTimeout(initChart, 0);
-            }
-        })();
-        `
-				: ""
-		}
-
-
-
-        ${
-			Object.keys(data.namespaceCounts).length > 1
-				? `
-        // Namespace Distribution (Doughnut Chart)
-        (function() {
-            const ctx = document.getElementById('namespaceChart');
-            if (!ctx) return;
-
-            const namespaceData = ${JSON.stringify(data.namespaceCounts)};
-            const labels = Object.keys(namespaceData);
-            const values = Object.values(namespaceData);
-
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: colorPalette.slice(0, labels.length),
-                        borderColor: colorPalette.slice(0, labels.length),
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: getComputedStyle(document.body).getPropertyValue('--vscode-foreground')
-                            }
-                        }
-                    }
-                }
-            });
-        })();
-        `
-				: ""
-		}
-    </script>
-</body>
-</html>`;
-}
-
 function getErrorHtml(errorMessage: string): string {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -785,10 +481,6 @@ interface ChartData {
 	relationships: ResourceRelationship[];
 }
 
-function getNonce(): string {
-	return crypto.randomBytes(16).toString("base64");
-}
-
 function escapeHtml(text: string): string {
 	return text
 		.replace(/&/g, "&amp;")
@@ -796,19 +488,6 @@ function escapeHtml(text: string): string {
 		.replace(/>/g, "&gt;")
 		.replace(/"/g, "&quot;")
 		.replace(/'/g, "&#039;");
-}
-
-/**
- * Format a value for display, handling objects and arrays properly
- */
-function formatValue(value: any): string {
-	if (value === null || value === undefined) {
-		return "(not set)";
-	}
-	if (typeof value === "object") {
-		return JSON.stringify(value);
-	}
-	return String(value);
 }
 
 /**
