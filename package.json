@@ -1,6 +1,6 @@
 {
   "name": "chart-profile-visualizer",
-  "displayName": "Helm Chart Profile Visualizer",
+  "displayName": "Helm Chart Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
   "version": "0.0.3",
   "publisher": "nomad-in-code",
@@ -54,11 +54,6 @@
         "command": "chartProfiles.compareEnvironments",
         "title": "Compare Environments",
         "icon": "$(diff)"
-      },
-      {
-        "command": "chartProfiles.exportResources",
-        "title": "Export Resources",
-        "icon": "$(export)"
       },
       {
         "command": "chartProfiles.validateChart",
@@ -143,7 +138,7 @@
   },
   "scripts": {
     "compile": "node esbuild.js",
-    "package": "pnpm run compile && vsce package --no-dependencies --ignore-engines",
+    "package": "pnpm run compile && vsce package --no-dependencies",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
