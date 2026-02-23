@@ -58,6 +58,26 @@ async function main() {
     fs.copyFileSync(srcCssPath, outCssPath);
     console.log("Copied styles.css to out directory");
   }
+
+  // Copy webview JavaScript files to out directory
+  const webviewDir = path.join(__dirname, "src", "webview");
+  const outWebviewDir = path.join(__dirname, "out", "webview");
+
+  // Create out/webview directory if it doesn't exist
+  if (!fs.existsSync(outWebviewDir)) {
+    fs.mkdirSync(outWebviewDir, { recursive: true });
+  }
+
+  // Copy all JS files from src/webview to out/webview
+  if (fs.existsSync(webviewDir)) {
+    const webviewFiles = fs.readdirSync(webviewDir).filter(f => f.endsWith(".js"));
+    for (const file of webviewFiles) {
+      const srcPath = path.join(webviewDir, file);
+      const outPath = path.join(outWebviewDir, file);
+      fs.copyFileSync(srcPath, outPath);
+      console.log(`Copied ${file} to out/webview directory`);
+    }
+  }
 }
 
 main().catch((e) => {
