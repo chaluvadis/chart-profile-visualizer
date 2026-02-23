@@ -224,23 +224,33 @@ function highlightYaml(yamlContent: string): string {
  * Highlight a single YAML line (without comments)
  */
 function highlightYamlLine(line: string): string {
-	// Match key: value pattern
-	const keyMatch = line.match(/^(\s*)([^:]+)(:\s*)(.*)$/);
-	if (keyMatch) {
-		const [, indent, key, colon, value] = keyMatch;
-		const highlightedKey = `<span class="yaml-key">${escapeHtml(key)}</span>`;
-		const highlightedColon = `<span class="yaml-colon">${colon}</span>`;
-		const highlightedValue = highlightYamlValue(value);
-		return `${indent}${highlightedKey}${highlightedColon}${highlightedValue}`;
-	}
-
-	// Match list items
+	// Match list items first (handles both "- value" and "- key: value")
 	const listMatch = line.match(/^(\s*)(- )(.*)$/);
 	if (listMatch) {
 		const [, indent, dash, content] = listMatch;
 		const highlightedDash = `<span class="yaml-indicator">${dash}</span>`;
+		// The content after "- " may itself be a "key: value" pair.
+		// Require a space after colon (or colon at end) to avoid matching URLs (e.g. https://...).
+		const keyInListMatch = content.match(/^([^:]+)(: )(.*)$/) || content.match(/^([^:]+)(:)$/);
+		if (keyInListMatch) {
+			const [, key, colon, value = ""] = keyInListMatch;
+			const highlightedKey = `<span class="yaml-key">${escapeHtml(key)}</span>`;
+			const highlightedColon = `<span class="yaml-colon">${colon}</span>`;
+			const highlightedValue = highlightYamlValue(value);
+			return `${indent}${highlightedDash}${highlightedKey}${highlightedColon}${highlightedValue}`;
+		}
 		const highlightedContent = highlightYamlValue(content);
 		return `${indent}${highlightedDash}${highlightedContent}`;
+	}
+
+	// Match key: value pattern. Require a space after colon (or colon at end) to avoid matching URLs.
+	const keyMatch = line.match(/^(\s*)([^:]+)(: )(.*)$/) || line.match(/^(\s*)([^:]+)(:)\s*$/);
+	if (keyMatch) {
+		const [, indent, key, colon, value = ""] = keyMatch;
+		const highlightedKey = `<span class="yaml-key">${escapeHtml(key)}</span>`;
+		const highlightedColon = `<span class="yaml-colon">${colon}</span>`;
+		const highlightedValue = highlightYamlValue(value);
+		return `${indent}${highlightedKey}${highlightedColon}${highlightedValue}`;
 	}
 
 	return escapeHtml(line);

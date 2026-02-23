@@ -310,7 +310,7 @@ export class RuntimeStateManager {
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      return `Error fetching resource: ${errorMessage}`;
+      throw new Error(`Error fetching resource: ${errorMessage}`);
     }
   }
 
