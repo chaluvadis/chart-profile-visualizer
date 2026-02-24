@@ -2,7 +2,7 @@
   "name": "chart-profile-visualizer",
   "displayName": "Helm Chart Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "nomad-in-code",
   "repository": {
     "type": "git",
