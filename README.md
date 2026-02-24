@@ -6,7 +6,7 @@ A VS Code extension for visualizing Helm charts across multiple environments wit
 
 ## Demo
 
-![Extension Demo](https://github.com/chaluvadis/chart-profile-visualizer/raw/HEAD/images/screen_record.gif)
+![Extension Demo](./images/screen_record.gif)
 
 ## Features
 
