@@ -1,114 +1,80 @@
-# Helm Chart Visualizer
+# Chart Profile Visualizer
 
-A VS Code extension for visualizing Helm charts across multiple environments with value merging and interactive chart visualization.
+Visualize and compare Helm chart configurations across environments (dev/stage/prod) to detect risky drift before deployment.
+
+> Best for platform engineers, SREs, and teams managing multi-environment Kubernetes releases.
 
 ![Build & Release VS Code Extension](https://github.com/chaluvadis/chart-profile-visualizer/actions/workflows/workflow.yml/badge.svg)
 
-## Demo
+## Why this extension
+
+Chart Profile Visualizer helps you:
+
+- **Detect config drift early** across environments
+- **Reduce deployment risk** by highlighting high-impact differences
+- **Speed up reviews** with visual and structured comparisons
+- **Improve release confidence** before promotion to production
+
+## Quick Start (2 minutes)
 
 ![Extension Demo](./images/screen_record.gif)
 
-## Features
+✅ Expected outcome: You see a structured comparison of chart values and identified drift.
 
-- 📊 **Interactive Chart Visualization** - View value overrides, chart statistics, and resource distribution
-- 🏗️ **Resource Architecture Diagram** - Interactive tier-based visualization with relationship arrows
-- 🎯 **Resource Explorer** - Browse all Kubernetes resources with full configuration details
-- 🔗 **Relationship Detection** - Automatically detect connections between resources
-- 🔀 **Environment Comparison** - Compare resources between two environments
-- 🔐 **Runtime State Management** - Check health status of deployed resources
-- 📋 **Helm Release Management** - Plan upgrades and assess rollbacks
-- 🎨 **Kubernetes Icons** - Official-style icons for all resource types
+## Example workflow
 
-## Installation
+Use sample files in `examples/`:
 
-### From VSIX File
+- `examples/values-dev.yaml`
+- `examples/values-qa.yaml`
+- `examples/values-staging.yaml`
+- `examples/values-prod.yaml`
 
-1. Download the `.vsix` file from the releases page
-2. Open VS Code → Extensions (Ctrl+Shift+X)
-3. Click "..." → "Install from VSIX..."
-4. Select the downloaded file
+## Core features
 
-### From Source
+- Environment profile comparison
+- Visual diff for Helm values
+- Drift categorization (config groups)
+- Fast local analysis in VS Code
 
-```bash
-git clone https://github.com/chaluvadis/chart-profile-visualizer.git
-cd chart-profile-visualizer
-pnpm install
-pnpm run compile
-pnpm run package
-```
+## Recommended next features (roadmap)
 
-## Usage
+- Severity scoring: `Info / Warning / Critical`
+- Risk-focused presets (security/network/resources)
+- Export comparison report (Markdown/JSON)
+- PR comment integration for release checks
 
-The extension activates automatically when you open a workspace containing Helm charts (directories with `Chart.yaml`).
+## Compatibility
 
-### Viewing Charts
+- VS Code: `<min-version>`
+- Helm values format: YAML
+- OS: macOS / Linux / Windows
 
-1. Open the **Explorer** sidebar
-2. Find the **Chart Profiles** view
-3. Expand to see charts and their environments
+## Data handling & privacy
 
-### Available Actions
-
-- **Visualize Chart** - Open interactive dashboard with architecture diagram and resource explorer
-- **View Merged Values** - See final merged values with override annotations
-- **View Rendered YAML** - View fully rendered Helm templates
-- **Validate Chart** - Check chart configuration and best practices
-- **Check Runtime State** - View health status of deployed resources
-- **View Dependencies** - See chart dependencies and security issues
-
-### Commands
-
-Access via Command Palette (Ctrl+Shift+P):
-
-- **Compare Environments** - Compare two environments side-by-side
-- **Check Cluster Status** - View Kubernetes cluster connection
-- **Refresh Charts** - Reload all charts from workspace
-
-## Requirements
-
-- **VS Code**: 1.109.0 or higher
-- **Helm CLI** (optional): For template rendering
-- **kubectl** (optional): For runtime state features
-
-## Supported Helm Chart Structure
-
-```
-my-chart/
-├── Chart.yaml
-├── values.yaml              # Base values
-├── values-dev.yaml          # Dev environment
-├── values-staging.yaml      # Staging environment
-├── values-prod.yaml         # Production environment
-└── templates/
-```
-
-Any file matching `values-*.yaml` or `values-*.yml` is detected as an environment.
-
-## Supported Kubernetes Resources
-
-| Category      | Resources                                                          |
-| ------------- | ------------------------------------------------------------------ |
-| Workloads     | Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob, Pod  |
-| Networking    | Service, Ingress, NetworkPolicy                                    |
-| Configuration | ConfigMap, Secret                                                  |
-| Storage       | PersistentVolumeClaim, PersistentVolume                            |
-| RBAC          | Role, RoleBinding, ClusterRole, ClusterRoleBinding, ServiceAccount |
-| Scaling       | HorizontalPodAutoscaler                                            |
-
-## Configuration
-
-```json
-{
-  "chartProfiles.ignoredDirectories": ["vendor", "tmp"]
-}
-```
+- Processing is performed locally in VS Code.
+- No chart values are transmitted externally unless explicitly configured by user.
+- Telemetry (if enabled) is anonymized and excludes secrets/chart payloads.
 
 ## Troubleshooting
 
-- **Environments not appearing**: Ensure files follow `values-*.yaml` pattern
-- **Template rendering fails**: Install Helm CLI and verify with `helm version`
-- **Runtime state not showing**: Install kubectl and check cluster connection
+### “VS Code API has already been acquired” error
+- Ensure webview API is acquired only once per webview lifecycle.
+- Reload window and retry command.
+- Update to latest extension version.
+
+### No comparison output
+- Confirm selected files are valid YAML.
+- Verify file paths and environment mapping.
+- Check output panel logs.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## License
 
