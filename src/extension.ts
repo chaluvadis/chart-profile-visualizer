@@ -7,7 +7,6 @@ import { isHelmAvailable, renderHelmTemplate } from "./helmRenderer";
 import { showRenderedYaml } from "./renderedYamlView";
 import { createChartValidator } from "./chartValidator";
 import { getKubernetesConnector } from "./kubernetesConnector";
-import { getHelmReleaseManager } from "./helmReleaseManager";
 import { getRuntimeStateManager } from "./runtimeStateManager";
 import { generateDependencyVisualizationData, checkDependencySecurity } from "./dependencyVisualizer";
 import { initializeIconManager, preloadIcons } from "./iconManager";
@@ -26,7 +25,6 @@ function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
 	lines.push(`- **Total**: ${comparison.summary.total} resources`);
 	lines.push("");
 
-	// Group diffs by type
 	const added = comparison.diffs.filter((d) => d.diffType === DiffType.Added);
 	const removed = comparison.diffs.filter((d) => d.diffType === DiffType.Removed);
 	const modified = comparison.diffs.filter((d) => d.diffType === DiffType.Modified);
@@ -54,7 +52,6 @@ function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
 			if (diff.fieldDiffs && diff.fieldDiffs.length > 0) {
 				lines.push("**Changes:**");
 				for (const fieldDiff of diff.fieldDiffs.slice(0, 10)) {
-					// Limit to first 10 changes
 					const leftVal = JSON.stringify(fieldDiff.leftValue);
 					const rightVal = JSON.stringify(fieldDiff.rightValue);
 					lines.push(`- \`${fieldDiff.path}\`: ${leftVal} → ${rightVal}`);
@@ -433,212 +430,6 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	// Register plan upgrade command
-	const planUpgradeCommand = vscode.commands.registerCommand("chartProfiles.planUpgrade", async (item: unknown) => {
-		const typedItem = item as { chartPath?: string; name?: string };
-		if (!typedItem?.chartPath) {
-			vscode.window.showErrorMessage("No chart selected");
-			return;
-		}
-
-		await vscode.window.withProgress(
-			{
-				location: vscode.ProgressLocation.Notification,
-				title: "Planning upgrade...",
-				cancellable: false,
-			},
-			async () => {
-				const chartPath = typedItem.chartPath;
-				if (!chartPath) {
-					vscode.window.showErrorMessage("Chart path not found");
-					return;
-				}
-				const releaseManager = getHelmReleaseManager();
-				const plan = await releaseManager.planUpgrade(typedItem.name || "release", chartPath);
-
-				// Build report
-				const lines: string[] = [];
-				lines.push("# Upgrade Plan");
-				lines.push("");
-
-				if (plan.currentRelease) {
-					lines.push("## Current Release");
-					lines.push(`- **Name**: ${plan.currentRelease.name}`);
-					lines.push(`- **Version**: ${plan.currentRelease.chart}`);
-					lines.push(`- **Status**: ${plan.currentRelease.status}`);
-					lines.push("");
-				}
-
-				lines.push("## Target Chart");
-				lines.push(`- **Chart**: ${plan.targetChart}`);
-				lines.push(`- **Version**: ${plan.targetVersion}`);
-				lines.push("");
-
-				lines.push("## Risk Assessment");
-				lines.push(`- **Risk Level**: ${plan.riskLevel.toUpperCase()}`);
-				lines.push(`- **Can Upgrade**: ${plan.canUpgrade ? "Yes" : "No"}`);
-				lines.push("");
-
-				if (plan.changes.length > 0) {
-					lines.push("## Changes");
-					for (const change of plan.changes) {
-						lines.push(`- ${change}`);
-					}
-					lines.push("");
-				}
-
-				if (plan.breakingChanges.length > 0) {
-					lines.push("## ⚠️ Breaking Changes");
-					for (const bc of plan.breakingChanges) {
-						lines.push(`- ${bc}`);
-					}
-					lines.push("");
-				}
-
-				if (plan.warnings.length > 0) {
-					lines.push("## Warnings");
-					for (const w of plan.warnings) {
-						lines.push(`- ${w}`);
-					}
-					lines.push("");
-				}
-
-				if (plan.recommendedActions.length > 0) {
-					lines.push("## Recommended Actions");
-					for (const action of plan.recommendedActions) {
-						lines.push(`- ${action}`);
-					}
-					lines.push("");
-				}
-
-				const doc = await vscode.workspace.openTextDocument({
-					content: lines.join("\n"),
-					language: "markdown",
-				});
-
-				await vscode.window.showTextDocument(doc);
-			}
-		);
-	});
-
-	// Register assess rollback command
-	const assessRollbackCommand = vscode.commands.registerCommand(
-		"chartProfiles.assessRollback",
-		async (item: unknown) => {
-			const typedItem = item as { name?: string; namespace?: string };
-			const releaseName = typedItem?.name;
-
-			if (!releaseName) {
-				// Let user select a release
-				const releaseManager = getHelmReleaseManager();
-				const releases = await releaseManager.listReleases(typedItem?.namespace);
-
-				if (releases.length === 0) {
-					vscode.window.showErrorMessage("No Helm releases found");
-					return;
-				}
-
-				const selected = await vscode.window.showQuickPick(
-					releases.map((r) => ({
-						label: r.name,
-						description: r.chart,
-						release: r,
-					})),
-					{ placeHolder: "Select a release" }
-				);
-
-				if (!selected) return;
-			}
-
-			await vscode.window.withProgress(
-				{
-					location: vscode.ProgressLocation.Notification,
-					title: "Assessing rollback...",
-					cancellable: false,
-				},
-				async () => {
-					const releaseManager = getHelmReleaseManager();
-					const history = await releaseManager.getReleaseHistory(releaseName || "", typedItem?.namespace);
-
-					if (history.length < 2) {
-						vscode.window.showErrorMessage("Need at least 2 revisions to assess rollback");
-						return;
-					}
-
-					// Let user select target revision
-					const selectedRevision = await vscode.window.showQuickPick(
-						history.map((h) => ({
-							label: `Revision ${h.revision}`,
-							description: `${h.chart} - ${h.status}`,
-							revision: h.revision,
-						})),
-						{ placeHolder: "Select target revision" }
-					);
-
-					if (!selectedRevision) return;
-
-					const assessment = await releaseManager.assessRollback(
-						releaseName || "",
-						selectedRevision.revision,
-						typedItem?.namespace
-					);
-
-					// Build report
-					const lines: string[] = [];
-					lines.push("# Rollback Assessment");
-					lines.push("");
-
-					lines.push("## Rollback Info");
-					lines.push(`- **Release**: ${releaseName}`);
-					lines.push(`- **Current Revision**: ${assessment.currentRevision}`);
-					lines.push(`- **Target Revision**: ${assessment.targetRevision}`);
-					lines.push(`- **Can Rollback**: ${assessment.canRollback ? "Yes" : "No"}`);
-					lines.push(`- **Risk Level**: ${assessment.riskLevel.toUpperCase()}`);
-					lines.push("");
-
-					if (assessment.warnings.length > 0) {
-						lines.push("## Warnings");
-						for (const w of assessment.warnings) {
-							lines.push(`- ${w}`);
-						}
-						lines.push("");
-					}
-
-					if (assessment.immutableFieldChanges.length > 0) {
-						lines.push("## ⚠️ Immutable Field Changes");
-						for (const c of assessment.immutableFieldChanges) {
-							lines.push(`- ${c}`);
-						}
-						lines.push("");
-					}
-
-					if (assessment.dataLossWarnings.length > 0) {
-						lines.push("## 🗑️ Data Loss Warnings");
-						for (const w of assessment.dataLossWarnings) {
-							lines.push(`- ${w}`);
-						}
-						lines.push("");
-					}
-
-					if (assessment.recommendedActions.length > 0) {
-						lines.push("## Recommended Actions");
-						for (const action of assessment.recommendedActions) {
-							lines.push(`- ${action}`);
-						}
-						lines.push("");
-					}
-
-					const doc = await vscode.workspace.openTextDocument({
-						content: lines.join("\n"),
-						language: "markdown",
-					});
-
-					await vscode.window.showTextDocument(doc);
-				}
-			);
-		}
-	);
-
 	// Register view dependencies command
 	const viewDependenciesCommand = vscode.commands.registerCommand(
 		"chartProfiles.viewDependencies",
@@ -713,8 +504,6 @@ export function activate(context: vscode.ExtensionContext) {
 		validateChartCommand,
 		checkClusterStatusCommand,
 		checkRuntimeStateCommand,
-		planUpgradeCommand,
-		assessRollbackCommand,
 		viewDependenciesCommand
 	);
 
