@@ -11,6 +11,7 @@ import { getHelmReleaseManager } from "./helmReleaseManager";
 import { getRuntimeStateManager } from "./runtimeStateManager";
 import { generateDependencyVisualizationData, checkDependencySecurity } from "./dependencyVisualizer";
 import { initializeIconManager, preloadIcons } from "./iconManager";
+import { showEnvComparePanel } from "./envComparePanel";
 
 function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
 	const lines: string[] = [];
@@ -704,12 +705,19 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	// Register compare env profiles command (interactive webview panel)
+	const compareEnvProfilesCommand = vscode.commands.registerCommand("chartProfiles.compareEnvProfiles", async () => {
+		const currentWorkspaceRoots = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) || [];
+		await showEnvComparePanel(context, currentWorkspaceRoots);
+	});
+
 	context.subscriptions.push(
 		treeView,
 		refreshCommand,
 		viewRenderedCommand,
 		visualizeChartCommand,
 		compareEnvironmentsCommand,
+		compareEnvProfilesCommand,
 		validateChartCommand,
 		checkClusterStatusCommand,
 		checkRuntimeStateCommand,

@@ -51,6 +51,11 @@
         "title": "Visualize Chart"
       },
       {
+        "command": "chartProfiles.compareEnvProfiles",
+        "title": "Compare Environment Profiles",
+        "icon": "$(graph)"
+      },
+      {
         "command": "chartProfiles.compareEnvironments",
         "title": "Compare Environments",
         "icon": "$(diff)"
@@ -88,6 +93,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "chartProfiles.compareEnvProfiles",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        },
         {
           "command": "chartProfiles.refreshCharts",
           "when": "view == chartProfiles",

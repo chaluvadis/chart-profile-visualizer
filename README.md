@@ -37,6 +37,84 @@ Use sample files in `examples/`:
 - Drift categorization (config groups)
 - Fast local analysis in VS Code
 
+## Environment Profiles — Markdown format
+
+The **Compare Environment Profiles** panel reads environment snapshots from
+markdown files in your workspace.  Two schemas are supported:
+
+### 1. YAML frontmatter (one profile per file)
+
+Place a YAML block between `---` fences at the very top of any `.md` file:
+
+```markdown
+---
+environment: production
+timestamp: "2024-01-15T10:30:00Z"
+metrics:
+  latency: 45.2
+  error_rate: 0.01
+  throughput: 1250
+  cost: 850.00
+tags:
+  - production
+  - us-east
+---
+
+# Production snapshot
+
+Any additional documentation can follow the frontmatter.
+```
+
+### 2. Fenced `env-profile` code blocks (multiple profiles per file)
+
+Embed one or more ` ```env-profile ` blocks anywhere in a markdown file.
+Both YAML and JSON are accepted inside the block:
+
+````markdown
+```env-profile
+environment: staging
+timestamp: "2024-01-15T08:00:00Z"
+metrics:
+  latency: 72.1
+  error_rate: 0.04
+  throughput: 980
+tags:
+  - staging
+```
+
+```env-profile
+environment: dev
+timestamp: "2024-01-15T07:00:00Z"
+metrics:
+  latency: 120.5
+  error_rate: 0.10
+  throughput: 450
+tags:
+  - dev
+```
+````
+
+### Schema reference
+
+| Field         | Type             | Required | Description                              |
+|---------------|------------------|----------|------------------------------------------|
+| `environment` | string           | ✅       | Logical environment name                 |
+| `timestamp`   | ISO-8601 string  |          | When the snapshot was captured           |
+| `metrics`     | object           |          | Key→number pairs (latency, error_rate …) |
+| `tags`        | string array     |          | Free-form labels for filtering           |
+
+Any metric key is accepted; common ones are `latency` (ms), `error_rate` (0–1),
+`throughput` (req/s), and `cost` (USD/hr).
+
+### Using the panel
+
+1. Open the **Chart Profiles** sidebar view.
+2. Click **Compare Environment Profiles** (graph icon) in the toolbar, or run  
+   `Chart Profiles: Compare Environment Profiles` from the Command Palette.
+3. Use the **Environments** multi-select and **Metric** dropdown to filter the view.
+4. Click **Apply** to refresh the comparison table, summary cards, and trend chart.
+5. Click **Export CSV** to save all profile data as a CSV file.
+
 ## Recommended next features (roadmap)
 
 - Severity scoring: `Info / Warning / Critical`
