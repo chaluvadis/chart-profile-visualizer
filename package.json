@@ -71,16 +71,6 @@
         "icon": "$(pulse)"
       },
       {
-        "command": "chartProfiles.planUpgrade",
-        "title": "Plan Upgrade",
-        "icon": "$(arrow-up)"
-      },
-      {
-        "command": "chartProfiles.assessRollback",
-        "title": "Assess Rollback",
-        "icon": "$(arrow-down)"
-      },
-      {
         "command": "chartProfiles.viewDependencies",
         "title": "View Dependencies",
         "icon": "$(type-hierarchy)"
@@ -119,14 +109,6 @@
         },
         {
           "command": "chartProfiles.checkRuntimeState",
-          "when": "false"
-        },
-        {
-          "command": "chartProfiles.planUpgrade",
-          "when": "false"
-        },
-        {
-          "command": "chartProfiles.assessRollback",
           "when": "false"
         },
         {
