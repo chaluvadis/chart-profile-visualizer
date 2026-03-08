@@ -16,6 +16,10 @@ import { mergeValues } from "./valuesMerger";
 import { generateEnhancedHtml } from "./webviewHtmlGenerator";
 import { getKubernetesConnector } from "./kubernetesConnector";
 import { getRuntimeStateManager } from "./runtimeStateManager";
+import type { ComparisonWebviewData } from "./environmentDiff";
+
+// Re-export for backward compatibility
+export type { ComparisonWebviewData };
 
 /**
  * Kubernetes Secret resource structure
@@ -39,24 +43,166 @@ let currentPanel: vscode.WebviewPanel | undefined;
 let currentContext: vscode.ExtensionContext | undefined;
 let renderedResources: RenderedResource[] = [];
 
+// Pending comparison data queue to handle rapid successive comparisons
+interface PendingComparison {
+	data: ComparisonWebviewData | null;
+	timestamp: number;
+}
+let pendingComparisonData: PendingComparison | null = null;
+
+// Store comparison parameters for potential refresh
+let lastComparisonParams: {
+	chartPath: string;
+	chartName: string;
+	leftEnv: string;
+	rightEnv: string;
+} | null = null;
+
+// Store current chart item for refresh functionality
+let currentChartItem: ChartTreeItem | null = null;
+
 const defaultNamespace = "default";
 
-export async function show(context: vscode.ExtensionContext, item: ChartTreeItem) {
+/**
+ * WeakMap to associate comparison data with webview panels
+ * This allows multiple panels to each have their own comparison state
+ */
+const panelComparisonData = new WeakMap<vscode.WebviewPanel, ComparisonWebviewData | null>();
+
+/**
+ * Get comparison data for the current panel
+ */
+function getCurrentComparisonData(): ComparisonWebviewData | null {
+	return currentPanel ? (panelComparisonData.get(currentPanel) ?? null) : null;
+}
+
+/**
+ * Set comparison data for the current panel
+ */
+function setCurrentComparisonData(data: ComparisonWebviewData | null): void {
+	if (currentPanel) {
+		panelComparisonData.set(currentPanel, data);
+	}
+}
+
+/**
+ * Type definition for messages received from the webview
+ */
+type WebviewMessageType =
+	| "exportYaml"
+	| "exportJson"
+	| "exportComparison"
+	| "refreshComparison"
+	| "copyResource"
+	| "revealSecret";
+
+interface WebviewMessage {
+	type: WebviewMessageType;
+	yaml?: string;
+	secretName?: string;
+	namespace?: string;
+}
+
+/**
+ * Store comparison parameters for potential refresh
+ */
+export function storeComparisonParams(params: {
+	chartPath: string;
+	chartName: string;
+	leftEnv: string;
+	rightEnv: string;
+}): void {
+	lastComparisonParams = params;
+}
+
+/**
+ * Get stored comparison parameters
+ */
+export function getComparisonParams(): typeof lastComparisonParams {
+	return lastComparisonParams;
+}
+
+/**
+ * Get the current chart item for refresh
+ */
+function getCurrentChartItem(): ChartTreeItem | null {
+	return currentChartItem;
+}
+
+/**
+ * Get current comparison data
+ */
+function getComparisonData(): ComparisonWebviewData | null {
+	return getCurrentComparisonData();
+}
+
+/**
+ * Set comparison data and optionally store parameters for refresh
+ */
+function setComparisonData(
+	data: ComparisonWebviewData | null,
+	params?: {
+		chartPath: string;
+		chartName: string;
+		leftEnv: string;
+		rightEnv: string;
+	}
+): void {
+	setCurrentComparisonData(data);
+	if (params) {
+		lastComparisonParams = params;
+	}
+}
+
+/**
+ * Clear comparison data
+ */
+export function clearComparisonData(): void {
+	setCurrentComparisonData(null);
+}
+
+export async function show(
+	context: vscode.ExtensionContext,
+	item: ChartTreeItem,
+	comparisonData?: ComparisonWebviewData | null
+) {
 	if (!item || !item.chart || !item.environment) {
 		vscode.window.showErrorMessage("Invalid item selected for visualization");
 		return;
+	}
+
+	// Store comparison data to be set after panel is created
+	pendingComparisonData = comparisonData !== undefined ? { data: comparisonData, timestamp: Date.now() } : null;
+
+	// Store the chart item and comparison parameters for potential refresh
+	currentChartItem = item;
+	if (comparisonData?.header) {
+		lastComparisonParams = {
+			chartPath: item.chart.path,
+			chartName: item.chart.name,
+			leftEnv: comparisonData.header.leftEnv,
+			rightEnv: comparisonData.header.rightEnv,
+		};
 	}
 
 	currentContext = context;
 
 	const columnToShowIn = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
 
+	// Build panel title - show both environments if comparison data exists
+	let panelTitle: string;
+	if (comparisonData?.header) {
+		panelTitle = `Chart: ${item.chart.name} (${comparisonData.header.leftEnv} vs ${comparisonData.header.rightEnv})`;
+	} else {
+		panelTitle = `Chart: ${item.chart.name} (${item.environment})`;
+	}
+
 	if (currentPanel) {
 		currentPanel.reveal(columnToShowIn);
 	} else {
 		currentPanel = vscode.window.createWebviewPanel(
 			"chartVisualization",
-			`Chart: ${item.chart.name} (${item.environment})`,
+			panelTitle,
 			columnToShowIn || vscode.ViewColumn.One,
 			{
 				enableScripts: true,
@@ -72,6 +218,8 @@ export async function show(context: vscode.ExtensionContext, item: ChartTreeItem
 		currentPanel.onDidDispose(
 			() => {
 				currentPanel = undefined;
+				// Note: The WeakMap entry will be cleaned up when the panel object
+				// is garbage collected (when there are no other references to it)
 			},
 			null,
 			context.subscriptions
@@ -87,6 +235,12 @@ export async function show(context: vscode.ExtensionContext, item: ChartTreeItem
 		);
 	}
 
+	// Transfer any pending comparison data to the panel (for both new and existing panels)
+	if (pendingComparisonData) {
+		setCurrentComparisonData(pendingComparisonData.data);
+		pendingComparisonData = null;
+	}
+
 	// Update the webview content
 	await updatePanel(item);
 }
@@ -97,7 +251,16 @@ async function updatePanel(item: ChartTreeItem) {
 	}
 
 	const panel = currentPanel;
-	panel.title = `Chart: ${item.chart?.name} (${item.environment})`;
+
+	// Build panel title - show both environments if comparison data exists
+	const comparisonData = getCurrentComparisonData();
+	let panelTitle: string;
+	if (comparisonData?.header) {
+		panelTitle = `Chart: ${item.chart?.name} (${comparisonData.header.leftEnv} vs ${comparisonData.header.rightEnv})`;
+	} else {
+		panelTitle = `Chart: ${item.chart?.name} (${item.environment})`;
+	}
+	panel.title = panelTitle;
 
 	try {
 		// Collect data for visualization
@@ -119,7 +282,7 @@ async function updatePanel(item: ChartTreeItem) {
 /**
  * Handle messages from the webview
  */
-async function handleMessage(message: any) {
+async function handleMessage(message: WebviewMessage) {
 	switch (message.type) {
 		case "exportYaml":
 			await exportResources("yaml");
@@ -127,12 +290,76 @@ async function handleMessage(message: any) {
 		case "exportJson":
 			await exportResources("json");
 			break;
+		case "exportComparison":
+			await exportComparisonResults();
+			break;
+		case "refreshComparison":
+			// Check if we have stored comparison parameters to re-run
+			if (lastComparisonParams && currentContext) {
+				try {
+					// Re-run the comparison
+					const { chartPath, chartName, leftEnv, rightEnv } = lastComparisonParams;
+
+					// Import and run the comparison
+					const { compareEnvironments, formatComparisonForWebview } = await import("./environmentDiff");
+					const { renderHelmTemplate } = await import("./helmRenderer");
+
+					vscode.window.showInformationMessage(`Re-running comparison: ${leftEnv} vs ${rightEnv}...`);
+
+					const releaseName1 = `${chartName}-${leftEnv}`;
+					const releaseName2 = `${chartName}-${rightEnv}`;
+
+					const resources1 = await renderHelmTemplate(chartPath, leftEnv, releaseName1);
+					const resources2 = await renderHelmTemplate(chartPath, rightEnv, releaseName2);
+
+					const comparison = compareEnvironments(leftEnv, resources1, rightEnv, resources2, chartName);
+					const comparisonData = formatComparisonForWebview(comparison);
+
+					// Update stored data and refresh the webview
+					setCurrentComparisonData(comparisonData);
+
+					// Get the current item and refresh the panel
+					const currentItem = getCurrentChartItem();
+					if (currentItem) {
+						await updatePanel(currentItem);
+					}
+
+					vscode.window.showInformationMessage(
+						`Comparison refreshed: ${comparison.summary.added} added, ${comparison.summary.removed} removed, ${comparison.summary.modified} modified`
+					);
+					return;
+				} catch (error) {
+					console.error("Error refreshing comparison:", error);
+					vscode.window.showErrorMessage(
+						`Failed to refresh comparison: ${error instanceof Error ? error.message : String(error)}`
+					);
+					return;
+				}
+			}
+
+			// Fallback: clear and inform user
+			clearComparisonData();
+			vscode.window
+				.showInformationMessage(
+					"Comparison data cleared. Click 'Compare Environments' in the command palette to run a new comparison.",
+					"Run Comparison"
+				)
+				.then((selection) => {
+					if (selection === "Run Comparison") {
+						vscode.commands.executeCommand("chartProfiles.compareEnvironments");
+					}
+				});
+			break;
 		case "copyResource":
-			await vscode.env.clipboard.writeText(message.yaml);
-			vscode.window.showInformationMessage("Resource YAML copied to clipboard");
+			if (message.yaml) {
+				await vscode.env.clipboard.writeText(message.yaml);
+				vscode.window.showInformationMessage("Resource YAML copied to clipboard");
+			}
 			break;
 		case "revealSecret":
-			await revealSecret(message.secretName, message.namespace);
+			if (message.secretName) {
+				await revealSecret(message.secretName, message.namespace);
+			}
 			break;
 	}
 }
@@ -322,6 +549,73 @@ async function exportResources(format: "yaml" | "json") {
 	}
 }
 
+/**
+ * Export comparison results to a file
+ */
+async function exportComparisonResults() {
+	const data = getCurrentComparisonData();
+	if (!data) {
+		vscode.window.showWarningMessage("No comparison data to export");
+		return;
+	}
+
+	const uri = await vscode.window.showSaveDialog({
+		filters: {
+			JSON: ["json"],
+			Markdown: ["md"],
+		},
+	});
+
+	if (!uri) {
+		return;
+	}
+
+	try {
+		let content: string;
+		const ext = uri.fsPath.split(".").pop()?.toLowerCase();
+
+		// Default to markdown if extension is not explicitly json
+		if (ext === "json") {
+			content = JSON.stringify(data, null, 2);
+		} else {
+			// Generate markdown for .md extension or any other case
+			content = generateComparisonMarkdown(data);
+		}
+
+		await fs.promises.writeFile(uri.fsPath, content, "utf8");
+		vscode.window.showInformationMessage(`Comparison exported to ${uri.fsPath}`);
+	} catch (error: any) {
+		vscode.window.showErrorMessage(`Export failed: ${error.message}`);
+	}
+}
+
+/**
+ * Generate markdown representation of comparison results
+ */
+function generateComparisonMarkdown(data: ComparisonWebviewData): string {
+	const lines: string[] = [];
+	lines.push(`# Comparison: ${data.header.leftEnv} vs ${data.header.rightEnv}`);
+	lines.push(`## Chart: ${data.header.chartName}`);
+	lines.push("");
+	lines.push("## Summary");
+	lines.push(`- Added: ${data.summary.added}`);
+	lines.push(`- Removed: ${data.summary.removed}`);
+	lines.push(`- Modified: ${data.summary.modified}`);
+	lines.push(`- Unchanged: ${data.summary.unchanged}`);
+	lines.push("");
+
+	for (const resource of data.resources) {
+		lines.push(`### ${resource.kind}/${resource.name}`);
+		lines.push(`Status: ${resource.diffType}`);
+		if (resource.namespace) {
+			lines.push(`Namespace: ${resource.namespace}`);
+		}
+		lines.push("");
+	}
+
+	return lines.join("\n");
+}
+
 async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	const chart = item.chart;
 	const environment = item.environment;
@@ -416,6 +710,7 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		resourceHierarchy,
 		architectureNodes,
 		relationships,
+		comparisonData: getCurrentComparisonData(),
 	};
 }
 
@@ -479,6 +774,7 @@ interface ChartData {
 	resourceHierarchy: ResourceHierarchy;
 	architectureNodes: ArchitectureNode[];
 	relationships: ResourceRelationship[];
+	comparisonData?: ComparisonWebviewData | null;
 }
 
 function escapeHtml(text: string): string {

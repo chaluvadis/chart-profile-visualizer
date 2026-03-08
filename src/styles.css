@@ -1,4 +1,5 @@
-/* Chart Visualization Styles - Minimal Design */
+/* Chart Visualization Styles - Combined from styles.css and results.css */
+
 body {
     font-family: var(--vscode-font-family);
     color: var(--vscode-foreground);
@@ -7,7 +8,62 @@ body {
     margin: 0;
 }
 
-/* Toolbar */
+/* ============================================
+   TABS - Unified tab styling
+   ============================================ */
+.tabs {
+    display: flex;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-foreground);
+    padding: 8px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    font-size: 12px;
+}
+
+.tab-btn.active {
+    border-bottom-color: var(--vscode-focusBorder);
+}
+
+.tab-content {
+    display: none;
+    padding: 12px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Results Tab Sub-tabs */
+.results-tabs {
+    display: flex;
+    gap: 8px;
+}
+
+.results-tab-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-foreground);
+    padding: 6px 12px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.results-tab-btn.active {
+    border-bottom-color: var(--vscode-focusBorder);
+    color: var(--vscode-button-background);
+}
+
+/* ============================================
+   TOOLBAR & HEADER
+   ============================================ */
 .toolbar {
     background-color: var(--vscode-editor-inactiveSelectionBackground);
     padding: 8px 12px;
@@ -43,36 +99,44 @@ body {
     border-radius: 3px;
 }
 
-/* Tabs */
-.tabs {
+/* Results Tab Header */
+.results-header {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
     background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
 }
 
-.tab-btn {
-    background: none;
-    border: none;
-    color: var(--vscode-foreground);
-    padding: 8px 16px;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    font-size: 12px;
+.results-actions {
+    display: flex;
+    gap: 8px;
 }
 
-.tab-btn.active {
-    border-bottom-color: var(--vscode-focusBorder);
+.results-actions .toolbar-btn {
+    padding: 4px 8px;
+    font-size: 11px;
 }
 
-.tab-content {
-    display: none;
-    padding: 12px;
+.results-actions .toolbar-btn:hover {
+    background-color: var(--vscode-button-hoverBackground);
 }
 
-.tab-content.active {
-    display: block;
+.results-actions .toolbar-btn:disabled {
+    background-color: var(--vscode-button-secondaryBackground);
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
-/* Header */
+.results-content {
+    padding: 16px;
+    min-height: 400px;
+}
+
+/* ============================================
+   HEADER & CHART INFO
+   ============================================ */
 .header {
     padding-bottom: 12px;
     margin-bottom: 16px;
@@ -94,7 +158,9 @@ body {
     margin-left: 8px;
 }
 
-/* Stats */
+/* ============================================
+   STATS CARDS
+   ============================================ */
 .stats-container {
     display: flex;
     gap: 12px;
@@ -121,22 +187,262 @@ body {
     font-weight: 600;
 }
 
-/* Chart Container */
-.chart-container {
+/* Comparison Summary Stats - More detailed styling */
+.summary-stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 20px;
+    border-radius: 6px;
+    min-width: 80px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+
+.stat-added {
+    background-color: var(--vscode-testing-iconPassedBackground, #e6ffed);
+    border: 1px solid var(--vscode-testing-iconPassed, #22863a);
+}
+
+.stat-added .stat-value {
+    color: var(--vscode-testing-iconPassed, #22863a);
+}
+
+.stat-removed {
+    background-color: var(--vscode-errorForeground, #ffeef0);
+    border: 1px solid var(--vscode-errorForeground, #d73a49);
+}
+
+.stat-removed .stat-value {
+    color: var(--vscode-errorForeground, #d73a49);
+}
+
+.stat-modified {
+    background-color: var(--vscode-editorWarning-foreground, #fff3cd);
+    border: 1px solid var(--vscode-editorWarning-foreground, #856404);
+}
+
+.stat-modified .stat-value {
+    color: var(--vscode-editorWarning-foreground, #856404);
+}
+
+.stat-unchanged {
     background-color: var(--vscode-editor-inactiveSelectionBackground);
-    padding: 12px;
-    margin: 12px 0;
+    border: 1px solid var(--vscode-panel-border);
+}
+
+.stat-unchanged .stat-value {
+    color: var(--vscode-descriptionForeground);
+}
+
+/* ============================================
+   COMPARISON SPECIFIC STYLES
+   ============================================ */
+.compare-summary {
+    margin-bottom: 20px;
+}
+
+.compare-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.compare-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--vscode-foreground);
+}
+
+.env-badge {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-foreground);
+    padding: 4px 10px;
     border-radius: 4px;
-    max-height: 50vh;
-    overflow: auto;
+    font-size: 12px;
+    font-weight: 600;
 }
 
-.chart-canvas {
-    width: 100%;
-    max-width: 100%;
+.env-separator {
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
 }
 
-/* Resource Explorer */
+.kind-summary {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.kind-badge {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.resource-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Comparison Resource Card */
+.compare-resource-card {
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.compare-resource-card.added {
+    border-left: 3px solid var(--vscode-testing-iconPassed, #22863a);
+}
+
+.compare-resource-card.removed {
+    border-left: 3px solid var(--vscode-errorForeground, #d73a49);
+}
+
+.compare-resource-card.modified {
+    border-left: 3px solid var(--vscode-editorWarning-foreground, #856404);
+}
+
+.compare-resource-card.unchanged {
+    border-left: 3px solid var(--vscode-editor-foreground);
+    opacity: 0.7;
+}
+
+.compare-resource-card .resource-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.compare-resource-card .resource-kind {
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+}
+
+.compare-resource-card .resource-name {
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.compare-resource-card .resource-namespace {
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+}
+
+/* Field Diffs */
+.field-diffs {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--vscode-panel-border);
+}
+
+.field-diff {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.field-path {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--vscode-foreground);
+}
+
+.field-values {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.field-left {
+    color: var(--vscode-errorForeground, #d73a49);
+    background-color: var(--vscode-editor-selectionBackground, #ffeef0);
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex: 1;
+    word-break: break-all;
+}
+
+.field-arrow {
+    color: var(--vscode-descriptionForeground);
+}
+
+.field-right {
+    color: var(--vscode-testing-iconPassed, #22863a);
+    background-color: var(--vscode-editor-selectionBackground, #e6ffed);
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex: 1;
+    word-break: break-all;
+}
+
+.no-changes {
+    text-align: center;
+    padding: 40px;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* Diff Indicator Badges */
+.diff-indicator {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    margin-left: 4px;
+}
+
+.diff-indicator.diff-added,
+.diff-added {
+    background-color: var(--vscode-testing-iconPassedBackground, #d4edda);
+    color: var(--vscode-testing-iconPassed, #155724);
+}
+
+.diff-indicator.diff-removed,
+.diff-removed {
+    background-color: var(--vscode-errorForeground, #f8d7da);
+    color: var(--vscode-errorForeground, #721c24);
+}
+
+.diff-indicator.diff-modified,
+.diff-modified {
+    background-color: var(--vscode-editorWarning-foreground, #fff3cd);
+    color: var(--vscode-editorWarning-foreground, #856404);
+}
+
+/* ============================================
+   RESOURCE EXPLORER
+   ============================================ */
 .resource-explorer {
     padding: 8px 0;
 }
@@ -188,13 +494,31 @@ body {
     margin-top: 6px;
 }
 
+.kind-resources[data-collapsed="true"] {
+    display: none;
+}
+
+/* Resource Card - Base styles */
 .resource-card {
     background-color: var(--vscode-editor-background);
     border-left: 3px solid;
     border-radius: 3px;
     margin-bottom: 6px;
     padding: 8px 10px;
+    cursor: pointer;
 }
+
+.resource-card:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.resource-card[data-color="#0078d4"] { border-left-color: #0078d4; }
+.resource-card[data-color="#107c10"] { border-left-color: #107c10; }
+.resource-card[data-color="#8661c5"] { border-left-color: #8661c5; }
+.resource-card[data-color="#d83b01"] { border-left-color: #d83b01; }
+.resource-card[data-color="#e81123"] { border-left-color: #e81123; }
+.resource-card[data-color="#008272"] { border-left-color: #008272; }
+.resource-card[data-color="#9e9e9e"] { border-left-color: #9e9e9e; }
 
 .resource-header {
     display: flex;
@@ -230,6 +554,10 @@ body {
     padding-top: 8px;
 }
 
+.resource-details[data-collapsed="true"] {
+    display: none;
+}
+
 .detail-section {
     margin-bottom: 10px;
 }
@@ -250,7 +578,15 @@ body {
     margin: 0;
 }
 
-/* Values Table */
+/* Resource Name */
+.resource-name {
+    font-weight: 500;
+    color: var(--vscode-foreground);
+}
+
+/* ============================================
+   VALUES TABLE
+   ============================================ */
 .values-table {
     width: 100%;
     border-collapse: collapse;
@@ -284,7 +620,9 @@ body {
     font-weight: 500;
 }
 
-/* Topology View */
+/* ============================================
+   TOPOLOGY VIEW
+   ============================================ */
 .topology-view {
     position: relative;
     height: 600px;
@@ -442,7 +780,9 @@ body {
     cursor: grabbing;
 }
 
-/* Architecture Diagram */
+/* ============================================
+   ARCHITECTURE DIAGRAM
+   ============================================ */
 .architecture-diagram {
     position: relative;
     min-height: 400px;
@@ -493,7 +833,9 @@ body {
     font-weight: 600;
 }
 
-/* Topology Nodes */
+/* ============================================
+   TOPOLOGY NODES
+   ============================================ */
 .topo-node {
     cursor: pointer;
 }
@@ -643,30 +985,43 @@ body {
     dominant-baseline: middle;
 }
 
-/* No Data */
-.no-data {
+/* ============================================
+   PLACEHOLDER / NO DATA STYLES
+   ============================================ */
+.no-data,
+.results-placeholder,
+.comparison-placeholder {
     text-align: center;
-    padding: 30px;
+    padding: 40px 20px;
     color: var(--vscode-descriptionForeground);
 }
 
-.no-data-icon {
-    font-size: 28px;
-    margin-bottom: 10px;
+.no-data-icon,
+.no-results-icon,
+.no-comparison-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
     opacity: 0.5;
 }
 
-.no-data-text {
-    font-size: 13px;
-    margin-bottom: 4px;
+.no-data-text,
+.no-results-text,
+.no-comparison-text {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
 }
 
-.no-data-hint {
-    font-size: 11px;
+.no-data-hint,
+.no-results-hint,
+.no-comparison-hint {
+    font-size: 12px;
     opacity: 0.7;
 }
 
-/* Dynamic Colors */
+/* ============================================
+   DYNAMIC COLORS
+   ============================================ */
 .kind-name[data-color="#0078d4"] { color: #0078d4; }
 .kind-name[data-color="#107c10"] { color: #107c10; }
 .kind-name[data-color="#8661c5"] { color: #8661c5; }
@@ -675,22 +1030,6 @@ body {
 .kind-name[data-color="#008272"] { color: #008272; }
 .kind-name[data-color="#9e9e9e"] { color: #9e9e9e; }
 
-.kind-resources[data-collapsed="true"] {
-    display: none;
-}
-
-.resource-details[data-collapsed="true"] {
-    display: none;
-}
-
-.resource-card[data-color="#0078d4"] { border-left-color: #0078d4; }
-.resource-card[data-color="#107c10"] { border-left-color: #107c10; }
-.resource-card[data-color="#8661c5"] { border-left-color: #8661c5; }
-.resource-card[data-color="#d83b01"] { border-left-color: #d83b01; }
-.resource-card[data-color="#e81123"] { border-left-color: #e81123; }
-.resource-card[data-color="#008272"] { border-left-color: #008272; }
-.resource-card[data-color="#9e9e9e"] { border-left-color: #9e9e9e; }
-
 .legend-color[data-color="#0078d4"] { background-color: #0078d4; }
 .legend-color[data-color="#107c10"] { background-color: #107c10; }
 .legend-color[data-color="#8661c5"] { background-color: #8661c5; }
@@ -698,7 +1037,9 @@ body {
 .legend-color[data-color="#e81123"] { background-color: #e81123; }
 .legend-color[data-color="#008272"] { background-color: #008272; }
 
-/* Syntax Highlighting */
+/* ============================================
+   SYNTAX HIGHLIGHTING
+   ============================================ */
 .code-block {
     font-family: var(--vscode-editor-font-family, 'Consolas', 'Monaco', monospace);
     font-size: 12px;
@@ -766,7 +1107,9 @@ body[data-vscode-theme-kind="vscode-high-contrast"] .yaml-boolean,
 body[data-vscode-theme-kind="vscode-high-contrast"] .json-boolean { color: #ff00ff; }
 body[data-vscode-theme-kind="vscode-high-contrast"] .yaml-comment { color: #00ff00; font-style: normal; }
 
-/* Legend Container */
+/* ============================================
+   LEGEND CONTAINER
+   ============================================ */
 .legend-container {
     margin: 8px 0 16px 0;
     padding: 10px;
@@ -817,4 +1160,426 @@ body[data-vscode-theme-kind="vscode-high-contrast"] .yaml-comment { color: #00ff
 
 .help-tooltip:hover {
     opacity: 1;
+}
+
+/* ============================================
+   CHART CONTAINER
+   ============================================ */
+.chart-container {
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 4px;
+    max-height: 50vh;
+    overflow: auto;
+}
+
+.chart-canvas {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* ============================================
+   FILTER BUTTONS
+   ============================================ */
+.comparison-filters {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-radius: 8px;
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--vscode-panel-border);
+    background: transparent;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.filter-btn.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border-color: var(--vscode-button-background);
+}
+
+.filter-btn .count {
+    margin-left: 4px;
+    opacity: 0.7;
+}
+
+/* ============================================
+   YAML COMPARE VIEW
+   ============================================ */
+.yaml-compare {
+    display: flex;
+    gap: 16px;
+}
+
+.yaml-panel {
+    flex: 1;
+    background: var(--vscode-editor-background);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.yaml-panel-header {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--vscode-editor-inactiveSelectionBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.yaml-panel-content {
+    padding: 12px;
+    max-height: 300px;
+    overflow: auto;
+}
+
+.yaml-panel-content pre {
+    margin: 0;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.compare-section {
+    margin-bottom: 24px;
+}
+
+.compare-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: var(--vscode-descriptionForeground);
+}
+
+.compare-diff {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.compare-diff-column {
+    flex: 1;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    padding: 12px;
+}
+
+.compare-diff-column h4 {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: var(--vscode-descriptionForeground);
+}
+
+.compare-diff-column pre {
+    background-color: var(--vscode-editor-background);
+    padding: 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin: 0;
+    overflow-x: auto;
+}
+
+.compare-diff-column .diff-added {
+    background-color: var(--vscode-editor-selectionBackground, #e6ffed);
+    border-left: 3px solid var(--vscode-testing-iconPassed, #22863a);
+}
+
+.compare-diff-column .diff-removed {
+    background-color: var(--vscode-editor-selectionBackground, #ffeef0);
+    border-left: 3px solid var(--vscode-errorForeground, #d73a49);
+}
+
+.compare-diff-column .diff-modified {
+    background-color: var(--vscode-editor-selectionBackground, #fff3cd);
+    border-left: 3px solid var(--vscode-editorWarning-foreground, #856404);
+}
+
+/* ============================================
+   VALIDATION RESULTS
+   ============================================ */
+.validate-results,
+.cluster-status,
+.runtime-state {
+    margin-bottom: 24px;
+}
+
+.validate-results h3,
+.cluster-status h3,
+.runtime-state h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: var(--vscode-descriptionForeground);
+}
+
+.validation-item,
+.cluster-item,
+.runtime-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.validation-item.success,
+.cluster-item.success,
+.runtime-item.success {
+    border-left: 3px solid var(--vscode-testing-iconPassed, #22863a);
+}
+
+.validation-item.warning,
+.cluster-item.warning,
+.runtime-item.warning {
+    border-left: 3px solid var(--vscode-editorWarning-foreground, #856404);
+}
+
+.validation-item.error,
+.cluster-item.error,
+.runtime-item.error {
+    border-left: 3px solid var(--vscode-errorForeground, #d73a49);
+}
+
+.validation-icon,
+.cluster-icon,
+.runtime-icon {
+    font-size: 16px;
+}
+
+.validation-message,
+.cluster-message,
+.runtime-message {
+    flex: 1;
+    font-size: 12px;
+}
+
+.validation-message strong,
+.cluster-message strong,
+.runtime-message strong {
+    color: var(--vscode-descriptionForeground);
+}
+
+/* ============================================
+   EXPORT OPTIONS
+   ============================================ */
+.export-options {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.export-option {
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.export-option:hover {
+    background-color: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-focusBorder);
+}
+
+.export-option.selected {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border-color: var(--vscode-button-background);
+}
+
+.export-format {
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.export-status {
+    margin-top: 12px;
+    padding: 8px;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.export-status.success {
+    background-color: var(--vscode-testing-iconPassedBackground, #d4edda);
+    color: var(--vscode-testing-iconPassed, #155724);
+}
+
+.export-status.error {
+    background-color: var(--vscode-errorForeground, #f8d7da);
+    color: var(--vscode-errorForeground, #721c24);
+}
+
+/* ============================================
+   LOADING SPINNER
+   ============================================ */
+.loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--vscode-editor-inactiveSelectionBackground);
+    border-top: 2px solid var(--vscode-foreground);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================
+   COMPARISON VIEW (Legacy)
+   ============================================ */
+.comparison-view {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.comparison-header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-radius: 8px;
+}
+
+.comparison-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.comparison-title h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.summary-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+}
+
+.summary-stat.added .summary-value { color: var(--vscode-testing-iconPassed, #107c10); }
+.summary-stat.removed .summary-value { color: var(--vscode-errorForeground, #e81123); }
+.summary-stat.modified .summary-value { color: var(--vscode-editorWarning-foreground, #ff8c00); }
+.summary-stat.unchanged .summary-value { color: var(--vscode-foreground); }
+
+.summary-value {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.summary-label {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.comparison-resources {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.resource-diff-card {
+    background: var(--vscode-editor-background);
+    border-radius: 8px;
+    border-left: 4px solid;
+    overflow: hidden;
+}
+
+.resource-diff-card.added { border-left-color: var(--vscode-testing-iconPassed, #107c10); }
+.resource-diff-card.removed { border-left-color: var(--vscode-errorForeground, #e81123); }
+.resource-diff-card.modified { border-left-color: var(--vscode-editorWarning-foreground, #ff8c00); }
+
+.resource-diff-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.resource-diff-header:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.diff-type-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.diff-type-badge.added {
+    background: rgba(16, 124, 16, 0.2);
+    color: var(--vscode-testing-iconPassed, #107c10);
+}
+
+.diff-type-badge.removed {
+    background: rgba(232, 17, 35, 0.2);
+    color: var(--vscode-errorForeground, #e81123);
+}
+
+.diff-type-badge.modified {
+    background: rgba(255, 140, 0, 0.2);
+    color: var(--vscode-editorWarning-foreground, #ff8c00);
+}
+
+.diff-kind {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.diff-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.diff-namespace {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.change-count {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.resource-diff-details {
+    padding: 0 16px 16px;
+    display: none;
+}
+
+.resource-diff-card.expanded .resource-diff-details {
+    display: block;
 }

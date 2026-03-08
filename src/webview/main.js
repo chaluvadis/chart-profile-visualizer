@@ -21,6 +21,7 @@ window.webviewData = {
   resourceCounts: {},
   totalValues: 0,
   overriddenCount: 0,
+  comparisonData: null,
 };
 
 /**
@@ -35,6 +36,7 @@ function initializeWebview(data) {
   initToolbarActions();
   initSearch();
   initResourceExplorer();
+  initResultsTab();
   // Call initTopology from window (defined in topology.js)
   if (typeof window.initTopology === "function") {
     window.initTopology();
@@ -59,6 +61,211 @@ function initTabSwitching() {
       document.getElementById(tabName).classList.add("active");
     });
   });
+}
+
+/**
+ * Debounce function to prevent rapid button clicks
+ */
+function debounce(fn, delay = 300) {
+  let timeoutId = null;
+  return function(...args) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      fn.apply(this, args);
+      timeoutId = null;
+    }, delay);
+  };
+}
+
+/**
+ * Initialize Results tab with comparison data rendering
+ */
+function initResultsTab() {
+  // Debounced export handler to prevent multiple file dialogs
+  const debouncedExport = debounce(() => {
+    vscode.postMessage({ type: "exportComparison" });
+  }, 500);
+
+  // Debounced refresh handler
+  const debouncedRefresh = debounce(() => {
+    vscode.postMessage({ type: "refreshComparison" });
+  }, 500);
+
+  // Initialize results sub-tab switching
+  document.querySelectorAll(".results-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tabName = btn.getAttribute("data-tab");
+      document
+        .querySelectorAll(".results-tab-btn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      // Handle tab content visibility
+      const resultsContent = document.getElementById("results-content");
+      if (resultsContent) {
+        // For now, only compare tab has content
+        if (tabName === "compare") {
+          renderComparisonResults();
+        } else {
+          resultsContent.innerHTML = `<div class="placeholder">${tabName.charAt(0).toUpperCase() + tabName.slice(1)} view coming soon</div>`;
+        }
+      }
+    });
+  });
+
+  // Initialize export and refresh buttons with debounce
+  const exportBtn = document.getElementById("exportResults");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", () => {
+      // Show visual feedback that click was registered
+      exportBtn.disabled = true;
+      debouncedExport();
+      setTimeout(() => { exportBtn.disabled = false; }, 500);
+    });
+  }
+
+  const refreshBtn = document.getElementById("refreshResults");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      refreshBtn.disabled = true;
+      debouncedRefresh();
+      setTimeout(() => { refreshBtn.disabled = false; }, 500);
+    });
+  }
+
+  // Auto-render comparison if data exists
+  if (window.webviewData.comparisonData) {
+    renderComparisonResults();
+  }
+}
+
+/**
+ * Escape HTML special characters to prevent XSS
+ */
+function escapeHtml(text) {
+  if (text === null || text === undefined) {
+    return "";
+  }
+  const div = document.createElement("div");
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
+/**
+ * Render comparison results in the Results tab
+ */
+function renderComparisonResults() {
+  const resultsContent = document.getElementById("results-content");
+  if (!resultsContent) return;
+
+  const data = window.webviewData.comparisonData;
+
+  // Validate comparison data structure
+  if (!data || typeof data !== 'object') {
+    resultsContent.innerHTML = `
+      <div class="comparison-placeholder">
+        <div class="no-comparison-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m12 0h4M5 9V5a2 2 0 0 1 2-2h4m0 12v4a2 2 0 0 1-2 2h-4"/><path d="M9 17V9h6v8"/><circle cx="12" cy="12" r="2"/></svg></div>
+        <div class="no-comparison-text">Select two environments to compare</div>
+        <div class="no-comparison-hint">Choose a chart and two environments to see detailed comparison results</div>
+      </div>`;
+    return;
+  }
+
+  // Validate nested structure
+  if (!data.header || !data.summary || !Array.isArray(data.resources)) {
+    console.error('Invalid comparison data structure:', data);
+    resultsContent.innerHTML = `
+      <div class="comparison-placeholder">
+        <div class="no-comparison-icon">⚠️</div>
+        <div class="no-comparison-text">Invalid comparison data</div>
+        <div class="no-comparison-hint">Please run the comparison again</div>
+      </div>`;
+    return;
+  }
+
+  // Build the comparison HTML
+  const { header, summary, resources, kindGroups } = data;
+
+  let html = `<div class="compare-summary">
+    <div class="compare-header">
+      <h3>${escapeHtml(header.chartName)}</h3>
+      <span class="env-badge">${escapeHtml(header.leftEnv)}</span>
+      <span class="env-separator">vs</span>
+      <span class="env-badge">${escapeHtml(header.rightEnv)}</span>
+    </div>
+    <div class="summary-stats">
+      <div class="stat stat-added">
+        <span class="stat-value">${escapeHtml(String(summary.added))}</span>
+        <span class="stat-label">Added</span>
+      </div>
+      <div class="stat stat-removed">
+        <span class="stat-value">${escapeHtml(String(summary.removed))}</span>
+        <span class="stat-label">Removed</span>
+      </div>
+      <div class="stat stat-modified">
+        <span class="stat-value">${escapeHtml(String(summary.modified))}</span>
+        <span class="stat-label">Modified</span>
+      </div>
+      <div class="stat stat-unchanged">
+        <span class="stat-value">${escapeHtml(String(summary.unchanged))}</span>
+        <span class="stat-label">Unchanged</span>
+      </div>
+    </div>
+  </div>`;
+
+  // Group resources by type
+  if (resources && resources.length > 0) {
+    html += `<div class="compare-resources">`;
+
+    // Add kind groups summary
+    if (kindGroups && kindGroups.length > 0) {
+      html += `<div class="kind-summary">`;
+      for (const group of kindGroups) {
+        html += `<span class="kind-badge">${escapeHtml(group.kind)}: ${escapeHtml(String(group.count))}</span>`;
+      }
+      html += `</div>`;
+    }
+
+    // Add resource list
+    html += `<div class="resource-list">`;
+    for (const resource of resources) {
+      const diffClass = resource.diffType.toLowerCase();
+      html += `<div class="compare-resource-card ${escapeHtml(diffClass)}">
+        <div class="resource-summary">
+          <span class="diff-indicator diff-${escapeHtml(diffClass)}">${escapeHtml(resource.diffType)}</span>
+          <span class="resource-kind">${escapeHtml(resource.kind)}</span>
+          <span class="resource-name">${escapeHtml(resource.name)}</span>
+          ${resource.namespace ? `<span class="resource-namespace">${escapeHtml(resource.namespace)}</span>` : ""}
+        </div>`;
+
+      // Add field diffs if any
+      if (resource.fields && resource.fields.length > 0) {
+        html += `<div class="field-diffs">`;
+        for (const field of resource.fields) {
+          html += `<div class="field-diff">
+            <span class="field-path">${escapeHtml(field.path)}</span>
+            <span class="field-values">
+              <span class="field-left">${escapeHtml(JSON.stringify(field.leftValue))}</span>
+              <span class="field-arrow">→</span>
+              <span class="field-right">${escapeHtml(JSON.stringify(field.rightValue))}</span>
+            </span>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+
+      html += `</div>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<div class="no-changes">No differences found between environments</div>`;
+  }
+
+  html += `</div>`;
+
+  resultsContent.innerHTML = html;
 }
 
 /**

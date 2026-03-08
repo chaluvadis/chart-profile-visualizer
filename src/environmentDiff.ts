@@ -278,54 +278,100 @@ function compareObjects(basePath: string, left: any, right: any, diffs: FieldDif
 }
 
 /**
- * Format a diff for display
+ * Format comparison for webview display with enhanced UI data
  */
-export function formatDiff(diff: ResourceDiff): string {
-	const lines: string[] = [];
+export interface ComparisonWebviewData {
+	header: {
+		leftEnv: string;
+		rightEnv: string;
+		chartName: string;
+	};
+	summary: {
+		added: number;
+		removed: number;
+		modified: number;
+		unchanged: number;
+		total: number;
+		changePercentage: number;
+	};
+	resources: Array<{
+		id: string;
+		kind: string;
+		name: string;
+		namespace?: string;
+		diffType: string;
+		changeCount: number;
+		fields: Array<{
+			path: string;
+			leftValue: unknown;
+			rightValue: unknown;
+			diffType: string;
+		}>;
+		leftYaml: string;
+		rightYaml: string;
+	}>;
+	kindGroups: Array<{
+		kind: string;
+		count: number;
+		added: number;
+		removed: number;
+		modified: number;
+	}>;
+}
 
-	lines.push(`## ${diff.kind}/${diff.name}`);
-	if (diff.namespace) {
-		lines.push(`Namespace: ${diff.namespace}`);
-	}
-	lines.push(`Status: ${diff.diffType}`);
-	lines.push("");
+export function formatComparisonForWebview(comparison: EnvironmentComparison): ComparisonWebviewData {
+	// Calculate change percentage
+	const changed = comparison.summary.added + comparison.summary.removed + comparison.summary.modified;
+	const changePercentage = comparison.summary.total > 0 ? Math.round((changed / comparison.summary.total) * 100) : 0;
 
-	if (diff.diffType === DiffType.Added) {
-		lines.push("### Added in Right Environment");
-		lines.push("```yaml");
-		lines.push(diff.rightYaml || "");
-		lines.push("```");
-	} else if (diff.diffType === DiffType.Removed) {
-		lines.push("### Removed from Left Environment");
-		lines.push("```yaml");
-		lines.push(diff.leftYaml || "");
-		lines.push("```");
-	} else if (diff.diffType === DiffType.Modified) {
-		lines.push("### Field Differences");
-		if (diff.fieldDiffs && diff.fieldDiffs.length > 0) {
-			for (const fieldDiff of diff.fieldDiffs) {
-				const leftVal =
-					typeof fieldDiff.leftValue === "object"
-						? JSON.stringify(fieldDiff.leftValue)
-						: String(fieldDiff.leftValue);
-				const rightVal =
-					typeof fieldDiff.rightValue === "object"
-						? JSON.stringify(fieldDiff.rightValue)
-						: String(fieldDiff.rightValue);
-				lines.push(`- **${fieldDiff.path}**: ${leftVal} → ${rightVal}`);
-			}
+	// Group resources by kind
+	const kindMap = new Map<
+		string,
+		{ kind: string; added: number; removed: number; modified: number; count: number }
+	>();
+
+	for (const diff of comparison.diffs) {
+		if (!kindMap.has(diff.kind)) {
+			kindMap.set(diff.kind, { kind: diff.kind, added: 0, removed: 0, modified: 0, count: 0 });
 		}
-		lines.push("");
-		lines.push("### Left Environment");
-		lines.push("```yaml");
-		lines.push(diff.leftYaml || "");
-		lines.push("```");
-		lines.push("");
-		lines.push("### Right Environment");
-		lines.push("```yaml");
-		lines.push(diff.rightYaml || "");
-		lines.push("```");
+		const group = kindMap.get(diff.kind)!;
+		group.count++;
+		if (diff.diffType === DiffType.Added) group.added++;
+		else if (diff.diffType === DiffType.Removed) group.removed++;
+		else if (diff.diffType === DiffType.Modified) group.modified++;
 	}
 
-	return lines.join("\n");
+	// Build resources list for webview
+	const resources = comparison.diffs
+		.filter((d) => d.diffType !== DiffType.Unchanged)
+		.map((diff) => ({
+			id: `${diff.kind}-${diff.name}-${diff.namespace || "default"}`,
+			kind: diff.kind,
+			name: diff.name,
+			namespace: diff.namespace,
+			diffType: diff.diffType,
+			changeCount: diff.fieldDiffs?.length || 0,
+			fields: (diff.fieldDiffs || []).map((f) => ({
+				path: f.path,
+				leftValue: f.leftValue,
+				rightValue: f.rightValue,
+				diffType: f.diffType,
+			})),
+			leftYaml: diff.leftYaml || "",
+			rightYaml: diff.rightYaml || "",
+		}));
+
+	return {
+		header: {
+			leftEnv: comparison.leftEnv,
+			rightEnv: comparison.rightEnv,
+			chartName: comparison.chartName,
+		},
+		summary: {
+			...comparison.summary,
+			changePercentage,
+		},
+		resources,
+		kindGroups: Array.from(kindMap.values()).sort((a, b) => b.count - a.count),
+	};
 }

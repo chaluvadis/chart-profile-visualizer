@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as vscode from "vscode";
-import { ChartProfilesProvider } from "./chartProfilesProvider";
+import { ChartProfilesProvider, ChartTreeItem } from "./chartProfilesProvider";
 import { show as showChartVisualization } from "./chartVisualizationView";
-import { compareEnvironments, DiffType, type EnvironmentComparison } from "./environmentDiff";
+import { compareEnvironments, formatComparisonForWebview, type ComparisonWebviewData } from "./environmentDiff";
 import { isHelmAvailable, renderHelmTemplate } from "./helmRenderer";
 import { showRenderedYaml } from "./renderedYamlView";
 import { createChartValidator } from "./chartValidator";
@@ -10,62 +10,6 @@ import { getKubernetesConnector } from "./kubernetesConnector";
 import { getRuntimeStateManager } from "./runtimeStateManager";
 import { generateDependencyVisualizationData, checkDependencySecurity } from "./dependencyVisualizer";
 import { initializeIconManager, preloadIcons } from "./iconManager";
-
-function formatComparisonMarkdown(comparison: EnvironmentComparison): string {
-	const lines: string[] = [];
-
-	lines.push(`# Environment Comparison: ${comparison.leftEnv} vs ${comparison.rightEnv}`);
-	lines.push(`## Chart: ${comparison.chartName}`);
-	lines.push("");
-	lines.push("## Summary");
-	lines.push(`- **Added**: ${comparison.summary.added} resources`);
-	lines.push(`- **Removed**: ${comparison.summary.removed} resources`);
-	lines.push(`- **Modified**: ${comparison.summary.modified} resources`);
-	lines.push(`- **Unchanged**: ${comparison.summary.unchanged} resources`);
-	lines.push(`- **Total**: ${comparison.summary.total} resources`);
-	lines.push("");
-
-	const added = comparison.diffs.filter((d) => d.diffType === DiffType.Added);
-	const removed = comparison.diffs.filter((d) => d.diffType === DiffType.Removed);
-	const modified = comparison.diffs.filter((d) => d.diffType === DiffType.Modified);
-
-	if (added.length > 0) {
-		lines.push("## Added Resources");
-		for (const diff of added) {
-			lines.push(`- **${diff.kind}/${diff.name}** ${diff.namespace ? `(${diff.namespace})` : ""}`);
-		}
-		lines.push("");
-	}
-
-	if (removed.length > 0) {
-		lines.push("## Removed Resources");
-		for (const diff of removed) {
-			lines.push(`- **${diff.kind}/${diff.name}** ${diff.namespace ? `(${diff.namespace})` : ""}`);
-		}
-		lines.push("");
-	}
-
-	if (modified.length > 0) {
-		lines.push("## Modified Resources");
-		for (const diff of modified) {
-			lines.push(`### ${diff.kind}/${diff.name} ${diff.namespace ? `(${diff.namespace})` : ""}`);
-			if (diff.fieldDiffs && diff.fieldDiffs.length > 0) {
-				lines.push("**Changes:**");
-				for (const fieldDiff of diff.fieldDiffs.slice(0, 10)) {
-					const leftVal = JSON.stringify(fieldDiff.leftValue);
-					const rightVal = JSON.stringify(fieldDiff.rightValue);
-					lines.push(`- \`${fieldDiff.path}\`: ${leftVal} → ${rightVal}`);
-				}
-				if (diff.fieldDiffs.length > 10) {
-					lines.push(`- ... and ${diff.fieldDiffs.length - 10} more changes`);
-				}
-			}
-			lines.push("");
-		}
-	}
-
-	return lines.join("\n");
-}
 
 function formatValidationMarkdown(result: {
 	valid: boolean;
@@ -257,13 +201,48 @@ export function activate(context: vscode.ExtensionContext) {
 
 				const comparison = compareEnvironments(env1, resources1, env2, resources2, selectedChart.chart.name);
 
-				// Display comparison in new document
-				const doc = await vscode.workspace.openTextDocument({
-					content: formatComparisonMarkdown(comparison),
-					language: "markdown",
-				});
+				// Format comparison for webview display with error handling
+				let comparisonFormatError = false;
+				let comparisonData: ComparisonWebviewData;
+				try {
+					comparisonData = formatComparisonForWebview(comparison);
+				} catch (formatError) {
+					console.error("Failed to format comparison for webview:", formatError);
+					comparisonFormatError = true;
+					// Provide default empty comparison data instead of casting empty object
+					comparisonData = {
+						header: { leftEnv: env1, rightEnv: env2, chartName: selectedChart.chart.name },
+						summary: { added: 0, removed: 0, modified: 0, unchanged: 0, total: 0, changePercentage: 0 },
+						resources: [],
+						kindGroups: [],
+					};
+				}
 
-				await vscode.window.showTextDocument(doc);
+				// Create a ChartTreeItem to show in the webview with comparison results
+				const chartItem = new ChartTreeItem(
+					selectedChart.chart.name,
+					selectedChart.chart.path,
+					vscode.TreeItemCollapsibleState.None,
+					"comparison" as const,
+					selectedChart.chart,
+					env1,
+					env2
+				);
+
+				// Show the webview with the selected chart and comparison data
+				await showChartVisualization(context, chartItem, comparisonData);
+
+				// Show notification with summary
+				const { summary } = comparison;
+				if (comparisonFormatError) {
+					vscode.window.showWarningMessage(
+						`Comparison complete (${summary.added} added, ${summary.removed} removed, ${summary.modified} modified) but display formatting failed. Check Output panel for details.`
+					);
+				} else {
+					vscode.window.showInformationMessage(
+						`Comparison complete: ${summary.added} added, ${summary.removed} removed, ${summary.modified} modified - showing Results tab`
+					);
+				}
 			} catch (error: unknown) {
 				const errorMessage = error instanceof Error ? error.message : String(error);
 				vscode.window.showErrorMessage(`Comparison failed: ${errorMessage}`);
