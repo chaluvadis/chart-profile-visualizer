@@ -3,6 +3,7 @@ import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ResourceHierarchy } from "./resourceVisualizer";
 import { getIconDataUriWithFallback } from "./iconManager";
+import { loadTemplate, getTemplatePath } from "./webview/templateLoader";
 
 /**
  * Interface for Kubernetes Secret object structure
@@ -55,7 +56,11 @@ function sanitizeSecretYaml(yamlContent: string): string {
 /**
  * Generate enhanced webview HTML with resource explorer, topology view, and interactive features
  */
-export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensionUri: vscode.Uri): string {
+export async function generateEnhancedHtml(
+	webview: vscode.Webview,
+	data: any,
+	extensionUri: vscode.Uri
+): Promise<string> {
 	const nonce = getNonce();
 
 	// Get local Chart.js, CSS, and webview JS URIs
@@ -64,74 +69,27 @@ export function generateEnhancedHtml(webview: vscode.Webview, data: any, extensi
 	const mainJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "main.js"));
 	const topologyJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "topology.js"));
 
-	// Generate resource explorer HTML
+	// Generate dynamic content
+	const overviewContent = generateOverviewTab(data);
 	const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
-
-	// Generate initialization data
+	const resultsContent = await loadTemplate(getTemplatePath("results", extensionUri), {});
 	const initData = generateInitializationData(data);
 
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src ${webview.cspSource};">
-    <title>Chart Visualization</title>
-    <link rel="stylesheet" href="${stylesUri}" nonce="${nonce}">
-</head>
-<body>
-    <div class="toolbar">
-        <button id="exportYaml" class="toolbar-btn">📄 Export YAML</button>
-        <button id="exportJson" class="toolbar-btn">📋 Export JSON</button>
-        <input type="search" id="searchBox" placeholder="Search resources..." class="search-box">
-    </div>
+	// Load main template and replace placeholders
+	const mainTemplate = await loadTemplate(getTemplatePath("main", extensionUri), {
+		nonce,
+		cspSource: webview.cspSource,
+		stylesUri,
+		chartJsUri,
+		topologyJsUri,
+		mainJsUri,
+		initData,
+		overviewContent,
+		resourcesContent: resourceExplorerHtml,
+		resultsContent,
+	});
 
-    <div class="tabs">
-        <button class="tab-btn active" data-tab="overview">Overview</button>
-        <button class="tab-btn" data-tab="resources">Resources</button>
-        <button class="tab-btn" data-tab="results">Results</button>
-    </div>
-
-    <div id="overview" class="tab-content active">
-        ${generateOverviewTab(data)}
-    </div>
-
-    <div id="resources" class="tab-content">
-        ${resourceExplorerHtml}
-    </div>
-
-    <div id="results" class="tab-content">
-        <div class="results-header">
-            <div class="results-tabs">
-                <button class="results-tab-btn active" data-tab="compare">Compare Environments</button>
-                <button class="results-tab-btn" data-tab="validate">Validate Chart</button>
-                <button class="results-tab-btn" data-tab="cluster">Cluster Status</button>
-                <button class="results-tab-btn" data-tab="runtime">Runtime State</button>
-            </div>
-            <div class="results-actions">
-                <button id="exportResults" class="toolbar-btn">⚙️ Export</button>
-                <button id="refreshResults" class="toolbar-btn">♻️ Refresh</button>
-            </div>
-        </div>
-        <div id="results-content" class="results-content">
-            <div class="comparison-placeholder">
-                <div class="no-comparison-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m12 0h4M5 9V5a2 2 0 0 1 2-2h4m0 12v4a2 2 0 0 1-2 2h-4"/><path d="M9 17V9h6v8"/><circle cx="12" cy="12" r="2"/></svg></div>
-                <div class="no-comparison-text">Select two environments to compare</div>
-                <div class="no-comparison-hint">Choose a chart and two environments to see detailed comparison results</div>
-            </div>
-        </div>
-    </div>
-
-    <script src="${chartJsUri}" nonce="${nonce}"></script>
-    <script src="${topologyJsUri}" nonce="${nonce}"></script>
-    <script src="${mainJsUri}" nonce="${nonce}"></script>
-    <script nonce="${nonce}">
-        // Initialize webview with data
-        // Call from window because strict mode doesn't make functions global
-        window.initializeWebview(${initData});
-    </script>
-</body>
-</html>`;
+	return mainTemplate;
 }
 
 function generateOverviewTab(data: any): string {

@@ -17,6 +17,7 @@ import { generateEnhancedHtml } from "./webviewHtmlGenerator";
 import { getKubernetesConnector } from "./kubernetesConnector";
 import { getRuntimeStateManager } from "./runtimeStateManager";
 import type { ComparisonWebviewData } from "./environmentDiff";
+import { loadTemplate, getTemplatePath } from "./webview/templateLoader";
 
 // Re-export for backward compatibility
 export type { ComparisonWebviewData };
@@ -268,14 +269,16 @@ async function updatePanel(item: ChartTreeItem) {
 
 		// Generate and set HTML content
 		if (currentContext) {
-			panel.webview.html = generateEnhancedHtml(panel.webview, chartData, currentContext.extensionUri);
+			const extUri = currentContext.extensionUri;
+			panel.webview.html = await generateEnhancedHtml(panel.webview, chartData, extUri);
 		} else {
 			// Fallback - should never happen, but handle gracefully
-			panel.webview.html = getErrorHtml("Extension context not available");
+			panel.webview.html = await getErrorHtml("Extension context not available");
 		}
 	} catch (error: any) {
 		vscode.window.showErrorMessage(`Error loading chart visualization: ${error.message}`);
-		panel.webview.html = getErrorHtml(error.message);
+		const extUri = currentContext?.extensionUri;
+		panel.webview.html = await getErrorHtml(error.message, extUri);
 	}
 }
 
@@ -714,12 +717,19 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	};
 }
 
-function getErrorHtml(errorMessage: string): string {
+async function getErrorHtml(errorMessage: string, extensionUri?: vscode.Uri): Promise<string> {
+	// If we have an extension URI, use the template; otherwise fall back to inline HTML
+	if (extensionUri) {
+		return loadTemplate(getTemplatePath("error", extensionUri), { errorMessage });
+	}
+
+	// Fallback inline error HTML (should not happen in normal operation)
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
     <title>Error</title>
     <style>
         body {

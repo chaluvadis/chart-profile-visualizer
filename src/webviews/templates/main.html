@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{cspSource}} data:; script-src 'nonce-{{nonce}}'; style-src 'nonce-{{nonce}}'; connect-src {{cspSource}};">
+    <title>Chart Visualization</title>
+    <link rel="stylesheet" href="{{stylesUri}}" nonce="{{nonce}}">
+</head>
+<body>
+    <div class="toolbar">
+        <button id="exportYaml" class="toolbar-btn">📄 Export YAML</button>
+        <button id="exportJson" class="toolbar-btn">📋 Export JSON</button>
+        <input type="search" id="searchBox" placeholder="Search resources..." class="search-box">
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="overview">Overview</button>
+        <button class="tab-btn" data-tab="resources">Resources</button>
+        <button class="tab-btn" data-tab="results">Results</button>
+    </div>
+
+    <div id="overview" class="tab-content active">
+        {{overviewContent}}
+    </div>
+
+    <div id="resources" class="tab-content">
+        {{resourcesContent}}
+    </div>
+
+    <div id="results" class="tab-content">
+        {{resultsContent}}
+    </div>
+
+    <script src="{{chartJsUri}}" nonce="{{nonce}}"></script>
+    <script src="{{topologyJsUri}}" nonce="{{nonce}}"></script>
+    <script src="{{mainJsUri}}" nonce="{{nonce}}"></script>
+    <script nonce="{{nonce}}">
+        // Initialize webview with data
+        // Call from window because strict mode doesn't make functions global
+        window.initializeWebview({{initData}});
+    </script>
+</body>
+</html>
