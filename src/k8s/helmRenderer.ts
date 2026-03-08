@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import * as yaml from "js-yaml";
-import { mergeValues } from "./valuesMerger";
+import { mergeValues } from "../processing/valuesMerger";
 
 const exec = promisify(cp.exec);
 

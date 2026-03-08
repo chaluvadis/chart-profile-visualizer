@@ -3,21 +3,21 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
-import type { ChartTreeItem } from "./chartProfilesProvider";
-import { type RenderedResource, renderHelmTemplate } from "./helmRenderer";
+import type { ChartTreeItem } from "../core/chartProfilesProvider";
+import { type RenderedResource, renderHelmTemplate } from "../k8s/helmRenderer";
 import {
 	type ArchitectureNode,
 	buildArchitectureNodes,
 	detectRelationships,
 	type ResourceRelationship,
-} from "./relationshipDetector";
+} from "../processing/relationshipDetector";
 import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
-import { mergeValues } from "./valuesMerger";
+import { mergeValues } from "../processing/valuesMerger";
 import { generateEnhancedHtml } from "./webviewHtmlGenerator";
-import { getKubernetesConnector } from "./kubernetesConnector";
-import { getRuntimeStateManager } from "./runtimeStateManager";
-import type { ComparisonWebviewData } from "./environmentDiff";
-import { loadTemplate, getTemplatePath } from "./webview/templateLoader";
+import { getKubernetesConnector } from "../k8s/kubernetesConnector";
+import { getRuntimeStateManager } from "../state/runtimeStateManager";
+import type { ComparisonWebviewData } from "../diff/environmentDiff";
+import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
 
 // Re-export for backward compatibility
 export type { ComparisonWebviewData };
@@ -104,28 +104,6 @@ interface WebviewMessage {
 	namespace?: string;
 }
 
-/**
- * Store comparison parameters for potential refresh
- */
-export function storeComparisonParams(params: {
-	chartPath: string;
-	chartName: string;
-	leftEnv: string;
-	rightEnv: string;
-}): void {
-	lastComparisonParams = params;
-}
-
-/**
- * Get stored comparison parameters
- */
-export function getComparisonParams(): typeof lastComparisonParams {
-	return lastComparisonParams;
-}
-
-/**
- * Get the current chart item for refresh
- */
 function getCurrentChartItem(): ChartTreeItem | null {
 	return currentChartItem;
 }
@@ -304,8 +282,8 @@ async function handleMessage(message: WebviewMessage) {
 					const { chartPath, chartName, leftEnv, rightEnv } = lastComparisonParams;
 
 					// Import and run the comparison
-					const { compareEnvironments, formatComparisonForWebview } = await import("./environmentDiff");
-					const { renderHelmTemplate } = await import("./helmRenderer");
+					const { compareEnvironments, formatComparisonForWebview } = await import("../diff/environmentDiff");
+					const { renderHelmTemplate } = await import("../k8s/helmRenderer");
 
 					vscode.window.showInformationMessage(`Re-running comparison: ${leftEnv} vs ${rightEnv}...`);
 

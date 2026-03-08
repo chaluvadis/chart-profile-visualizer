@@ -29,7 +29,7 @@ const esbuildProblemMatcherPlugin = {
 
 async function main() {
   const ctx = await esbuild.context({
-    entryPoints: ["src/extension.ts"],
+    entryPoints: ["src/core/extension.ts"],
     bundle: true,
     format: "cjs",
     minify: production,
@@ -51,15 +51,15 @@ async function main() {
     await ctx.dispose();
   }
 
-  // Copy CSS file to out directory
-  const srcCssPath = path.join(__dirname, "src", "styles.css");
-  const outCssPath = path.join(__dirname, "out", "styles.css");
+  // Copy CSS file to out/webview directory
+  const srcCssPath = path.join(__dirname, "src", "webview", "styles.css");
+  const outCssPath = path.join(__dirname, "out", "webview", "styles.css");
   if (fs.existsSync(srcCssPath)) {
     fs.copyFileSync(srcCssPath, outCssPath);
-    console.log("Copied styles.css to out directory");
+    console.log("Copied styles.css to out/webview directory");
   }
 
-  // Copy webview JavaScript files to out directory
+  // Copy HTML files to out directory
   const webviewDir = path.join(__dirname, "src", "webview");
   const outWebviewDir = path.join(__dirname, "out", "webview");
 
@@ -68,14 +68,37 @@ async function main() {
     fs.mkdirSync(outWebviewDir, { recursive: true });
   }
 
-  // Copy all JS files from src/webview to out/webview
+  // Copy HTML files from src/webview to out/webview
   if (fs.existsSync(webviewDir)) {
-    const webviewFiles = fs.readdirSync(webviewDir).filter(f => f.endsWith(".js"));
-    for (const file of webviewFiles) {
+    const htmlFiles = fs.readdirSync(webviewDir).filter(f => f.endsWith(".html"));
+    for (const file of htmlFiles) {
       const srcPath = path.join(webviewDir, file);
       const outPath = path.join(outWebviewDir, file);
       fs.copyFileSync(srcPath, outPath);
       console.log(`Copied ${file} to out/webview directory`);
+    }
+  }
+
+  // Compile TypeScript webview files to JavaScript
+  const webviewTsFiles = ["src/webview/main.ts", "src/webview/topology.ts"];
+  for (const tsFile of webviewTsFiles) {
+    const tsPath = path.join(__dirname, tsFile);
+    if (fs.existsSync(tsPath)) {
+      const basename = path.basename(tsFile, ".ts");
+      const outJsPath = path.join(outWebviewDir, `${basename}.js`);
+
+      await esbuild.build({
+        entryPoints: [tsPath],
+        bundle: true,
+        format: "iife",
+        minify: production,
+        sourcemap: !production,
+        outfile: outJsPath,
+        platform: "browser",
+        target: ["es2020"],
+        logLevel: "silent",
+      });
+      console.log(`Compiled ${basename}.ts to ${basename}.js`);
     }
   }
 }

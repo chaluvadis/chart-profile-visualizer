@@ -709,16 +709,3 @@ export class HelmReleaseManager {
 		return required;
 	}
 }
-
-// Singleton instance
-let managerInstance: HelmReleaseManager | null = null;
-
-export function getHelmReleaseManager(options?: { kubeconfig?: string; context?: string }): HelmReleaseManager {
-	// Always create a new instance if options are provided to avoid stale configuration
-	if (options) {
-		managerInstance = new HelmReleaseManager(options);
-	} else if (!managerInstance) {
-		managerInstance = new HelmReleaseManager();
-	}
-	return managerInstance;
-}

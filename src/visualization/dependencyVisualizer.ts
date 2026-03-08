@@ -70,17 +70,6 @@ export interface DependencyConflict {
 }
 
 /**
- * Resource to subchart mapping
- */
-export interface ResourceSubchartMapping {
-	resourceId: string;
-	kind: string;
-	name: string;
-	subchart?: string;
-	template: string;
-}
-
-/**
  * Parse Chart.yaml and extract dependencies
  */
 export function parseChartYaml(chartPath: string): ChartMetadata | null {
@@ -299,42 +288,6 @@ function getNestedValue(obj: unknown, path: string): unknown {
 }
 
 /**
- * Map resources to their source subchart
- */
-export function mapResourcesToSubcharts(
-	resources: Array<{ kind: string; name: string; template: string }>,
-	dependencies: ChartDependency[]
-): ResourceSubchartMapping[] {
-	const mappings: ResourceSubchartMapping[] = [];
-
-	for (const resource of resources) {
-		const mapping: ResourceSubchartMapping = {
-			resourceId: `${resource.kind}/${resource.name}`,
-			kind: resource.kind,
-			name: resource.name,
-			template: resource.template,
-		};
-
-		// Check if resource comes from a subchart
-		for (const dep of dependencies) {
-			const chartName = dep.alias || dep.name;
-			// Template path usually includes charts/<chartname>/templates/
-			if (
-				resource.template.includes(`charts/${chartName}/`) ||
-				resource.template.includes(`${chartName}/templates/`)
-			) {
-				mapping.subchart = chartName;
-				break;
-			}
-		}
-
-		mappings.push(mapping);
-	}
-
-	return mappings;
-}
-
-/**
  * Get dependency graph edges for visualization
  */
 export function getDependencyEdges(dependencies: DependencyNode[]): Array<{
@@ -484,22 +437,4 @@ export function checkDependencySecurity(dependencies: ChartDependency[]): Array<
 	}
 
 	return issues;
-}
-
-/**
- * Get values schema for dependencies
- */
-export function getDependencyValuesSchema(dependencies: ChartDependency[]): Record<string, unknown> {
-	const schema: Record<string, unknown> = {};
-
-	for (const dep of dependencies) {
-		const key = dep.alias || dep.name;
-		// Each subchart typically has its values under its name
-		schema[key] = {
-			// Common subchart patterns
-			enabled: true,
-		};
-	}
-
-	return schema;
 }

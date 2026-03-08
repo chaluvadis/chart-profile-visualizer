@@ -1,4 +1,4 @@
-import type { StructuredResource } from "./resourceVisualizer";
+import type { StructuredResource } from "../visualization/resourceVisualizer";
 
 /**
  * Represents a relationship/connection between two resources

@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { findHelmCharts, type HelmChart } from "./helmChart";
-import { getIconUris, hasIcon, getNormalizedIconName } from "./iconManager";
+import { findHelmCharts, type HelmChart } from "../k8s/helmChart";
+import { getIconUris, hasIcon, getNormalizedIconName } from "../k8s/iconManager";
 
 export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<ChartTreeItem | undefined | null> = new vscode.EventEmitter<

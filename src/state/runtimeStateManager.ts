@@ -4,8 +4,8 @@ import {
 	type ResourceRuntimeState,
 	type ClusterInfo,
 	type HelmRelease,
-} from "./kubernetesConnector";
-import { renderHelmTemplate } from "./helmRenderer";
+} from "../k8s/kubernetesConnector";
+import { renderHelmTemplate } from "../k8s/helmRenderer";
 
 /**
  * Runtime state for all resources in a chart

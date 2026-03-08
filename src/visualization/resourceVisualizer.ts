@@ -1,5 +1,5 @@
 import * as yaml from "js-yaml";
-import type { RenderedResource } from "./helmRenderer";
+import type { RenderedResource } from "../k8s/helmRenderer";
 
 /**
  * Resource type categories for color coding and organization
@@ -198,88 +198,4 @@ function getIconName(kind: string): string {
 		.toLowerCase()
 		.replace(/([a-z])([A-Z])/g, "$1-$2")
 		.toLowerCase();
-}
-
-/**
- * Search/filter resources based on criteria
- */
-export interface SearchCriteria {
-	searchText?: string;
-	kinds?: string[];
-	namespaces?: string[];
-	hasOverrides?: boolean;
-}
-
-export function filterResources(hierarchy: ResourceHierarchy, criteria: SearchCriteria): ResourceHierarchy {
-	const filtered = new Map<string, KindGroup>();
-	let totalCount = 0;
-
-	for (const [kind, group] of hierarchy.kindGroups) {
-		// Filter by kind
-		if (criteria.kinds && criteria.kinds.length > 0 && !criteria.kinds.includes(kind)) {
-			continue;
-		}
-
-		const filteredResources = group.resources.filter((resource) => {
-			// Filter by search text
-			if (criteria.searchText) {
-				const search = criteria.searchText.toLowerCase();
-				const matchesName = resource.name.toLowerCase().includes(search);
-				const matchesKind = resource.kind.toLowerCase().includes(search);
-				const matchesNamespace = resource.namespace?.toLowerCase().includes(search);
-				const matchesLabels = Object.values(resource.labels || {}).some((v) =>
-					String(v).toLowerCase().includes(search)
-				);
-
-				if (!matchesName && !matchesKind && !matchesNamespace && !matchesLabels) {
-					return false;
-				}
-			}
-
-			// Filter by namespace
-			if (criteria.namespaces && criteria.namespaces.length > 0) {
-				if (!criteria.namespaces.includes(resource.namespace || "default")) {
-					return false;
-				}
-			}
-
-			return true;
-		});
-
-		if (filteredResources.length > 0) {
-			filtered.set(kind, {
-				...group,
-				resources: filteredResources,
-				count: filteredResources.length,
-			});
-			totalCount += filteredResources.length;
-		}
-	}
-
-	return {
-		kindGroups: filtered,
-		totalCount,
-	};
-}
-
-/**
- * Get unique namespaces from resources
- */
-export function getUniqueNamespaces(hierarchy: ResourceHierarchy): string[] {
-	const namespaces = new Set<string>();
-
-	for (const group of hierarchy.kindGroups.values()) {
-		for (const resource of group.resources) {
-			namespaces.add(resource.namespace || "default");
-		}
-	}
-
-	return Array.from(namespaces).sort();
-}
-
-/**
- * Get unique kinds from resources
- */
-export function getUniqueKinds(hierarchy: ResourceHierarchy): string[] {
-	return Array.from(hierarchy.kindGroups.keys()).sort();
 }

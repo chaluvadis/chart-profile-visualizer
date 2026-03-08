@@ -1,8 +1,8 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
-import type { ChartTreeItem } from "./chartProfilesProvider";
-import { formatRenderedOutput, renderHelmTemplate } from "./helmRenderer";
-import { generateAnnotatedYaml, mergeValues } from "./valuesMerger";
+import type { ChartTreeItem } from "../core/chartProfilesProvider";
+import { formatRenderedOutput, renderHelmTemplate } from "../k8s/helmRenderer";
+import { generateAnnotatedYaml, mergeValues } from "../processing/valuesMerger";
 
 // WeakMap to store decorations for each editor to avoid using `as any`
 const editorDecorations = new WeakMap<vscode.TextEditor, vscode.TextEditorDecorationType[]>();

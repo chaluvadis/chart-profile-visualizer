@@ -1,5 +1,5 @@
 import * as yaml from "js-yaml";
-import type { RenderedResource } from "./helmRenderer";
+import type { RenderedResource } from "../k8s/helmRenderer";
 
 /**
  * Diff types for resources

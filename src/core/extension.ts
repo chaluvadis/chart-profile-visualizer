@@ -1,15 +1,15 @@
 import * as fs from "node:fs";
 import * as vscode from "vscode";
 import { ChartProfilesProvider, ChartTreeItem } from "./chartProfilesProvider";
-import { show as showChartVisualization } from "./chartVisualizationView";
-import { compareEnvironments, formatComparisonForWebview, type ComparisonWebviewData } from "./environmentDiff";
-import { isHelmAvailable, renderHelmTemplate } from "./helmRenderer";
-import { showRenderedYaml } from "./renderedYamlView";
-import { createChartValidator } from "./chartValidator";
-import { getKubernetesConnector } from "./kubernetesConnector";
-import { getRuntimeStateManager } from "./runtimeStateManager";
-import { generateDependencyVisualizationData, checkDependencySecurity } from "./dependencyVisualizer";
-import { initializeIconManager, preloadIcons } from "./iconManager";
+import { show as showChartVisualization } from "../visualization/chartVisualizationView";
+import { compareEnvironments, formatComparisonForWebview, type ComparisonWebviewData } from "../diff/environmentDiff";
+import { isHelmAvailable, renderHelmTemplate } from "../k8s/helmRenderer";
+import { showRenderedYaml } from "../utils/renderedYamlView";
+import { createChartValidator } from "../processing/chartValidator";
+import { getKubernetesConnector } from "../k8s/kubernetesConnector";
+import { getRuntimeStateManager } from "../state/runtimeStateManager";
+import { generateDependencyVisualizationData, checkDependencySecurity } from "../visualization/dependencyVisualizer";
+import { initializeIconManager, preloadIcons } from "../k8s/iconManager";
 
 function formatValidationMarkdown(result: {
 	valid: boolean;
@@ -140,7 +140,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const currentWorkspaceRoots = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) || [];
 
 			// Get all available charts and environments
-			const charts = await import("./helmChart").then((m) => m.findHelmCharts(currentWorkspaceRoots));
+			const charts = await import("../k8s/helmChart").then((m) => m.findHelmCharts(currentWorkspaceRoots));
 
 			if (charts.length === 0) {
 				vscode.window.showErrorMessage("No Helm charts found in workspace");

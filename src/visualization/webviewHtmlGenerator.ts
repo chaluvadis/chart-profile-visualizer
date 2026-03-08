@@ -2,8 +2,8 @@ import * as crypto from "node:crypto";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ResourceHierarchy } from "./resourceVisualizer";
-import { getIconDataUriWithFallback } from "./iconManager";
-import { loadTemplate, getTemplatePath } from "./webview/templateLoader";
+import { getIconDataUriWithFallback } from "../k8s/iconManager";
+import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
 
 /**
  * Interface for Kubernetes Secret object structure
@@ -65,7 +65,7 @@ export async function generateEnhancedHtml(
 
 	// Get local Chart.js, CSS, and webview JS URIs
 	const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
-	const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "styles.css"));
+	const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "styles.css"));
 	const mainJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "main.js"));
 	const topologyJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "topology.js"));
 

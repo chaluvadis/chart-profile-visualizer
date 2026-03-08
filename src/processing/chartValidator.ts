@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import * as yaml from "js-yaml";
-import { renderHelmTemplate, isHelmAvailable } from "./helmRenderer";
-import { getKubernetesConnector } from "./kubernetesConnector";
+import { renderHelmTemplate, isHelmAvailable } from "../k8s/helmRenderer";
+import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 
 const exec = promisify(cp.exec);
 
@@ -42,20 +42,6 @@ export interface ValidationResult {
 	timestamp: string;
 }
 
-/**
- * Schema validation result
- */
-export interface SchemaValidationResult {
-	valid: boolean;
-	errors: string[];
-	warnings: string[];
-	resourceKind?: string;
-	resourceName?: string;
-}
-
-/**
- * Chart validator for comprehensive validation
- */
 export class ChartValidator {
 	private chartPath: string;
 

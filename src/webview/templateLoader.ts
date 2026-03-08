@@ -113,7 +113,7 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 }
 
 /**
- * Get the path to a template file in the webviews/templates directory
+ * Get the path to a template file in the webview directory
  * @param templateName - Name of the template (without extension)
  * @param extensionUri - The extension's URI (from context.extensionUri) for proper path resolution
  * @returns The filesystem path to the template file
@@ -121,7 +121,7 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 export function getTemplatePath(templateName: string, extensionUri: vscode.Uri): string {
 	// Use the provided extension URI to resolve the template path
 	// This works correctly in both development and bundled (production) modes
-	const templateUri = vscode.Uri.joinPath(extensionUri, "src", "webviews", "templates", `${templateName}.html`);
+	const templateUri = vscode.Uri.joinPath(extensionUri, "src", "webview", `${templateName}.html`);
 
 	// Return the filesystem path from the URI
 	return templateUri.fsPath;

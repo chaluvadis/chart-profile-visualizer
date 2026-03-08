@@ -132,20 +132,6 @@ export function getIconDataUri(kind: string, theme: "dark" | "light" = "dark"): 
 }
 
 /**
- * Get icon as inline SVG for webview (allows CSS styling)
- */
-export function getInlineSvg(kind: string, theme: "dark" | "light" = "dark", className?: string): string {
-	const svgContent = loadSvgContent(kind, theme);
-
-	// Add class attribute if provided
-	if (className) {
-		return svgContent.replace("<svg", `<svg class="${className}"`);
-	}
-
-	return svgContent;
-}
-
-/**
  * Preload all icons into cache
  */
 export function preloadIcons(): void {
@@ -180,32 +166,6 @@ export function preloadIcons(): void {
 	} catch (error) {
 		console.warn("Failed to preload icons:", error);
 	}
-}
-
-/**
- * Get all available icon kinds
- */
-export function getAvailableIconKinds(): string[] {
-	const k8sDir = path.join(extensionContext.extensionPath, "images", "k8s");
-	const kinds = new Set<string>();
-
-	try {
-		const files = fs.readdirSync(k8sDir);
-
-		for (const file of files) {
-			if (file.endsWith(".svg")) {
-				const match = file.match(/^(.+)-dark\.svg$/);
-				if (match) {
-					const kind = match[1].replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-					kinds.add(kind);
-				}
-			}
-		}
-	} catch (error) {
-		console.warn("Failed to get available icons:", error);
-	}
-
-	return Array.from(kinds);
 }
 
 /**
