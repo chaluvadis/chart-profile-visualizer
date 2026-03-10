@@ -19,6 +19,7 @@ interface WebviewData {
 	totalValues: number;
 	overriddenCount: number;
 	comparisonData: ComparisonData | null;
+	availableEnvs: string[];
 }
 
 interface ArchitectureNode {
@@ -100,6 +101,7 @@ window.webviewData = {
 	totalValues: 0,
 	overriddenCount: 0,
 	comparisonData: null,
+	availableEnvs: [],
 };
 
 /**
@@ -218,6 +220,9 @@ function initResultsTab(): void {
 		});
 	}
 
+	// Initialize comparison selector if available
+	initComparisonSelector();
+
 	// Auto-render comparison if data exists
 	if (window.webviewData.comparisonData) {
 		renderComparisonResults();
@@ -264,6 +269,17 @@ function renderComparisonResults(): void {
         <div class="no-comparison-icon">⚠️</div>
         <div class="no-comparison-text"> Invalid comparison data</div>
         <div class="no-comparison-hint">Please run the comparison again</div>
+      </div>`;
+		return;
+	}
+
+	// Validate header values
+	if (!data.header.leftEnv || !data.header.rightEnv) {
+		resultsContent.innerHTML = `
+      <div class="comparison-placeholder">
+        <div class="no-comparison-icon">⚠️</div>
+        <div class="no-comparison-text">No environment selected for comparison</div>
+        <div class="no-comparison-hint">Select two environments to compare</div>
       </div>`;
 		return;
 	}
@@ -349,6 +365,70 @@ function renderComparisonResults(): void {
 	html += `</div>`;
 
 	resultsContent.innerHTML = html;
+}
+
+/**
+ * Initialize the comparison environment selector
+ */
+function initComparisonSelector(): void {
+	const env1Select = document.getElementById("env1-select") as HTMLSelectElement | null;
+	const env2Select = document.getElementById("env2-select") as HTMLSelectElement | null;
+	const runComparisonBtn = document.getElementById("run-comparison") as HTMLButtonElement | null;
+
+	if (!env1Select || !env2Select || !runComparisonBtn) {
+		return;
+	}
+
+	// Populate available environments
+	const availableEnvs = window.webviewData.availableEnvs || [];
+	if (availableEnvs.length < 2) {
+		// Not enough environments to compare
+		env1Select.disabled = true;
+		env2Select.disabled = true;
+		runComparisonBtn.disabled = true;
+		return;
+	}
+
+	// Update options for env2 (exclude selected env1)
+	function updateEnv2Options(): void {
+		env2Select.innerHTML = '<option value="">Select environment...</option>';
+		for (const env of availableEnvs) {
+			if (env !== env1Select.value) {
+				const option = document.createElement("option");
+				option.value = env;
+				option.textContent = env;
+				env2Select.appendChild(option);
+			}
+		}
+	}
+
+	// Handle env1 selection change
+	env1Select.addEventListener("change", () => {
+		updateEnv2Options();
+		// Check if both are selected
+		runComparisonBtn.disabled = !env1Select.value || !env2Select.value;
+	});
+
+	// Handle env2 selection change
+	env2Select.addEventListener("change", () => {
+		// Check if both are selected
+		runComparisonBtn.disabled = !env1Select.value || !env2Select.value;
+	});
+
+	// Handle run comparison button
+	runComparisonBtn.addEventListener("click", () => {
+		const env1 = env1Select.value;
+		const env2 = env2Select.value;
+
+		if (env1 && env2) {
+			// Send message to extension to run comparison
+			vscode.postMessage({
+				type: "runComparison",
+				env1,
+				env2,
+			});
+		}
+	});
 }
 
 /**

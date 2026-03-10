@@ -11,7 +11,41 @@
     </div>
 </div>
 <div id="results-content" class="results-content">
-    <div class="comparison-placeholder">
+    <div id="comparison-selector" class="comparison-selector">
+        <div class="selector-header">
+            <div class="selector-icon">📊</div>
+            <div class="selector-title">Compare Environments</div>
+        </div>
+        <div class="selector-form">
+            <div class="form-group">
+                <label for="env1-select">Environment 1 (Base)</label>
+                <select id="env1-select" class="env-select">
+                    <option value="">Select environment...</option>
+                    {{#each availableEnvs}}
+                    <option value="{{this}}">{{this}}</option>
+                    {{/each}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="env2-select">Environment 2 (Compare)</label>
+                <select id="env2-select" class="env-select">
+                    <option value="">Select environment...</option>
+                    {{#each availableEnvs}}
+                    <option value="{{this}}">{{this}}</option>
+                    {{/each}}
+                </select>
+            </div>
+            <button id="run-comparison" class="run-comparison-btn" disabled>🔍 Run Comparison</button>
+        </div>
+        <div class="selector-hint">
+            <span class="hint-icon">ℹ️</span>
+            <span>Select two different environments to compare their configurations</span>
+        </div>
+    </div>
+    <div id="comparison-results" class="comparison-results" style="display: none;">
+        <!-- Comparison results will be rendered here -->
+    </div>
+    <div id="comparison-placeholder" class="comparison-placeholder" style="display: none;">
         <div class="no-comparison-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m12 0h4M5 9V5a2 2 0 0 1 2-2h4m0 12v4a2 2 0 0 1-2 2h-4"/><path d="M9 17V9h6v8"/><circle cx="12" cy="12" r="2"/></svg></div>
         <div class="no-comparison-text">Select two environments to compare</div>
         <div class="no-comparison-hint">Choose a chart and two environments to see detailed comparison results</div>

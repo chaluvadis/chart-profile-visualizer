@@ -93,8 +93,10 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 			.map((item: any, index: number) => {
 				let itemResult = itemTemplate;
 				// Replace {{key}} and {{nested.key}} patterns with item values (with HTML escaping)
-				itemResult = itemResult.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
+				// Also handle {{this}} as a special keyword for the current item
+				itemResult = itemResult.replace(/\{\{([\w.]+|this)\}\}/g, (m: string, k: string): string => {
 					if (k === "@index") return String(index);
+					if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
 					// Handle nested property access like "item.nested.key"
 					const value = k.split(".").reduce((obj: any, key: string) => obj?.[key], item);
 					return value !== undefined ? escapeHtml(String(value)) : m;

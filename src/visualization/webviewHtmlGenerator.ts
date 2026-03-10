@@ -79,7 +79,9 @@ export async function generateEnhancedHtml(
 		// Generate dynamic content
 		const overviewContent = generateOverviewTab(data);
 		const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
-		const resultsContent = await loadTemplate(getTemplatePath("results", extensionUri), {});
+		const resultsContent = await loadTemplate(getTemplatePath("results", extensionUri), {
+			availableEnvs: data.availableEnvs || [],
+		});
 		const initData = generateInitializationData(data);
 
 		// Load main template and replace placeholders
@@ -94,6 +96,7 @@ export async function generateEnhancedHtml(
 			overviewContent,
 			resourcesContent: resourceExplorerHtml,
 			resultsContent,
+			availableEnvs: data.availableEnvs || [],
 		});
 
 		return mainTemplate;
@@ -469,6 +472,7 @@ function generateInitializationData(data: any): string {
 		overriddenCount: data.overriddenCount || 0,
 		totalValues: data.totalValues || 0,
 		comparisonData: data.comparisonData || null,
+		availableEnvs: data.availableEnvs || [],
 	};
 
 	// Safely serialize to JSON, escaping < characters for security

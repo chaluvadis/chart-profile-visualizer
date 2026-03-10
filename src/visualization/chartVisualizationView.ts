@@ -94,6 +94,7 @@ type WebviewMessageType =
 	| "exportJson"
 	| "exportComparison"
 	| "refreshComparison"
+	| "runComparison"
 	| "copyResource"
 	| "revealSecret";
 
@@ -102,6 +103,8 @@ interface WebviewMessage {
 	yaml?: string;
 	secretName?: string;
 	namespace?: string;
+	env1?: string;
+	env2?: string;
 }
 
 function getCurrentChartItem(): ChartTreeItem | null {
@@ -274,6 +277,14 @@ async function handleMessage(message: WebviewMessage) {
 		case "exportComparison":
 			await exportComparisonResults();
 			break;
+		case "runComparison":
+			// Run comparison from the webview UI
+			if (message.env1 && message.env2) {
+				await runComparisonFromWebview(message.env1, message.env2);
+			} else {
+				vscode.window.showErrorMessage("Please select two environments to compare");
+			}
+			break;
 		case "refreshComparison":
 			// Check if we have stored comparison parameters to re-run
 			if (lastComparisonParams && currentContext) {
@@ -342,6 +353,66 @@ async function handleMessage(message: WebviewMessage) {
 				await revealSecret(message.secretName, message.namespace);
 			}
 			break;
+	}
+}
+
+/**
+ * Run comparison from the webview UI
+ */
+async function runComparisonFromWebview(env1: string, env2: string): Promise<void> {
+	const currentItem = getCurrentChartItem();
+	if (!currentItem) {
+		vscode.window.showErrorMessage("No chart selected. Please select a chart first.");
+		return;
+	}
+
+	const chartPath = currentItem.chart?.path;
+	const chartName = currentItem.chart?.name;
+
+	if (!chartPath || !chartName) {
+		vscode.window.showErrorMessage("Invalid chart information.");
+		return;
+	}
+
+	try {
+		vscode.window.showInformationMessage(`Comparing ${env1} vs ${env2}...`);
+
+		const { compareEnvironments, formatComparisonForWebview } = await import("../diff/environmentDiff");
+		const { renderHelmTemplate } = await import("../k8s/helmRenderer");
+
+		const releaseName1 = `${chartName}-${env1}`;
+		const releaseName2 = `${chartName}-${env2}`;
+
+		const resources1 = await renderHelmTemplate(chartPath, env1, releaseName1);
+		const resources2 = await renderHelmTemplate(chartPath, env2, releaseName2);
+
+		const comparison = compareEnvironments(env1, resources1, env2, resources2, chartName);
+		const comparisonData = formatComparisonForWebview(comparison);
+
+		// Update stored data and refresh the webview
+		setCurrentComparisonData(comparisonData);
+
+		// Update lastComparisonParams for refresh
+		lastComparisonParams = {
+			chartPath,
+			chartName,
+			leftEnv: env1,
+			rightEnv: env2,
+		};
+
+		// Refresh the panel
+		if (currentItem) {
+			await updatePanel(currentItem);
+		}
+
+		vscode.window.showInformationMessage(
+			`Comparison complete: ${comparison.summary.added} added, ${comparison.summary.removed} removed, ${comparison.summary.modified} modified`
+		);
+	} catch (error) {
+		console.error("Error running comparison from webview:", error);
+		vscode.window.showErrorMessage(
+			`Failed to run comparison: ${error instanceof Error ? error.message : String(error)}`
+		);
 	}
 }
 
@@ -678,6 +749,15 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	const relationships = detectRelationships(structuredResources);
 	const architectureNodes = buildArchitectureNodes(structuredResources, relationships);
 
+	// Get available environments from the chart directory
+	let availableEnvs: string[] = [];
+	try {
+		const envFiles = fs.readdirSync(chartPath).filter((f: string) => f.match(/^values-(.+)\.ya?ml$/));
+		availableEnvs = envFiles.map((f: string) => f.match(/^values-(.+)\.ya?ml$/)![1]);
+	} catch (error) {
+		console.warn("Could not read environment files:", error);
+	}
+
 	return {
 		chartName,
 		environment,
@@ -692,6 +772,7 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		architectureNodes,
 		relationships,
 		comparisonData: getCurrentComparisonData(),
+		availableEnvs,
 	};
 }
 
@@ -763,6 +844,7 @@ interface ChartData {
 	architectureNodes: ArchitectureNode[];
 	relationships: ResourceRelationship[];
 	comparisonData?: ComparisonWebviewData | null;
+	availableEnvs?: string[];
 }
 
 function escapeHtml(text: string): string {
