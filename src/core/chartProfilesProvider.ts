@@ -312,8 +312,8 @@ export class ChartTreeItem extends vscode.TreeItem {
 	}
 
 	private getIcon(): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
-		// Use VS Code ThemeIcons for consistent colored icons
-		// These use the VS Code theme's accent color
+		// Use custom SVG icons from images/k8s folder when available
+		// Fall back to VS Code ThemeIcons
 		if (this.type === "chart") {
 			// Use custom package icon for Helm charts
 			const normalizedKind = getNormalizedIconName("package");
@@ -337,18 +337,24 @@ export class ChartTreeItem extends vscode.TreeItem {
 			}
 			return new vscode.ThemeIcon("symbol-namespace");
 		} else if (this.action === "visualize") {
-			// Use graph icon for visualize action
-			return new vscode.ThemeIcon("graph");
+			// Use custom chart icon for visualize action
+			if (hasIcon("chart")) {
+				return getIconUris("chart");
+			}
+			return new vscode.ThemeIcon("eye");
 		} else if (this.action === "values") {
 			// Use settings icon for values/merged values
 			return new vscode.ThemeIcon("settings");
 		} else if (this.action === "rendered") {
-			// Use file code icon for rendered YAML
+			// Use custom yaml icon for rendered YAML
+			if (hasIcon("yaml")) {
+				return getIconUris("yaml");
+			}
 			return new vscode.ThemeIcon("file-code");
 		} else if (this.action === "validate") {
 			return new vscode.ThemeIcon("check");
 		} else if (this.action === "runtime") {
-			return new vscode.ThemeIcon("pulse");
+			return new vscode.ThemeIcon("sync");
 		} else if (this.action === "dependencies") {
 			return new vscode.ThemeIcon("type-hierarchy");
 		}

@@ -1,15 +1,15 @@
 import * as fs from "node:fs";
 import * as vscode from "vscode";
-import { ChartProfilesProvider, ChartTreeItem } from "./chartProfilesProvider";
-import { show as showChartVisualization } from "../visualization/chartVisualizationView";
-import { compareEnvironments, formatComparisonForWebview, type ComparisonWebviewData } from "../diff/environmentDiff";
-import { isHelmAvailable, renderHelmTemplate } from "../k8s/helmRenderer";
-import { showRenderedYaml } from "../utils/renderedYamlView";
-import { createChartValidator } from "../processing/chartValidator";
-import { getKubernetesConnector } from "../k8s/kubernetesConnector";
-import { getRuntimeStateManager } from "../state/runtimeStateManager";
-import { generateDependencyVisualizationData, checkDependencySecurity } from "../visualization/dependencyVisualizer";
-import { initializeIconManager, preloadIcons } from "../k8s/iconManager";
+import { ChartProfilesProvider, ChartTreeItem } from "./core/chartProfilesProvider";
+import { show as showChartVisualization } from "./visualization/chartVisualizationView";
+import { compareEnvironments, formatComparisonForWebview, type ComparisonWebviewData } from "./diff/environmentDiff";
+import { isHelmAvailable, renderHelmTemplate } from "./k8s/helmRenderer";
+import { showRenderedYaml } from "./utils/renderedYamlView";
+import { createChartValidator } from "./processing/chartValidator";
+import { getKubernetesConnector } from "./k8s/kubernetesConnector";
+import { getRuntimeStateManager } from "./state/runtimeStateManager";
+import { generateDependencyVisualizationData, checkDependencySecurity } from "./visualization/dependencyVisualizer";
+import { initializeIconManager, preloadIcons } from "./k8s/iconManager";
 
 function formatValidationMarkdown(result: {
 	valid: boolean;
@@ -91,6 +91,23 @@ export function activate(context: vscode.ExtensionContext) {
 		showCollapseAll: true,
 	});
 
+	// Handle tree item activation (single click execution)
+	treeView.onDidChangeSelection(async (e) => {
+		if (e.selection && e.selection.length > 0) {
+			const item = e.selection[0];
+			// Check if this is an action item with a command
+			if (item.type === "action" && item.command) {
+				console.log("Executing command for action:", item.command.command);
+				try {
+					await vscode.commands.executeCommand(item.command.command, item);
+				} catch (error) {
+					console.error("Error executing command:", error);
+					vscode.window.showErrorMessage(`Error: ${error}`);
+				}
+			}
+		}
+	});
+
 	// Register refresh command
 	const refreshCommand = vscode.commands.registerCommand("chartProfiles.refreshCharts", () => {
 		chartProfilesProvider.refresh();
@@ -128,7 +145,13 @@ export function activate(context: vscode.ExtensionContext) {
 	const visualizeChartCommand = vscode.commands.registerCommand(
 		"chartProfiles.visualizeChart",
 		async (item: unknown) => {
-			await showChartVisualization(context, item as Parameters<typeof showChartVisualization>[1]);
+			console.log("Visualize chart command called with item:", item);
+			try {
+				await showChartVisualization(context, item as Parameters<typeof showChartVisualization>[1]);
+			} catch (error) {
+				console.error("Error in visualizeChartCommand:", error);
+				vscode.window.showErrorMessage(`Error: ${error}`);
+			}
 		}
 	);
 
@@ -140,7 +163,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const currentWorkspaceRoots = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) || [];
 
 			// Get all available charts and environments
-			const charts = await import("../k8s/helmChart").then((m) => m.findHelmCharts(currentWorkspaceRoots));
+			const charts = await import("./k8s/helmChart").then((m) => m.findHelmCharts(currentWorkspaceRoots));
 
 			if (charts.length === 0) {
 				vscode.window.showErrorMessage("No Helm charts found in workspace");

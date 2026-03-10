@@ -1,6 +1,11 @@
-const esbuild = require("esbuild");
-const fs = require("fs");
-const path = require("path");
+import { context, build as _build } from "esbuild";
+import { existsSync, copyFileSync, mkdirSync, readdirSync } from "fs";
+import { join, basename as _basename, dirname } from "path";
+import { fileURLToPath } from "url";
+
+// Get __dirname equivalent for ESM compatibility
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const production = process.argv.includes("--production");
 const watch = process.argv.includes("--watch");
@@ -19,6 +24,7 @@ const esbuildProblemMatcherPlugin = {
       result.errors.forEach(({ text, location }) => {
         console.error(`✘ [ERROR] ${text}`);
         console.error(
+          // @ts-ignore
           `    ${location.file}:${location.line}:${location.column}:`,
         );
       });
@@ -28,8 +34,8 @@ const esbuildProblemMatcherPlugin = {
 };
 
 async function main() {
-  const ctx = await esbuild.context({
-    entryPoints: ["src/core/extension.ts"],
+  const ctx = await context({
+    entryPoints: ["src/extension.ts"],
     bundle: true,
     format: "cjs",
     minify: production,
@@ -52,29 +58,29 @@ async function main() {
   }
 
   // Copy CSS file to out/webview directory
-  const srcCssPath = path.join(__dirname, "src", "webview", "styles.css");
-  const outCssPath = path.join(__dirname, "out", "webview", "styles.css");
-  if (fs.existsSync(srcCssPath)) {
-    fs.copyFileSync(srcCssPath, outCssPath);
+  const srcCssPath = join(__dirname, "src", "webview", "styles.css");
+  const outCssPath = join(__dirname, "out", "webview", "styles.css");
+  if (existsSync(srcCssPath)) {
+    copyFileSync(srcCssPath, outCssPath);
     console.log("Copied styles.css to out/webview directory");
   }
 
   // Copy HTML files to out directory
-  const webviewDir = path.join(__dirname, "src", "webview");
-  const outWebviewDir = path.join(__dirname, "out", "webview");
+  const webviewDir = join(__dirname, "src", "webview");
+  const outWebviewDir = join(__dirname, "out", "webview");
 
   // Create out/webview directory if it doesn't exist
-  if (!fs.existsSync(outWebviewDir)) {
-    fs.mkdirSync(outWebviewDir, { recursive: true });
+  if (!existsSync(outWebviewDir)) {
+    mkdirSync(outWebviewDir, { recursive: true });
   }
 
   // Copy HTML files from src/webview to out/webview
-  if (fs.existsSync(webviewDir)) {
-    const htmlFiles = fs.readdirSync(webviewDir).filter(f => f.endsWith(".html"));
+  if (existsSync(webviewDir)) {
+    const htmlFiles = readdirSync(webviewDir).filter(f => f.endsWith(".html"));
     for (const file of htmlFiles) {
-      const srcPath = path.join(webviewDir, file);
-      const outPath = path.join(outWebviewDir, file);
-      fs.copyFileSync(srcPath, outPath);
+      const srcPath = join(webviewDir, file);
+      const outPath = join(outWebviewDir, file);
+      copyFileSync(srcPath, outPath);
       console.log(`Copied ${file} to out/webview directory`);
     }
   }
@@ -82,12 +88,12 @@ async function main() {
   // Compile TypeScript webview files to JavaScript
   const webviewTsFiles = ["src/webview/main.ts", "src/webview/topology.ts"];
   for (const tsFile of webviewTsFiles) {
-    const tsPath = path.join(__dirname, tsFile);
-    if (fs.existsSync(tsPath)) {
-      const basename = path.basename(tsFile, ".ts");
-      const outJsPath = path.join(outWebviewDir, `${basename}.js`);
+    const tsPath = join(__dirname, tsFile);
+    if (existsSync(tsPath)) {
+      const basename = _basename(tsFile, ".ts");
+      const outJsPath = join(outWebviewDir, `${basename}.js`);
 
-      await esbuild.build({
+      await _build({
         entryPoints: [tsPath],
         bundle: true,
         format: "iife",
