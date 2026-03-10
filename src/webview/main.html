@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{cspSource}} data:; script-src 'nonce-{{nonce}}'; style-src 'nonce-{{nonce}}'; connect-src {{cspSource}};">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{{cspSource}}} data:; script-src 'nonce-{{{nonce}}}'; style-src 'nonce-{{{nonce}}}'; connect-src {{{cspSource}}};">
     <title>Chart Visualization</title>
-    <link rel="stylesheet" href="{{stylesUri}}" nonce="{{nonce}}">
+    <link rel="stylesheet" href="{{{stylesUri}}}" nonce="{{{nonce}}}">
 </head>
-<body>
+<body data-init="{{{initData}}}">
     <div class="toolbar">
         <button id="exportYaml" class="toolbar-btn">📄 Export YAML</button>
         <button id="exportJson" class="toolbar-btn">📋 Export JSON</button>
@@ -21,24 +21,28 @@
     </div>
 
     <div id="overview" class="tab-content active">
-        {{overviewContent}}
+        {{{overviewContent}}}
     </div>
 
     <div id="resources" class="tab-content">
-        {{resourcesContent}}
+        {{{resourcesContent}}}
     </div>
 
     <div id="results" class="tab-content">
-        {{resultsContent}}
+        {{{resultsContent}}}
     </div>
 
-    <script src="{{chartJsUri}}" nonce="{{nonce}}"></script>
-    <script src="{{topologyJsUri}}" nonce="{{nonce}}"></script>
-    <script src="{{mainJsUri}}" nonce="{{nonce}}"></script>
-    <script nonce="{{nonce}}">
+    <script src="{{{chartJsUri}}}" nonce="{{{nonce}}}"></script>
+    <script src="{{{topologyJsUri}}}" nonce="{{{nonce}}}"></script>
+    <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>
+    <script nonce="{{{nonce}}}">
         // Initialize webview with data
-        // Call from window because strict mode doesn't make functions global
-        window.initializeWebview({{initData}});
+        // The init data is stored in a data attribute to avoid template syntax issues
+        // Note: quotes are escaped as &quot; in the HTML attribute, so we need to unescape them
+        var initDataStr = document.body.getAttribute('data-init').replace(/&quot;/g, '"');
+        if (initDataStr) {
+            window.initializeWebview(JSON.parse(initDataStr));
+        }
     </script>
 </body>
 </html>

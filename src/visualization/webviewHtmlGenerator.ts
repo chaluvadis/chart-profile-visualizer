@@ -63,33 +63,61 @@ export async function generateEnhancedHtml(
 ): Promise<string> {
 	const nonce = getNonce();
 
-	// Get local Chart.js, CSS, and webview JS URIs
-	const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
-	const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "styles.css"));
-	const mainJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "main.js"));
-	const topologyJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "topology.js"));
+	// Debug: Show message to confirm code is running
+	vscode.window.showInformationMessage("Generating webview HTML...");
 
-	// Generate dynamic content
-	const overviewContent = generateOverviewTab(data);
-	const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
-	const resultsContent = await loadTemplate(getTemplatePath("results", extensionUri), {});
-	const initData = generateInitializationData(data);
+	try {
+		// Get local Chart.js, CSS, and webview JS URIs
+		const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
+		const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "styles.css"));
+		const mainJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "main.js"));
+		const topologyJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "topology.js"));
 
-	// Load main template and replace placeholders
-	const mainTemplate = await loadTemplate(getTemplatePath("main", extensionUri), {
-		nonce,
-		cspSource: webview.cspSource,
-		stylesUri,
-		chartJsUri,
-		topologyJsUri,
-		mainJsUri,
-		initData,
-		overviewContent,
-		resourcesContent: resourceExplorerHtml,
-		resultsContent,
-	});
+		// Debug: Show URI info
+		vscode.window.showInformationMessage(`Chart.js: ${chartJsUri}`);
 
-	return mainTemplate;
+		// Generate dynamic content
+		const overviewContent = generateOverviewTab(data);
+		const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
+		const resultsContent = await loadTemplate(getTemplatePath("results", extensionUri), {});
+		const initData = generateInitializationData(data);
+
+		// Load main template and replace placeholders
+		const mainTemplate = await loadTemplate(getTemplatePath("main", extensionUri), {
+			nonce,
+			cspSource: webview.cspSource,
+			stylesUri,
+			chartJsUri,
+			topologyJsUri,
+			mainJsUri,
+			initData,
+			overviewContent,
+			resourcesContent: resourceExplorerHtml,
+			resultsContent,
+		});
+
+		return mainTemplate;
+	} catch (error) {
+		vscode.window.showErrorMessage(`Error generating webview: ${error}`);
+		// Return fallback HTML
+		const fallbackHtml = `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="UTF-8">
+				<meta http-equiv="Content-Security-Policy" content="${webview.cspSource} script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+				<title>Chart Profile Visualizer</title>
+		</head>
+		<body>
+			<div class="error-container">
+				<h1>Error Loading Chart Profile</h1>
+				<p>${error}</p>
+			</div>
+		</body>
+		</html>
+		`;
+		return fallbackHtml;
+	}
 }
 
 function generateOverviewTab(data: any): string {
@@ -102,6 +130,67 @@ function generateOverviewTab(data: any): string {
         </div>
 
         ${generateTopologyTab()}
+
+        <div class="chart-container">
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-label">Total Values</div>
+                    <div class="stat-value">${data.totalValues}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Overridden Values</div>
+                    <div class="stat-value">${data.overriddenCount}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Resources</div>
+                    <div class="stat-value">${data.resources.length}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Override Rate</div>
+                    <div class="stat-value">${data.totalValues > 0 ? Math.round((data.overriddenCount / data.totalValues) * 100) : 0}%</div>
+                </div>
+            </div>
+        </div>
+
+        ${
+			Object.keys(data.resourceCounts || {}).length > 0
+				? `
+        <div class="chart-container">
+            <h2>Resource Distribution</h2>
+            <div class="chart-wrapper">
+                <canvas id="resourceChart"></canvas>
+            </div>
+        </div>
+        `
+				: `
+        <div class="chart-container" style="display:none">
+            <h2>Resource Distribution</h2>
+            <div class="chart-wrapper">
+                <canvas id="resourceChart"></canvas>
+            </div>
+        </div>
+        `
+		}
+
+        ${
+			data.totalValues > 0
+				? `
+        <div class="chart-container">
+            <h2>Values Overview</h2>
+            <div class="chart-wrapper">
+                <canvas id="valuesChart"></canvas>
+            </div>
+        </div>
+        `
+				: `
+        <div class="chart-container" style="display:none">
+            <h2>Values Overview</h2>
+            <div class="chart-wrapper">
+                <canvas id="valuesChart"></canvas>
+            </div>
+        </div>
+        `
+		}
 
         ${
 			data.overriddenValues.length > 0
@@ -383,7 +472,8 @@ function generateInitializationData(data: any): string {
 	};
 
 	// Safely serialize to JSON, escaping < characters for security
-	return JSON.stringify(initData).replace(/</g, "\\u003c");
+	// Also escape quotes for safe use in HTML attributes
+	return JSON.stringify(initData).replace(/</g, "\\u003c").replace(/"/g, "&quot;");
 }
 
 function generateTopologyTab(): string {

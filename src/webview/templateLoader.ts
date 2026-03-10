@@ -1,12 +1,13 @@
-import * as fs from "node:fs/promises";
 import * as vscode from "vscode";
 
 /**
  * Simple template engine for replacing placeholders in HTML templates
- * Uses {{variable}} syntax for variable replacement
+ * Uses {{variable}} syntax for variable replacement (HTML-escaped)
+ * Uses {{{variable}}} syntax for raw/unescaped output (for URIs, JSON, etc.)
  * Uses {{#if condition}}...{{/if}} for conditional blocks
  * Uses {{#each items}}...{{/each}} for loops
- * WARNING: All variables are automatically HTML-escaped for security
+ * WARNING: {{variable}} (double braces) are automatically HTML-escaped for security
+ * Use {{{variable}}} (triple braces) for raw output without escaping
  */
 
 interface TemplateContext {
@@ -27,15 +28,33 @@ export function escapeHtml(text: string): string {
 
 /**
  * Load a template file and replace placeholders with values from context
- * @param templatePath - The filesystem path to the template file
+ * @param templateUri - The VS Code URI to the template file
  * @param context - Object with values to replace placeholders
  */
-export async function loadTemplate(templatePath: string, context: TemplateContext): Promise<string> {
+export async function loadTemplate(templateUri: vscode.Uri, context: TemplateContext): Promise<string> {
 	try {
-		const template = await fs.readFile(templatePath, "utf8");
-		return renderTemplate(template, context);
+		console.log("[TemplateLoader] Loading template:", templateUri.fsPath);
+		console.log("[TemplateLoader] Context keys:", Object.keys(context));
+
+		// Use VS Code's workspace API to read the file, which works with vscode-resource URIs
+		const templateBuffer = await vscode.workspace.fs.readFile(templateUri);
+		const template = new TextDecoder().decode(templateBuffer);
+
+		console.log("[TemplateLoader] Template loaded, length:", template.length);
+
+		const result = renderTemplate(template, context);
+
+		console.log("[TemplateLoader] Rendered result length:", result.length);
+
+		// Check for any remaining {{ placeholders
+		const remaining = result.match(/\{\{[^}]+\}\}/g);
+		if (remaining) {
+			console.log("[TemplateLoader] WARNING - Remaining placeholders:", remaining);
+		}
+
+		return result;
 	} catch (error) {
-		console.error(`Failed to load template: ${templatePath}`, error);
+		console.error(`[TemplateLoader] Failed to load template: ${templateUri.fsPath}`, error);
 		return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,7 +63,8 @@ export async function loadTemplate(templatePath: string, context: TemplateContex
 </head>
 <body>
     <h1>Error loading template</h1>
-    <p>Failed to load: ${escapeHtml(templatePath)}</p>
+    <p>Failed to load: ${escapeHtml(templateUri.fsPath)}</p>
+    <pre>${escapeHtml(String(error))}</pre>
 </body>
 </html>`;
 	}
@@ -53,9 +73,16 @@ export async function loadTemplate(templatePath: string, context: TemplateContex
 /**
  * Render a template string with the given context
  * Processes template in order: #each, #if, then simple variables
+ * Use {{variable}} for HTML-escaped output
+ * Use {{{variable}}} for raw/unescaped output (for URIs, JSON, etc.)
  */
 export function renderTemplate(template: string, context: TemplateContext): string {
 	let result = template;
+
+	// First: Replace triple-brace {{{variable}}} with RAW (unescaped) values
+	result = result.replace(/\{\{\{(\w+)\}\}\}/g, (match, key) => {
+		return context[key] !== undefined ? String(context[key]) : "";
+	});
 
 	// Replace {{#each items}}...{{/each}} loops first (before #if to handle nested)
 	result = result.replace(/\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (match, itemsKey, itemTemplate) => {
@@ -106,23 +133,21 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 
 	// Replace remaining simple {{variable}} placeholders (with HTML escaping for security)
 	result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-		return context[key] !== undefined ? escapeHtml(String(context[key])) : match;
+		return context[key] !== undefined ? escapeHtml(String(context[key])) : "";
 	});
 
 	return result;
 }
 
 /**
- * Get the path to a template file in the webview directory
+ * Get the URI to a template file in the webview directory
  * @param templateName - Name of the template (without extension)
  * @param extensionUri - The extension's URI (from context.extensionUri) for proper path resolution
- * @returns The filesystem path to the template file
+ * @returns The URI to the template file
  */
-export function getTemplatePath(templateName: string, extensionUri: vscode.Uri): string {
+export function getTemplatePath(templateName: string, extensionUri: vscode.Uri): vscode.Uri {
 	// Use the provided extension URI to resolve the template path
 	// This works correctly in both development and bundled (production) modes
-	const templateUri = vscode.Uri.joinPath(extensionUri, "src", "webview", `${templateName}.html`);
-
-	// Return the filesystem path from the URI
-	return templateUri.fsPath;
+	// Note: Templates are copied to out/webview by esbuild.js during build
+	return vscode.Uri.joinPath(extensionUri, "out", "webview", `${templateName}.html`);
 }

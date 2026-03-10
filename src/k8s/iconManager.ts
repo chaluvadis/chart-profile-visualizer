@@ -55,8 +55,8 @@ export function getIconUri(kind: string, theme: "dark" | "light" = "dark"): vsco
 
 	// Check if file exists
 	if (!fs.existsSync(iconPath)) {
-		// Fall back to default icon
-		return vscode.Uri.file(path.join(extensionContext.extensionPath, "images", "icon.svg"));
+		// Fall back to default icon (use .png as that's what exists in the images directory)
+		return vscode.Uri.file(path.join(extensionContext.extensionPath, "images", "icon.png"));
 	}
 
 	return vscode.Uri.file(iconPath);
