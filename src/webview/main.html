@@ -61,10 +61,14 @@
     <script src="{{{topologyJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>
     <script nonce="{{{nonce}}}">
-        // Initialize webview with data
-        var initDataStr = document.body.getAttribute('data-init').replace(/"/g, '"');
+        // Initialize webview with data - decode HTML entities first
+        var initDataStr = document.body.getAttribute('data-init').replace(/&quot;/g, '"');
         if (initDataStr) {
-            window.initializeWebview(JSON.parse(initDataStr));
+            try {
+                window.initializeWebview(JSON.parse(initDataStr));
+            } catch (e) {
+                console.error('Failed to parse init data:', e);
+            }
         }
 
         // Check view mode - 'visualize' or 'compare'

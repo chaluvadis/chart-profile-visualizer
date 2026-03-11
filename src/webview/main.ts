@@ -473,6 +473,7 @@ function renderComparisonResults(): void {
 
 	// Render into comparison-results div and show it
 	comparisonResults.innerHTML = html;
+	comparisonResults.classList.remove("hidden");
 	comparisonResults.style.display = "block";
 }
 

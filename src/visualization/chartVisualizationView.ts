@@ -520,7 +520,8 @@ async function runComparisonFromWebview(env1: string, env2: string): Promise<voi
 
 		// Refresh the panel
 		if (currentItem) {
-			await updatePanel(currentItem);
+			// Use the comparison mode function, not the regular visualization function
+			await updatePanelForCompare(currentItem);
 		}
 
 		vscode.window.showInformationMessage(
@@ -1002,7 +1003,7 @@ async function collectChartDataForCompare(item: ChartTreeItem): Promise<ChartDat
 		resourceHierarchy,
 		architectureNodes,
 		relationships,
-		comparisonData: null, // No comparison data yet - user will select environments
+		comparisonData: getCurrentComparisonData(), // Use stored comparison data if available
 		availableEnvs,
 	};
 }
