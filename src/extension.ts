@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as vscode from "vscode";
 import { ChartProfilesProvider, ChartTreeItem } from "./core/chartProfilesProvider";
 import { show as showChartVisualization } from "./visualization/chartVisualizationView";
-import { compareEnvironments, formatComparisonForWebview, type ComparisonWebviewData } from "./diff/environmentDiff";
 import { isHelmAvailable, renderHelmTemplate } from "./k8s/helmRenderer";
 import { showRenderedYaml } from "./utils/renderedYamlView";
 import { createChartValidator } from "./processing/chartValidator";
@@ -160,135 +159,6 @@ export function activate(context: vscode.ExtensionContext) {
 			} catch (error) {
 				console.error("Error in visualizeChartCommand:", error);
 				vscode.window.showErrorMessage(`Error: ${error}`);
-			}
-		}
-	);
-
-	// Register compare environments command
-	const compareEnvironmentsCommand = vscode.commands.registerCommand(
-		"chartProfiles.compareEnvironments",
-		async () => {
-			// Get current workspace roots
-			const currentWorkspaceRoots = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) || [];
-
-			// Get all available charts and environments
-			const charts = await import("./k8s/helmChart").then((m) => m.findHelmCharts(currentWorkspaceRoots));
-
-			if (charts.length === 0) {
-				vscode.window.showErrorMessage("No Helm charts found in workspace");
-				return;
-			}
-
-			// Let user select a chart
-			const chartItems = charts.map((c) => ({ label: c.name, chart: c }));
-			const selectedChart = await vscode.window.showQuickPick(chartItems, {
-				placeHolder: "Select a chart to compare",
-			});
-
-			if (!selectedChart) {
-				return;
-			}
-
-			// Get available environments for this chart
-			const chartPath = selectedChart.chart.path;
-			const envFiles = fs
-				.readdirSync(chartPath)
-				.filter((f: string) => f.match(/^values-(.+)\.ya?ml$/))
-				.map((f: string) => f.match(/^values-(.+)\.ya?ml$/)![1]);
-
-			if (envFiles.length < 2) {
-				vscode.window.showErrorMessage("Need at least 2 environments to compare");
-				return;
-			}
-
-			// Select two environments
-			const env1 = await vscode.window.showQuickPick(envFiles, {
-				placeHolder: "Select first environment",
-			});
-
-			if (!env1) {
-				return;
-			}
-
-			const env2 = await vscode.window.showQuickPick(
-				envFiles.filter((e) => e !== env1),
-				{
-					placeHolder: "Select second environment",
-				}
-			);
-
-			if (!env2) {
-				return;
-			}
-
-			// Render both environments
-			vscode.window.showInformationMessage(`Comparing ${env1} vs ${env2}...`);
-
-			try {
-				const releaseName1 = `${selectedChart.chart.name}-${env1}`;
-				const releaseName2 = `${selectedChart.chart.name}-${env2}`;
-
-				const resources1 = await renderHelmTemplate(chartPath, env1, releaseName1);
-				const resources2 = await renderHelmTemplate(chartPath, env2, releaseName2);
-
-				const comparison = compareEnvironments(env1, resources1, env2, resources2, selectedChart.chart.name);
-
-				// Format comparison for webview display with error handling
-				let comparisonFormatError = false;
-				let comparisonData: ComparisonWebviewData;
-				try {
-					comparisonData = formatComparisonForWebview(comparison);
-				} catch (formatError) {
-					console.error("Failed to format comparison for webview:", formatError);
-					comparisonFormatError = true;
-					// Provide default empty comparison data instead of casting empty object
-					comparisonData = {
-						header: {
-							leftEnv: env1,
-							rightEnv: env2,
-							chartName: selectedChart.chart.name,
-						},
-						summary: {
-							added: 0,
-							removed: 0,
-							modified: 0,
-							unchanged: 0,
-							total: 0,
-							changePercentage: 0,
-						},
-						resources: [],
-						kindGroups: [],
-					};
-				}
-
-				// Create a ChartTreeItem to show in the webview with comparison results
-				const chartItem = new ChartTreeItem(
-					selectedChart.chart.name,
-					selectedChart.chart.path,
-					vscode.TreeItemCollapsibleState.None,
-					"comparison" as const,
-					selectedChart.chart,
-					env1,
-					env2
-				);
-
-				// Show the webview with the selected chart and comparison data
-				await showChartVisualization(context, chartItem, comparisonData);
-
-				// Show notification with summary
-				const { summary } = comparison;
-				if (comparisonFormatError) {
-					vscode.window.showWarningMessage(
-						`Comparison complete (${summary.added} added, ${summary.removed} removed, ${summary.modified} modified) but display formatting failed. Check Output panel for details.`
-					);
-				} else {
-					vscode.window.showInformationMessage(
-						`Comparison complete: ${summary.added} added, ${summary.removed} removed, ${summary.modified} modified - showing Results tab`
-					);
-				}
-			} catch (error: unknown) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				vscode.window.showErrorMessage(`Comparison failed: ${errorMessage}`);
 			}
 		}
 	);
@@ -523,7 +393,6 @@ export function activate(context: vscode.ExtensionContext) {
 		viewRenderedCommand,
 		viewMergedValuesCommand,
 		visualizeChartCommand,
-		compareEnvironmentsCommand,
 		validateChartCommand,
 		checkClusterStatusCommand,
 		checkRuntimeStateCommand,

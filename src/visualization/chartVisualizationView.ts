@@ -331,16 +331,9 @@ async function handleMessage(message: WebviewMessage) {
 
 			// Fallback: clear and inform user
 			clearComparisonData();
-			vscode.window
-				.showInformationMessage(
-					"Comparison data cleared. Click 'Compare Environments' in the command palette to run a new comparison.",
-					"Run Comparison"
-				)
-				.then((selection) => {
-					if (selection === "Run Comparison") {
-						vscode.commands.executeCommand("chartProfiles.compareEnvironments");
-					}
-				});
+			vscode.window.showInformationMessage(
+				"Comparison data cleared. Use the dropdowns in Compare Environments tab to run a new comparison."
+			);
 			break;
 		case "copyResource":
 			if (message.yaml) {

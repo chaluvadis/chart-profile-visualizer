@@ -51,11 +51,6 @@
         "title": "Visualize Chart"
       },
       {
-        "command": "chartProfiles.compareEnvironments",
-        "title": "Compare Environments",
-        "icon": "$(diff)"
-      },
-      {
         "command": "chartProfiles.validateChart",
         "title": "Validate Chart",
         "icon": "$(check)"
@@ -80,11 +75,6 @@
       "view/title": [
         {
           "command": "chartProfiles.refreshCharts",
-          "when": "view == chartProfiles",
-          "group": "navigation"
-        },
-        {
-          "command": "chartProfiles.compareEnvironments",
           "when": "view == chartProfiles",
           "group": "navigation"
         },
