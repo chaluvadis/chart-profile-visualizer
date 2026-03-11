@@ -242,114 +242,179 @@ function escapeHtml(text: unknown): string {
 }
 
 /**
+ * Switch to the Results tab
+ */
+function switchToResultsTab(): void {
+	// Deactivate all tab buttons
+	document.querySelectorAll(".tab-btn").forEach((b) => {
+		b.classList.remove("active");
+	});
+	// Deactivate all tab content
+	document.querySelectorAll(".tab-content").forEach((c) => {
+		c.classList.remove("active");
+	});
+	// Activate the Results tab button
+	const resultsTabBtn = document.querySelector('.tab-btn[data-tab="results"]');
+	if (resultsTabBtn) {
+		resultsTabBtn.classList.add("active");
+	}
+	// Activate the Results tab content
+	const resultsContent = document.getElementById("results");
+	if (resultsContent) {
+		resultsContent.classList.add("active");
+	}
+}
+
+/**
  * Render comparison results in the Results tab
  */
 function renderComparisonResults(): void {
-	const resultsContent = document.getElementById("results-content");
-	if (!resultsContent) return;
+	// Get the comparison results container (keep selector visible)
+	const comparisonResults = document.getElementById("comparison-results") as HTMLElement | null;
+	if (!comparisonResults) return;
 
 	const data = window.webviewData.comparisonData;
 
 	// Validate comparison data structure
 	if (!data || typeof data !== "object") {
-		resultsContent.innerHTML = `
+		comparisonResults.innerHTML = `
       <div class="comparison-placeholder">
         <div class="no-comparison-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m12 0h4M5 9V5a2 2 0 0 1 2-2h4m0 12v4a2 2 0 0 1-2 2h-4"/><path d="M9 17V9h6v8"/><circle cx="12" cy="12" r="2"/></svg></div>
         <div class="no-comparison-text">Select two environments to compare</div>
         <div class="no-comparison-hint">Choose a chart and two environments to see detailed comparison results</div>
       </div>`;
+		comparisonResults.style.display = "block";
 		return;
 	}
 
 	// Validate nested structure
 	if (!data.header || !data.summary || !Array.isArray(data.resources)) {
 		console.error("Invalid comparison data structure:", data);
-		resultsContent.innerHTML = `
+		comparisonResults.innerHTML = `
       <div class="comparison-placeholder">
         <div class="no-comparison-icon">⚠️</div>
         <div class="no-comparison-text"> Invalid comparison data</div>
         <div class="no-comparison-hint">Please run the comparison again</div>
       </div>`;
+		comparisonResults.style.display = "block";
 		return;
 	}
 
 	// Validate header values
 	if (!data.header.leftEnv || !data.header.rightEnv) {
-		resultsContent.innerHTML = `
+		comparisonResults.innerHTML = `
       <div class="comparison-placeholder">
         <div class="no-comparison-icon">⚠️</div>
         <div class="no-comparison-text">No environment selected for comparison</div>
         <div class="no-comparison-hint">Select two environments to compare</div>
       </div>`;
+		comparisonResults.style.display = "block";
 		return;
 	}
 
-	// Build the comparison HTML
+	// Switch to Results tab automatically when comparison results are available
+	switchToResultsTab();
+
+	// Build the comparison HTML with simplified UX (avoid duplicate info)
 	const { header, summary, resources, kindGroups } = data;
 
-	let html = `<div class="compare-summary">
-    <div class="compare-header">
-      <h3>${escapeHtml(header.chartName)}</h3>
-      <span class="env-badge">${escapeHtml(header.leftEnv)}</span>
-      <span class="env-separator">vs</span>
-      <span class="env-badge">${escapeHtml(header.rightEnv)}</span>
-    </div>
-    <div class="summary-stats">
-      <div class="stat stat-added">
-        <span class="stat-value">${escapeHtml(String(summary.added))}</span>
-        <span class="stat-label">Added</span>
-      </div>
-      <div class="stat stat-removed">
-        <span class="stat-value">${escapeHtml(String(summary.removed))}</span>
-        <span class="stat-label">Removed</span>
-      </div>
-      <div class="stat stat-modified">
-        <span class="stat-value">${escapeHtml(String(summary.modified))}</span>
-        <span class="stat-label">Modified</span>
-      </div>
-      <div class="stat stat-unchanged">
-        <span class="stat-value">${escapeHtml(String(summary.unchanged))}</span>
-        <span class="stat-label">Unchanged</span>
-      </div>
-    </div>
-  </div>`;
+	// Determine which stats have values to display
+	const hasChanges = summary.added > 0 || summary.removed > 0 || summary.modified > 0;
+	const activeCategories = [summary.added, summary.removed, summary.modified, summary.unchanged].filter(
+		(c) => c > 0
+	).length;
 
-	// Group resources by type
+	let html = `<div class="compare-container">
+        <div class="compare-header-section">
+            <div class="compare-info">
+                <h2 class="compare-chart-name">${escapeHtml(header.chartName)}</h2>
+                <div class="compare-envs">
+                    <span class="env-tag env-base">${escapeHtml(header.leftEnv)}</span>
+                    <span class="env-vs">vs</span>
+                    <span class="env-tag env-compare">${escapeHtml(header.rightEnv)}</span>
+                </div>
+            </div>`;
+
+	// Add summary stats only for non-zero values
+	if (hasChanges) {
+		html += `<div class="compare-summary-stats">`;
+		if (summary.added > 0)
+			html += `<div class="summary-item stat-added"><span class="summary-count">${escapeHtml(String(summary.added))}</span><span class="summary-label">Added</span></div>`;
+		if (summary.removed > 0)
+			html += `<div class="summary-item stat-removed"><span class="summary-count">${escapeHtml(String(summary.removed))}</span><span class="summary-label">Removed</span></div>`;
+		if (summary.modified > 0)
+			html += `<div class="summary-item stat-modified"><span class="summary-count">${escapeHtml(String(summary.modified))}</span><span class="summary-label">Modified</span></div>`;
+		if (summary.unchanged > 0)
+			html += `<div class="summary-item stat-unchanged"><span class="summary-count">${escapeHtml(String(summary.unchanged))}</span><span class="summary-label">Unchanged</span></div>`;
+		html += `</div>`;
+	} else {
+		html += `<div class="compare-no-changes">No changes detected</div>`;
+	}
+
+	html += `</div>`;
+
+	// Only show filter buttons if there are multiple categories with changes
+	if (hasChanges && activeCategories > 1) {
+		html += `<div class="compare-filters">`;
+		html += `<button class="filter-btn active" data-filter="all">All</button>`;
+		if (summary.added > 0)
+			html += `<button class="filter-btn filter-added" data-filter="added">Added (${escapeHtml(String(summary.added))})</button>`;
+		if (summary.removed > 0)
+			html += `<button class="filter-btn filter-removed" data-filter="removed">Removed (${escapeHtml(String(summary.removed))})</button>`;
+		if (summary.modified > 0)
+			html += `<button class="filter-btn filter-modified" data-filter="modified">Modified (${escapeHtml(String(summary.modified))})</button>`;
+		if (summary.unchanged > 0)
+			html += `<button class="filter-btn filter-unchanged" data-filter="unchanged">Unchanged (${escapeHtml(String(summary.unchanged))})</button>`;
+		html += `</div>`;
+	}
+
+	html += `<div class="compare-resources">`;
+
+	// Render resources
 	if (resources && resources.length > 0) {
-		html += `<div class="compare-resources">`;
-
-		// Add kind groups summary
-		if (kindGroups && kindGroups.length > 0) {
-			html += `<div class="kind-summary">`;
-			for (const group of kindGroups) {
-				html += `<span class="kind-badge">${escapeHtml(group.kind)}: ${escapeHtml(String(group.count))}</span>`;
-			}
-			html += `</div>`;
-		}
-
-		// Add resource list
 		html += `<div class="resource-list">`;
 		for (const resource of resources) {
 			const diffClass = resource.diffType.toLowerCase();
-			html += `<div class="compare-resource-card ${escapeHtml(diffClass)}">
+			const hasFields = resource.fields && resource.fields.length > 0;
+			const fieldCount = hasFields ? resource.fields.length : 0;
+
+			// For modified and unchanged resources, show field diffs expanded
+			const showFieldsExpanded = diffClass === "modified" || diffClass === "unchanged";
+
+			html += `<div class="compare-resource-card ${escapeHtml(diffClass)}" data-diff-type="${escapeHtml(diffClass)}" ${hasFields ? `data-field-count="${fieldCount}"` : ""}>
         <div class="resource-summary">
-          <span class="diff-indicator diff-${escapeHtml(diffClass)}">${escapeHtml(resource.diffType)}</span>
           <span class="resource-kind">${escapeHtml(resource.kind)}</span>
           <span class="resource-name">${escapeHtml(resource.name)}</span>
           ${resource.namespace ? `<span class="resource-namespace">${escapeHtml(resource.namespace)}</span>` : ""}
+          ${hasFields ? `<span class="field-count-badge">${fieldCount} field${fieldCount > 1 ? "s" : ""} changed</span>` : ""}
         </div>`;
 
-			// Add field diffs if any
-			if (resource.fields && resource.fields.length > 0) {
-				html += `<div class="field-diffs">`;
+			// Add field diffs - expanded for modified and unchanged
+			if (hasFields) {
+				html += `<div class="field-diffs field-diffs-visible" ${showFieldsExpanded ? 'style="display: block"' : ""}>`;
 				for (const field of resource.fields) {
+					// Format values properly - use JSON.stringify for complex objects
+					const leftVal =
+						typeof field.leftValue === "object"
+							? JSON.stringify(field.leftValue, null, 2)
+							: String(field.leftValue ?? "");
+					const rightVal =
+						typeof field.rightValue === "object"
+							? JSON.stringify(field.rightValue, null, 2)
+							: String(field.rightValue ?? "");
 					html += `<div class="field-diff">
-            <span class="field-path">${escapeHtml(field.path)}</span>
-            <span class="field-values">
-              <span class="field-left">${escapeHtml(JSON.stringify(field.leftValue))}</span>
+            <div class="field-path-row">
+              <span class="field-path">${escapeHtml(field.path)}</span>
+            </div>
+            <div class="field-values-row">
+              <div class="field-value-box field-left-box">
+                <pre class="field-value-content">${escapeHtml(leftVal)}</pre>
+              </div>
               <span class="field-arrow">→</span>
-              <span class="field-right">${escapeHtml(JSON.stringify(field.rightValue))}</span>
-            </span>
+              <div class="field-value-box field-right-box">
+                <pre class="field-value-content">${escapeHtml(rightVal)}</pre>
+              </div>
+            </div>
           </div>`;
 				}
 				html += `</div>`;
@@ -362,9 +427,61 @@ function renderComparisonResults(): void {
 		html += `<div class="no-changes">No differences found between environments</div>`;
 	}
 
-	html += `</div>`;
+	html += `</div></div>`;
 
-	resultsContent.innerHTML = html;
+	// Add filter button click handlers with auto-expand for modified and unchanged
+	html += `<script>
+		(function() {
+			const filterBtns = document.querySelectorAll('.filter-btn');
+			const resourceCards = document.querySelectorAll('.compare-resource-card');
+
+			filterBtns.forEach(btn => {
+				btn.addEventListener('click', () => {
+					// Remove active class from all buttons
+					filterBtns.forEach(b => b.classList.remove('active'));
+					// Add active class to clicked button
+					btn.classList.add('active');
+
+					const filter = btn.getAttribute('data-filter');
+
+					resourceCards.forEach(card => {
+						if (filter === 'all') {
+							card.style.display = '';
+							// Expand field diffs for modified and unchanged cards in 'all' view
+							const diffType = card.getAttribute('data-diff-type');
+							const fieldDiffs = card.querySelector('.field-diffs');
+							if ((diffType === 'modified' || diffType === 'unchanged') && fieldDiffs) {
+								fieldDiffs.style.display = 'block';
+							}
+						} else if (filter === 'modified' || filter === 'unchanged') {
+							const diffType = card.getAttribute('data-diff-type');
+							if (diffType === filter) {
+								card.style.display = '';
+								// Auto-expand field diffs when filtering by modified or unchanged
+								const fieldDiffs = card.querySelector('.field-diffs');
+								if (fieldDiffs) {
+									fieldDiffs.style.display = 'block';
+								}
+							} else {
+								card.style.display = 'none';
+							}
+						} else {
+							const diffType = card.getAttribute('data-diff-type');
+							if (diffType === filter) {
+								card.style.display = '';
+							} else {
+								card.style.display = 'none';
+							}
+						}
+					});
+				});
+			});
+		})();
+	</script>`;
+
+	// Render into comparison-results div and show it
+	comparisonResults.innerHTML = html;
+	comparisonResults.style.display = "block";
 }
 
 /**
