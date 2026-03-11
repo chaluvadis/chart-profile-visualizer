@@ -259,14 +259,16 @@ function renderComparisonResults(): void {
 	// Switch to Compare tab automatically when comparison results are available
 	switchToCompareTab();
 
-	// Build the comparison HTML with simplified UX (avoid duplicate info)
+	// Build the comparison HTML - only show resources with actual changes (not unchanged)
 	const { header, summary, resources, kindGroups } = data;
 
-	// Determine which stats have values to display
+	// Filter to only show resources with changes (added, removed, modified)
+	// Exclude unchanged resources since they don't provide useful comparison info
+	const changedResources = resources.filter((r) => r.diffType.toLowerCase() !== "unchanged");
+
+	// Determine which stats have values to display (exclude unchanged from summary)
 	const hasChanges = summary.added > 0 || summary.removed > 0 || summary.modified > 0;
-	const activeCategories = [summary.added, summary.removed, summary.modified, summary.unchanged].filter(
-		(c) => c > 0
-	).length;
+	const activeCategories = [summary.added, summary.removed, summary.modified].filter((c) => c > 0).length;
 
 	let html = `<div class="compare-container">
         <div class="compare-header-section">
@@ -279,7 +281,7 @@ function renderComparisonResults(): void {
                 </div>
             </div>`;
 
-	// Add summary stats only for non-zero values
+	// Add summary stats only for non-zero values (exclude unchanged)
 	if (hasChanges) {
 		html += `<div class="compare-summary-stats">`;
 		if (summary.added > 0)
@@ -288,8 +290,6 @@ function renderComparisonResults(): void {
 			html += `<div class="summary-item stat-removed"><span class="summary-count">${escapeHtml(String(summary.removed))}</span><span class="summary-label">Removed</span></div>`;
 		if (summary.modified > 0)
 			html += `<div class="summary-item stat-modified"><span class="summary-count">${escapeHtml(String(summary.modified))}</span><span class="summary-label">Modified</span></div>`;
-		if (summary.unchanged > 0)
-			html += `<div class="summary-item stat-unchanged"><span class="summary-count">${escapeHtml(String(summary.unchanged))}</span><span class="summary-label">Unchanged</span></div>`;
 		html += `</div>`;
 	} else {
 		html += `<div class="compare-no-changes">No changes detected</div>`;
@@ -307,23 +307,21 @@ function renderComparisonResults(): void {
 			html += `<button class="filter-btn filter-removed" data-filter="removed">Removed (${escapeHtml(String(summary.removed))})</button>`;
 		if (summary.modified > 0)
 			html += `<button class="filter-btn filter-modified" data-filter="modified">Modified (${escapeHtml(String(summary.modified))})</button>`;
-		if (summary.unchanged > 0)
-			html += `<button class="filter-btn filter-unchanged" data-filter="unchanged">Unchanged (${escapeHtml(String(summary.unchanged))})</button>`;
 		html += `</div>`;
 	}
 
 	html += `<div class="compare-resources">`;
 
-	// Render resources
-	if (resources && resources.length > 0) {
+	// Render resources - only changedResources (excludes unchanged)
+	if (changedResources && changedResources.length > 0) {
 		html += `<div class="resource-list">`;
-		for (const resource of resources) {
+		for (const resource of changedResources) {
 			const diffClass = resource.diffType.toLowerCase();
 			const hasFields = resource.fields && resource.fields.length > 0;
 			const fieldCount = hasFields ? resource.fields.length : 0;
 
-			// For modified and unchanged resources, show field diffs expanded
-			const showFieldsExpanded = diffClass === "modified" || diffClass === "unchanged";
+			// Only show field diffs expanded for modified resources
+			const showFieldsExpanded = diffClass === "modified";
 
 			html += `<div class="compare-resource-card ${escapeHtml(diffClass)}" data-diff-type="${escapeHtml(diffClass)}" ${hasFields ? `data-field-count="${fieldCount}"` : ""}>
         <div class="resource-summary">
@@ -346,20 +344,20 @@ function renderComparisonResults(): void {
 						typeof field.rightValue === "object"
 							? JSON.stringify(field.rightValue, null, 2)
 							: String(field.rightValue ?? "");
-					html += `<div class="field-diff">
-            <div class="field-path-row">
-              <span class="field-path">${escapeHtml(field.path)}</span>
-            </div>
-            <div class="field-values-row">
-              <div class="field-value-box field-left-box">
-                <pre class="field-value-content">${escapeHtml(leftVal)}</pre>
-              </div>
-              <span class="field-arrow">→</span>
-              <div class="field-value-box field-right-box">
-                <pre class="field-value-content">${escapeHtml(rightVal)}</pre>
-              </div>
-            </div>
-          </div>`;
+					html += `<div class="field-diff">`;
+					html += `<div class="field-path-row">`;
+					html += `<span class="field-path">${escapeHtml(field.path)}</span>`;
+					html += `</div>`;
+					html += `<div class="field-values-row">`;
+					html += `<div class="field-left">`;
+					html += `<pre class="field-value-content">${escapeHtml(leftVal)}</pre>`;
+					html += `</div>`;
+					html += `<span class="field-arrow">→</span>`;
+					html += `<div class="field-right">`;
+					html += `<pre class="field-value-content">${escapeHtml(rightVal)}</pre>`;
+					html += `</div>`;
+					html += `</div>`;
+					html += `</div>`;
 				}
 				html += `</div>`;
 			}
@@ -373,7 +371,7 @@ function renderComparisonResults(): void {
 
 	html += `</div></div>`;
 
-	// Add filter button click handlers with auto-expand for modified and unchanged
+	// Add filter button click handlers - only for changed resources (added, removed, modified)
 	html += `<script>
 		(function() {
 			const filterBtns = document.querySelectorAll('.filter-btn');
@@ -391,17 +389,17 @@ function renderComparisonResults(): void {
 					resourceCards.forEach(card => {
 						if (filter === 'all') {
 							card.style.display = '';
-							// Expand field diffs for modified and unchanged cards in 'all' view
+							// Expand field diffs for modified cards in 'all' view
 							const diffType = card.getAttribute('data-diff-type');
 							const fieldDiffs = card.querySelector('.field-diffs');
-							if ((diffType === 'modified' || diffType === 'unchanged') && fieldDiffs) {
+							if (diffType === 'modified' && fieldDiffs) {
 								fieldDiffs.style.display = 'block';
 							}
-						} else if (filter === 'modified' || filter === 'unchanged') {
+						} else if (filter === 'modified') {
 							const diffType = card.getAttribute('data-diff-type');
 							if (diffType === filter) {
 								card.style.display = '';
-								// Auto-expand field diffs when filtering by modified or unchanged
+								// Auto-expand field diffs when filtering by modified
 								const fieldDiffs = card.querySelector('.field-diffs');
 								if (fieldDiffs) {
 									fieldDiffs.style.display = 'block';
