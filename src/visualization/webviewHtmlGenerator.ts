@@ -133,28 +133,6 @@ function generateOverviewTab(data: any): string {
         </div>
 
         ${generateTopologyTab()}
-
-        <div class="chart-container">
-            <div class="stats-container">
-                <div class="stat-card">
-                    <div class="stat-label">Total Values</div>
-                    <div class="stat-value">${data.totalValues}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Overridden Values</div>
-                    <div class="stat-value">${data.overriddenCount}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Resources</div>
-                    <div class="stat-value">${data.resources.length}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Override Rate</div>
-                    <div class="stat-value">${data.totalValues > 0 ? Math.round((data.overriddenCount / data.totalValues) * 100) : 0}%</div>
-                </div>
-            </div>
-        </div>
-
         ${
 			data.overriddenValues.length > 0
 				? `
