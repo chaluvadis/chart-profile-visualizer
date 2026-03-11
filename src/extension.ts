@@ -1,8 +1,7 @@
-import * as fs from "node:fs";
 import * as vscode from "vscode";
-import { ChartProfilesProvider, ChartTreeItem } from "./core/chartProfilesProvider";
+import { ChartProfilesProvider } from "./core/chartProfilesProvider";
 import { show as showChartVisualization } from "./visualization/chartVisualizationView";
-import { isHelmAvailable, renderHelmTemplate } from "./k8s/helmRenderer";
+import { isHelmAvailable } from "./k8s/helmRenderer";
 import { showRenderedYaml } from "./utils/renderedYamlView";
 import { createChartValidator } from "./processing/chartValidator";
 import { getKubernetesConnector } from "./k8s/kubernetesConnector";
