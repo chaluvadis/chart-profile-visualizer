@@ -59,7 +59,8 @@ function sanitizeSecretYaml(yamlContent: string): string {
 export async function generateEnhancedHtml(
 	webview: vscode.Webview,
 	data: any,
-	extensionUri: vscode.Uri
+	extensionUri: vscode.Uri,
+	compareMode: boolean = false
 ): Promise<string> {
 	const nonce = getNonce();
 
@@ -91,6 +92,7 @@ export async function generateEnhancedHtml(
 			resourcesContent: resourceExplorerHtml,
 			resultsContent,
 			availableEnvs: data.availableEnvs || [],
+			viewMode: compareMode ? "compare" : "visualize",
 		});
 
 		return mainTemplate;

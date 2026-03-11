@@ -223,6 +223,13 @@ function highlightYaml(yaml: string): string {
  * Switch to the Compare Environments tab
  */
 function switchToCompareTab(): void {
+	// Check if Compare tab exists in the DOM
+	const compareTabBtn = document.querySelector('.tab-btn[data-tab="compare"]');
+	if (!compareTabBtn) {
+		// Compare tab doesn't exist - need to add it dynamically or handle differently
+		return;
+	}
+
 	// Deactivate all tab buttons
 	document.querySelectorAll(".tab-btn").forEach((b) => {
 		b.classList.remove("active");
@@ -232,7 +239,6 @@ function switchToCompareTab(): void {
 		c.classList.remove("active");
 	});
 	// Activate the Compare tab button
-	const compareTabBtn = document.querySelector('.tab-btn[data-tab="compare"]');
 	if (compareTabBtn) {
 		compareTabBtn.classList.add("active");
 	}
@@ -261,7 +267,7 @@ function renderComparisonResults(): void {
         <div class="no-comparison-text">Select two environments to compare</div>
         <div class="no-comparison-hint">Choose a chart and two environments to see detailed comparison results</div>
       </div>`;
-		comparisonResults.style.display = "block";
+		comparisonResults.classList.add("compare-results-visible");
 		return;
 	}
 
@@ -274,7 +280,7 @@ function renderComparisonResults(): void {
         <div class="no-comparison-text"> Invalid comparison data</div>
         <div class="no-comparison-hint">Please run the comparison again</div>
       </div>`;
-		comparisonResults.style.display = "block";
+		comparisonResults.classList.add("compare-results-visible");
 		return;
 	}
 
@@ -286,7 +292,7 @@ function renderComparisonResults(): void {
         <div class="no-comparison-text">No environment selected for comparison</div>
         <div class="no-comparison-hint">Select two environments to compare</div>
       </div>`;
-		comparisonResults.style.display = "block";
+		comparisonResults.classList.add("compare-results-visible");
 		return;
 	}
 
@@ -367,7 +373,7 @@ function renderComparisonResults(): void {
 
 			// Add field diffs - expanded for modified and unchanged
 			if (hasFields) {
-				html += `<div class="field-diffs field-diffs-visible" ${showFieldsExpanded ? 'style="display: block"' : ""}>`;
+				html += `<div class="field-diffs field-diffs-visible ${showFieldsExpanded ? "field-diffs-expanded" : ""}>`;
 				for (const field of resource.fields) {
 					// Format values properly - use JSON.stringify for complex objects
 					const leftVal =
@@ -422,21 +428,21 @@ function renderComparisonResults(): void {
 
 					resourceCards.forEach(card => {
 						if (filter === 'all') {
-							card.style.display = '';
+							card.classList.remove('resource-card-hidden');
 							// Expand field diffs for modified cards in 'all' view
 							const diffType = card.getAttribute('data-diff-type');
 							const fieldDiffs = card.querySelector('.field-diffs');
 							if (diffType === 'modified' && fieldDiffs) {
-								fieldDiffs.style.display = 'block';
+								fieldDiffs.classList.add('field-diffs-visible');
 							}
 						} else if (filter === 'modified') {
 							const diffType = card.getAttribute('data-diff-type');
 							if (diffType === filter) {
-								card.style.display = '';
+								card.classList.remove('resource-card-hidden');
 								// Auto-expand field diffs when filtering by modified
 								const fieldDiffs = card.querySelector('.field-diffs');
 								if (fieldDiffs) {
-									fieldDiffs.style.display = 'block';
+									fieldDiffs.classList.add('field-diffs-visible');
 								}
 								// Highlight the modified field values
 								const leftValues = card.querySelectorAll('.field-left');
@@ -444,19 +450,19 @@ function renderComparisonResults(): void {
 								leftValues.forEach(el => el.classList.add('highlighted'));
 								rightValues.forEach(el => el.classList.add('highlighted'));
 							} else {
-								card.style.display = 'none';
+								card.classList.add('resource-card-hidden');
 							}
 						} else {
 							const diffType = card.getAttribute('data-diff-type');
 							if (diffType === filter) {
-								card.style.display = '';
+								card.classList.remove('resource-card-hidden');
 								// Remove highlighting when showing other filters
 								const leftValues = card.querySelectorAll('.field-left');
 								const rightValues = card.querySelectorAll('.field-right');
 								leftValues.forEach(el => el.classList.remove('highlighted'));
 								rightValues.forEach(el => el.classList.remove('highlighted'));
 							} else {
-								card.style.display = 'none';
+								card.classList.add('resource-card-hidden');
 							}
 						}
 					});
@@ -600,6 +606,16 @@ function initResourceExplorer(): void {
 			const yamlContent = card?.querySelector(".yaml-block");
 			const yaml = yamlContent ? yamlContent.textContent : "";
 			vscode.postMessage({ type: "copyResource", yaml });
+			return;
+		}
+
+		// Handle toggle button for rendered YAML sections
+		if (target.closest(".toggle-btn")) {
+			const btn = target.closest(".toggle-btn");
+			const group = btn?.parentElement;
+			if (group) {
+				group.classList.toggle("expanded");
+			}
 			return;
 		}
 
@@ -902,10 +918,16 @@ export function handleRenderedYamlResponse(data: {
 		const trimmed = section.trim();
 		if (!trimmed) continue;
 
-		// Extract kind, name, namespace from YAML
-		const kindMatch = trimmed.match(/^kind:\s*(\S+)/m);
-		const nameMatch = trimmed.match(/^metadata:\s*\n\s*name:\s*(\S+)/m);
-		const nsMatch = trimmed.match(/^metadata:\s*\n\s*namespace:\s*(\S+)/m);
+		// Extract kind, name, namespace from YAML - more flexible regex patterns
+		const kindMatch = trimmed.match(/^kind:\s*['"]?([^'"\n]+)['"]?/m) || trimmed.match(/^kind:\s*(\S+)/m);
+		const nameMatch =
+			trimmed.match(/^  name:\s*['"]?([^'"\n]+)['"]?/m) ||
+			trimmed.match(/^    name:\s*['"]?([^'"\n]+)['"]?/m) ||
+			trimmed.match(/^metadata:\s*[\s\S]*?^  name:\s*['"]?([^'"\n]+)['"]?/m);
+		const nsMatch =
+			trimmed.match(/^  namespace:\s*['"]?([^'"\n]+)['"]?/m) ||
+			trimmed.match(/^    namespace:\s*['"]?([^'"\n]+)['"]?/m) ||
+			trimmed.match(/^metadata:\s*[\s\S]*?^  namespace:\s*['"]?([^'"\n]+)['"]?/m);
 
 		if (kindMatch && nameMatch) {
 			const kind = kindMatch[1];
@@ -923,10 +945,10 @@ export function handleRenderedYamlResponse(data: {
 	let html = '<div class="rendered-yaml">';
 	for (const [kind, resources] of resourceMap) {
 		html += `<div class="resource-group">`;
-		html += `<div class="resource-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">`;
+		html += `<div class="resource-header toggle-btn">`;
 		html += `<span class="kind-badge">${kind}</span>`;
 		html += `<span class="name-badge">${resources.map((r) => r.name).join(", ")}</span>`;
-		html += `<span style="margin-left: auto; font-size: 10px;">▼</span>`;
+		html += `<span class="expand-arrow">▼</span>`;
 		html += `</div>`;
 		html += `<pre class="yaml-block">`;
 		for (const r of resources) {

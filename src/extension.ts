@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { ChartProfilesProvider } from "./core/chartProfilesProvider";
-import { show as showChartVisualization } from "./visualization/chartVisualizationView";
+import type { HelmChart } from "./k8s/helmChart";
+import { show as showChartVisualization, showCompare } from "./visualization/chartVisualizationView";
 import { isHelmAvailable } from "./k8s/helmRenderer";
 import { showRenderedYaml } from "./utils/renderedYamlView";
 import { createChartValidator } from "./processing/chartValidator";
@@ -95,7 +96,12 @@ export function activate(context: vscode.ExtensionContext) {
 			if (item.type === "action" && item.command) {
 				console.log("Executing command for action:", item.command.command);
 				try {
-					await vscode.commands.executeCommand(item.command.command, item);
+					// Pass command arguments if available, otherwise pass the item
+					if (item.command.arguments && item.command.arguments.length > 0) {
+						await vscode.commands.executeCommand(item.command.command, ...item.command.arguments);
+					} else {
+						await vscode.commands.executeCommand(item.command.command, item);
+					}
 				} catch (error) {
 					console.error("Error executing command:", error);
 					vscode.window.showErrorMessage(`Error: ${error}`);
@@ -383,6 +389,60 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	// Register compare environments command - NEW VERSION with proper item handling
+	const compareEnvironmentsCommand = vscode.commands.registerCommand(
+		"chartProfiles.compareEnvironments",
+		async (...args: unknown[]) => {
+			// This is the NEW code version - all error messages have [NEW]
+			console.log("[NEW] CompareEnvironments called with args:", JSON.stringify(args));
+
+			let chartPath = "";
+			let chartName = "";
+
+			// Parse arguments - support multiple input formats
+			if (args.length >= 2 && typeof args[0] === "string" && typeof args[1] === "string") {
+				// Format: (chartPath, chartName) - from tree view
+				chartPath = args[0] as string;
+				chartName = args[1] as string;
+				console.log("[NEW] Parsed as string args:", { chartPath, chartName });
+			} else if (args.length === 1 && args[0] !== null && typeof args[0] === "object") {
+				// Format: ({ chart, chartPath, ... }) - direct call
+				const item = args[0] as any;
+				chartPath = item?.chartPath || item?.chart?.path || item?.path || "";
+				chartName = item?.chart?.name || item?.chartName || item?.name || item?.label || "";
+				console.log("[NEW] Parsed as object:", { chartPath, chartName, item });
+			} else {
+				console.error("[NEW] Unexpected args format:", args);
+				vscode.window.showErrorMessage("[NEW] Invalid arguments format");
+				return;
+			}
+
+			// Validate we have the required data
+			if (!chartPath || !chartName) {
+				vscode.window.showErrorMessage(`[NEW] Missing chart info: path="${chartPath}", name="${chartName}"`);
+				return;
+			}
+
+			// Create properly structured item for showCompare
+			const compareItem = {
+				chart: { name: chartName, path: chartPath } as HelmChart,
+				chartPath: chartPath,
+				label: chartName,
+				collapsibleState: vscode.TreeItemCollapsibleState.None,
+			};
+
+			console.log("[NEW] Calling showCompare with:", JSON.stringify(compareItem));
+
+			try {
+				await showCompare(context, compareItem as any);
+				console.log("[NEW] showCompare completed");
+			} catch (error: any) {
+				console.error("[NEW] Error in showCompare:", error);
+				vscode.window.showErrorMessage(`[NEW] Compare failed: ${error.message}`);
+			}
+		}
+	);
+
 	context.subscriptions.push(
 		treeView,
 		refreshCommand,
@@ -392,7 +452,8 @@ export function activate(context: vscode.ExtensionContext) {
 		validateChartCommand,
 		checkClusterStatusCommand,
 		checkRuntimeStateCommand,
-		viewDependenciesCommand
+		viewDependenciesCommand,
+		compareEnvironmentsCommand
 	);
 
 	// Auto-refresh when workspace files change

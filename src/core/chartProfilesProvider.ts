@@ -38,10 +38,38 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 					new ChartTreeItem(chart.name, chart.path, vscode.TreeItemCollapsibleState.Expanded, "chart", chart)
 			);
 		} else if (element.type === "chart") {
-			// Chart level: show environments
+			// Chart level: show compare action and environments
+			const children: ChartTreeItem[] = [];
+
+			// Add Compare Environments action at chart level
+			children.push(
+				new ChartTreeItem(
+					"⚖️ Compare Environments",
+					element.chart!.path,
+					vscode.TreeItemCollapsibleState.None,
+					"action",
+					element.chart,
+					undefined,
+					undefined,
+					"compare"
+				)
+			);
+
+			// Also add the chart path to arguments for the command
+			const compareAction = children[children.length - 1];
+			if (compareAction) {
+				// Pass chart path and chart name as arguments (not the full chart object which gets lost in serialization)
+				compareAction.command = {
+					command: "chartProfiles.compareEnvironments",
+					title: "Compare Environments",
+					arguments: [element.chart!.path, element.chart!.name],
+				};
+			}
+
+			// Add environments
 			const environments = this.getEnvironments(element.chart!);
-			return environments.map(
-				(env) =>
+			for (const env of environments) {
+				children.push(
 					new ChartTreeItem(
 						env,
 						element.chart!.path,
@@ -50,7 +78,10 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 						element.chart,
 						env
 					)
-			);
+				);
+			}
+
+			return children;
 		} else if (element.type === "environment") {
 			// Environment level: show actions
 			return [
@@ -137,7 +168,7 @@ export class ChartTreeItem extends vscode.TreeItem {
 		public readonly chart?: HelmChart,
 		public readonly environment?: string,
 		public readonly secondEnvironment?: string,
-		public readonly action?: "visualize" | "validate" | "runtime" | "dependencies"
+		public readonly action?: "visualize" | "validate" | "runtime" | "dependencies" | "compare"
 	) {
 		super(label, collapsibleState);
 
@@ -177,6 +208,8 @@ export class ChartTreeItem extends vscode.TreeItem {
 					title: "View Dependencies",
 					arguments: [this],
 				};
+			} else if (action === "compare") {
+				// Command is set when creating the ChartTreeItem, not here
 			}
 		}
 	}
@@ -275,6 +308,8 @@ export class ChartTreeItem extends vscode.TreeItem {
 			}
 
 			return tooltip;
+		} else if (this.action === "compare") {
+			return `Compare two environments side-by-side to see differences`;
 		} else if (this.action === "visualize") {
 			return `Visualize chart statistics and resource distribution for ${this.environment} environment`;
 		} else if (this.action === "validate") {
@@ -312,6 +347,9 @@ export class ChartTreeItem extends vscode.TreeItem {
 				return getIconUris(normalizedKind);
 			}
 			return new vscode.ThemeIcon("symbol-namespace");
+		} else if (this.action === "compare") {
+			// Use diff icon for compare action
+			return new vscode.ThemeIcon("diff");
 		} else if (this.action === "visualize") {
 			// Use custom chart icon for visualize action
 			if (hasIcon("chart")) {

@@ -2210,3 +2210,81 @@ body[data-vscode-theme-kind="vscode-high-contrast"] .yaml-comment { color: #00ff
 .resource-diff-card.expanded .resource-diff-details {
     display: block;
 }
+
+/* Field diffs expanded state */
+.field-diffs-visible.field-diffs-expanded {
+    display: block;
+}
+
+/* Expand arrow for rendered YAML sections */
+.expand-arrow {
+    margin-left: auto;
+    font-size: 10px;
+}
+
+/* Toggle button for resource groups */
+.toggle-btn {
+    cursor: pointer;
+}
+
+.rendered-yaml-content .resource-group .yaml-block {
+    display: none;
+}
+
+.rendered-yaml-content .resource-group.expanded .yaml-block {
+    display: block;
+}
+
+/* Utility classes for showing/hiding elements via JS */
+.compare-results-visible {
+    display: block !important;
+}
+
+#comparison-results.compare-results-visible {
+    display: block;
+}
+
+.resource-card-hidden {
+    display: none !important;
+}
+
+.field-diffs-visible {
+    display: block !important;
+}
+
+.rendered-yaml-content .resource-group.expanded .yaml-block {
+    display: block;
+}
+
+/* Hide Compare tab and content by default */
+.compare-tab {
+    display: none;
+}
+
+.compare-tab.hidden {
+    display: none !important;
+}
+
+.compare-content {
+    display: none;
+}
+
+.compare-content.hidden {
+    display: none !important;
+}
+
+/* Global hidden class for CSP compliance */
+.hidden {
+    display: none !important;
+}
+
+/* Show Compare tab and content in compare mode */
+body[data-view-mode="compare"] .compare-tab,
+.view-mode-compare .compare-tab {
+    display: inline-block;
+}
+
+body[data-view-mode="compare"] .compare-content,
+.view-mode-compare .compare-content {
+    display: block;
+}

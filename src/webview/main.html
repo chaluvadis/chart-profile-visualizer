@@ -7,7 +7,7 @@
     <title>Chart Visualization</title>
     <link rel="stylesheet" href="{{{stylesUri}}}" nonce="{{{nonce}}}">
 </head>
-<body data-init="{{{initData}}}">
+<body data-init="{{{initData}}}" data-view-mode="{{{viewMode}}}">
     <div class="toolbar">
         <button id="exportYaml" class="toolbar-btn">📄 Export YAML</button>
         <button id="exportJson" class="toolbar-btn">📋 Export JSON</button>
@@ -15,25 +15,24 @@
     </div>
 
     <div class="tabs">
-        <button class="tab-btn active" data-tab="overview">📈 Overview</button>
-        <button class="tab-btn" data-tab="resources">📋 Resources</button>
-        <button class="tab-btn" data-tab="rendered">📄 Rendered YAML</button>
-        <button class="tab-btn" data-tab="compare">⚖️ Compare Environments</button>
+        <!-- Visualize view tabs -->
+        <button class="tab-btn visualize-tab active" data-tab="overview">📈 Overview</button>
+        <button class="tab-btn visualize-tab" data-tab="resources">📋 Resources</button>
+        <button class="tab-btn visualize-tab" data-tab="rendered">📄 Rendered YAML</button>
+        <!-- Compare view tabs -->
+        <button class="tab-btn compare-tab" data-tab="compare">⚖️ Compare Environments</button>
     </div>
 
-    <div id="overview" class="tab-content active">
+    <!-- Visualize view content -->
+    <div id="overview" class="tab-content visualize-content active">
         {{{overviewContent}}}
     </div>
 
-    <div id="resources" class="tab-content">
+    <div id="resources" class="tab-content visualize-content">
         {{{resourcesContent}}}
     </div>
 
-    <div id="compare" class="tab-content">
-        {{{resultsContent}}}
-    </div>
-
-    <div id="rendered" class="tab-content">
+    <div id="rendered" class="tab-content visualize-content">
         <div class="rendered-yaml-container">
             <div class="rendered-selector">
                 <label for="rendered-env-select">Environment:</label>
@@ -53,16 +52,47 @@
         </div>
     </div>
 
+    <!-- Compare view content -->
+    <div id="compare" class="tab-content compare-content">
+        {{{resultsContent}}}
+    </div>
+
     <script src="{{{chartJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{topologyJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>
     <script nonce="{{{nonce}}}">
         // Initialize webview with data
-        // The init data is stored in a data attribute to avoid template syntax issues
-        // Note: quotes are escaped as &quot; in the HTML attribute, so we need to unescape them
-        var initDataStr = document.body.getAttribute('data-init').replace(/&quot;/g, '"');
+        var initDataStr = document.body.getAttribute('data-init').replace(/"/g, '"');
         if (initDataStr) {
             window.initializeWebview(JSON.parse(initDataStr));
+        }
+
+        // Check view mode - 'visualize' or 'compare'
+        var viewMode = document.body.getAttribute('data-view-mode') || 'visualize';
+
+        if (viewMode === 'compare') {
+            // Show only Compare tab using CSS classes
+            document.querySelectorAll('.visualize-tab').forEach(function(tab) {
+                tab.classList.add('hidden');
+            });
+            document.querySelectorAll('.visualize-content').forEach(function(content) {
+                content.classList.add('hidden');
+            });
+            document.querySelectorAll('.compare-tab').forEach(function(tab) {
+                tab.classList.remove('hidden');
+            });
+            document.querySelectorAll('.compare-content').forEach(function(content) {
+                content.classList.remove('hidden');
+            });
+            // Activate Compare tab
+            var compareTab = document.querySelector('.compare-tab');
+            if (compareTab) {
+                compareTab.classList.add('active');
+            }
+            var compareContent = document.getElementById('compare');
+            if (compareContent) {
+                compareContent.classList.add('active');
+            }
         }
 
         // Listen for messages from the extension

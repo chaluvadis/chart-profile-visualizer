@@ -149,6 +149,77 @@ export function clearComparisonData(): void {
 	setCurrentComparisonData(null);
 }
 
+/**
+ * Show chart comparison view (chart-level, no specific environment)
+ */
+export async function showCompare(context: vscode.ExtensionContext, item: ChartTreeItem) {
+	console.log("showCompare called with item:", JSON.stringify(item, null, 2));
+	console.log("item.chart:", item?.chart);
+	console.log("item.chart?.path:", item?.chart?.path);
+	console.log("item.chart?.name:", item?.chart?.name);
+	console.log("item type:", typeof item);
+	console.log("item keys:", item ? Object.keys(item) : "N/A");
+
+	if (!item || !item.chart) {
+		vscode.window.showErrorMessage("Invalid chart selected for comparison");
+		return;
+	}
+
+	// Clear any previous comparison data so the selector shows up
+	pendingComparisonData = null;
+	setCurrentComparisonData(null);
+
+	// Store the chart item
+	currentChartItem = item;
+	lastComparisonParams = null;
+
+	currentContext = context;
+
+	const columnToShowIn = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
+
+	// Build panel title for comparison
+	const panelTitle = `Chart: ${item.chart.name} - Compare Environments`;
+
+	if (currentPanel) {
+		currentPanel.reveal(columnToShowIn);
+	} else {
+		currentPanel = vscode.window.createWebviewPanel(
+			"chartVisualization",
+			panelTitle,
+			columnToShowIn || vscode.ViewColumn.One,
+			{
+				enableScripts: true,
+				retainContextWhenHidden: true,
+				localResourceRoots: [
+					context.extensionUri,
+					vscode.Uri.file(path.join(context.extensionPath, "images")),
+					vscode.Uri.file(path.join(context.extensionPath, "vendor")),
+				],
+			}
+		);
+
+		currentPanel.onDidDispose(
+			() => {
+				currentPanel = undefined;
+			},
+			null,
+			context.subscriptions
+		);
+
+		// Handle messages from the webview
+		currentPanel.webview.onDidReceiveMessage(
+			async (message) => {
+				await handleMessage(message);
+			},
+			undefined,
+			context.subscriptions
+		);
+	}
+
+	// Update the webview content
+	await updatePanelForCompare(item);
+}
+
 export async function show(
 	context: vscode.ExtensionContext,
 	item: ChartTreeItem,
@@ -257,13 +328,46 @@ async function updatePanel(item: ChartTreeItem) {
 		// Generate and set HTML content
 		if (currentContext) {
 			const extUri = currentContext.extensionUri;
-			panel.webview.html = await generateEnhancedHtml(panel.webview, chartData, extUri);
+			panel.webview.html = await generateEnhancedHtml(panel.webview, chartData, extUri, false);
 		} else {
 			// Fallback - should never happen, but handle gracefully
 			panel.webview.html = await getErrorHtml("Extension context not available");
 		}
 	} catch (error: any) {
-		vscode.window.showErrorMessage(`Error loading chart visualization: ${error.message}`);
+		vscode.window.showErrorMessage(`[FIXED] Error loading chart visualization: ${error.message}`);
+		const extUri = currentContext?.extensionUri;
+		panel.webview.html = await getErrorHtml(error.message, extUri);
+	}
+}
+
+/**
+ * Update panel for chart-level comparison (no specific environment)
+ */
+async function updatePanelForCompare(item: ChartTreeItem) {
+	if (!currentPanel) {
+		return;
+	}
+
+	const panel = currentPanel;
+
+	// Build panel title for comparison
+	const panelTitle = `Chart: ${item.chart?.name} - Compare Environments`;
+	panel.title = panelTitle;
+
+	try {
+		// Collect data for comparison (need to provide a dummy environment for data collection)
+		// We'll use the first available environment or a placeholder
+		const chartData = await collectChartDataForCompare(item);
+
+		// Generate and set HTML content
+		if (currentContext) {
+			const extUri = currentContext.extensionUri;
+			panel.webview.html = await generateEnhancedHtml(panel.webview, chartData, extUri, true);
+		} else {
+			panel.webview.html = await getErrorHtml("Extension context not available");
+		}
+	} catch (error: any) {
+		vscode.window.showErrorMessage(`[NEW CODE] Error loading chart comparison: ${error.message}`);
 		const extUri = currentContext?.extensionUri;
 		panel.webview.html = await getErrorHtml(error.message, extUri);
 	}
@@ -786,6 +890,119 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		architectureNodes,
 		relationships,
 		comparisonData: getCurrentComparisonData(),
+		availableEnvs,
+	};
+}
+
+/**
+ * Collect chart data for comparison view (chart-level, no specific environment)
+ */
+async function collectChartDataForCompare(item: ChartTreeItem): Promise<ChartData> {
+	console.log("[collectChartDataForCompare] item:", JSON.stringify(item, null, 2));
+	console.log("[collectChartDataForCompare] item.chart:", item.chart);
+	const chart = item.chart;
+
+	// Validate required fields
+	if (!chart?.path || !chart?.name) {
+		const errorDetails = `chart=${JSON.stringify(chart)}, chartPath=${chart?.path}, chartName=${chart?.name}`;
+		console.error("[collectChartDataForCompare] Invalid chart item:", errorDetails);
+		throw new Error(`Invalid chart item: missing required fields. Details: ${errorDetails}`);
+	}
+
+	const chartPath = chart.path;
+	const chartName = chart.name;
+
+	// Get available environments from the chart directory
+	let availableEnvs: string[] = [];
+	try {
+		const envFiles = fs.readdirSync(chartPath).filter((f: string) => f.match(/^values-(.+)\.ya?ml$/));
+		availableEnvs = envFiles.map((f: string) => f.match(/^values-(.+)\.ya?ml$/)![1]);
+	} catch (error) {
+		console.warn("Could not read environment files:", error);
+	}
+
+	// Use the first available environment for data collection
+	// (or "default" if no environments found)
+	const environment = availableEnvs.length > 0 ? availableEnvs[0] : "default";
+
+	// Load base values separately for comparison
+	const baseValuesPath = path.join(chartPath, "values.yaml");
+	const baseValues = loadYamlFile(baseValuesPath);
+
+	// Merge values to get configuration
+	const comparison = mergeValues(chartPath, environment);
+
+	// Extract overridden values with their source information
+	const overriddenValues: Array<{
+		key: string;
+		baseValue: any;
+		envValue: any;
+	}> = [];
+
+	for (const [key, detail] of comparison.details.entries()) {
+		if (detail.overridden) {
+			const baseValue = getValueByPath(baseValues, key);
+			overriddenValues.push({
+				key,
+				baseValue: baseValue !== undefined ? baseValue : "(not set)",
+				envValue: detail.value,
+			});
+		}
+	}
+
+	const totalValues = comparison.details.size;
+	const overriddenCount = overriddenValues.length;
+
+	// Try to get rendered resources
+	const resourceCounts: { [key: string]: number } = {};
+	const namespaceCounts: { [namespace: string]: number } = {};
+	let templateSources: string[] = [];
+	let resources: RenderedResource[] = [];
+
+	try {
+		const releaseName = `${chartName}-${environment}`;
+		resources = await renderHelmTemplate(chartPath, environment, releaseName);
+
+		// Store resources for export
+		renderedResources = resources;
+
+		resources.forEach((resource) => {
+			resourceCounts[resource.kind] = (resourceCounts[resource.kind] || 0) + 1;
+			const namespace = resource.namespace || defaultNamespace;
+			namespaceCounts[namespace] = (namespaceCounts[namespace] || 0) + 1;
+		});
+
+		const templatesDir = path.join(chartPath, "templates");
+		if (fs.existsSync(templatesDir)) {
+			const files = fs.readdirSync(templatesDir);
+			templateSources = files.filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"));
+		}
+	} catch (error) {
+		console.warn("Could not render templates for visualization:", error);
+	}
+
+	// Parse resources into hierarchy
+	const resourceHierarchy = parseResources(resources);
+
+	// Detect relationships and build architecture
+	const structuredResources = Array.from(resourceHierarchy.kindGroups.values()).flatMap((group) => group.resources);
+	const relationships = detectRelationships(structuredResources);
+	const architectureNodes = buildArchitectureNodes(structuredResources, relationships);
+
+	return {
+		chartName,
+		environment,
+		totalValues,
+		overriddenCount,
+		overriddenValues,
+		resourceCounts,
+		namespaceCounts,
+		templateSources,
+		resources,
+		resourceHierarchy,
+		architectureNodes,
+		relationships,
+		comparisonData: null, // No comparison data yet - user will select environments
 		availableEnvs,
 	};
 }
