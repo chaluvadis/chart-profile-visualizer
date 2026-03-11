@@ -18,6 +18,7 @@ import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { getRuntimeStateManager } from "../state/runtimeStateManager";
 import type { ComparisonWebviewData } from "../diff/environmentDiff";
 import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
+import { formatRenderedOutput } from "../k8s/helmRenderer";
 
 // Re-export for backward compatibility
 export type { ComparisonWebviewData };
@@ -96,7 +97,10 @@ type WebviewMessageType =
 	| "refreshComparison"
 	| "runComparison"
 	| "copyResource"
-	| "revealSecret";
+	| "revealSecret"
+	| "renderYaml"
+	| "exportRenderedYaml"
+	| "showError";
 
 interface WebviewMessage {
 	type: WebviewMessageType;
@@ -105,6 +109,8 @@ interface WebviewMessage {
 	namespace?: string;
 	env1?: string;
 	env2?: string;
+	environment?: string;
+	message?: string;
 }
 
 function getCurrentChartItem(): ChartTreeItem | null {
@@ -344,6 +350,21 @@ async function handleMessage(message: WebviewMessage) {
 		case "revealSecret":
 			if (message.secretName) {
 				await revealSecret(message.secretName, message.namespace);
+			}
+			break;
+		case "renderYaml":
+			if (message.environment) {
+				await handleRenderYaml(message.environment);
+			}
+			break;
+		case "exportRenderedYaml":
+			if (message.environment) {
+				await handleExportRenderedYaml(message.environment);
+			}
+			break;
+		case "showError":
+			if (message.message) {
+				vscode.window.showErrorMessage(message.message);
 			}
 			break;
 	}
@@ -864,6 +885,92 @@ function getValueByPath(obj: any, path: string): any {
 	}
 
 	return current;
+}
+
+/**
+ * Handle render YAML request from webview
+ */
+async function handleRenderYaml(environment: string): Promise<void> {
+	const currentItem = getCurrentChartItem();
+	if (!currentItem) {
+		vscode.window.showErrorMessage("No chart selected");
+		return;
+	}
+
+	const chartPath = currentItem.chart?.path;
+	const chartName = currentItem.chart?.name;
+
+	if (!chartPath || !chartName) {
+		vscode.window.showErrorMessage("Invalid chart information");
+		return;
+	}
+
+	try {
+		vscode.window.showInformationMessage(`Rendering YAML for ${environment}...`);
+
+		const releaseName = `${chartName}-${environment}`;
+		const resources = await renderHelmTemplate(chartPath, environment, releaseName);
+		const output = formatRenderedOutput(resources);
+
+		// Send to webview
+		if (currentPanel) {
+			currentPanel.webview.postMessage({
+				type: "renderedYaml",
+				yaml: output,
+				resources: resources.map((r) => ({ kind: r.kind, name: r.name, namespace: r.namespace })),
+				chartName,
+				environment,
+			});
+		}
+
+		vscode.window.showInformationMessage(`Rendered ${resources.length} resources for ${environment}`);
+	} catch (error) {
+		console.error("Error rendering YAML:", error);
+		vscode.window.showErrorMessage(
+			`Failed to render YAML: ${error instanceof Error ? error.message : String(error)}`
+		);
+	}
+}
+
+/**
+ * Handle export rendered YAML request from webview
+ */
+async function handleExportRenderedYaml(environment: string): Promise<void> {
+	const currentItem = getCurrentChartItem();
+	if (!currentItem) {
+		vscode.window.showErrorMessage("No chart selected");
+		return;
+	}
+
+	const chartPath = currentItem.chart?.path;
+	const chartName = currentItem.chart?.name;
+
+	if (!chartPath || !chartName) {
+		vscode.window.showErrorMessage("Invalid chart information");
+		return;
+	}
+
+	try {
+		const releaseName = `${chartName}-${environment}`;
+		const resources = await renderHelmTemplate(chartPath, environment, releaseName);
+		const output = formatRenderedOutput(resources);
+
+		// Show save dialog
+		const saveUri = await vscode.window.showSaveDialog({
+			defaultUri: vscode.Uri.file(`${chartName}-${environment}.yaml`),
+			filters: { YAML: ["yaml", "yml"] },
+		});
+
+		if (saveUri) {
+			await fs.promises.writeFile(saveUri.fsPath, output, "utf8");
+			vscode.window.showInformationMessage(`Exported rendered YAML to ${saveUri.fsPath}`);
+		}
+	} catch (error) {
+		console.error("Error exporting YAML:", error);
+		vscode.window.showErrorMessage(
+			`Failed to export YAML: ${error instanceof Error ? error.message : String(error)}`
+		);
+	}
 }
 
 /**

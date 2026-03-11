@@ -17,6 +17,7 @@
     <div class="tabs">
         <button class="tab-btn active" data-tab="overview">📈 Overview</button>
         <button class="tab-btn" data-tab="resources">📋 Resources</button>
+        <button class="tab-btn" data-tab="rendered">📄 Rendered YAML</button>
         <button class="tab-btn" data-tab="compare">⚖️ Compare Environments</button>
     </div>
 
@@ -32,6 +33,26 @@
         {{{resultsContent}}}
     </div>
 
+    <div id="rendered" class="tab-content">
+        <div class="rendered-yaml-container">
+            <div class="rendered-selector">
+                <label for="rendered-env-select">Environment:</label>
+                <select id="rendered-env-select" class="env-select">
+                    <option value="">Select environment...</option>
+                </select>
+                <button id="render-yaml-btn" class="toolbar-btn">Render</button>
+                <button id="export-rendered-yaml-btn" class="toolbar-btn" disabled>📥 Export YAML</button>
+            </div>
+            <div id="rendered-yaml-content" class="rendered-yaml-content">
+                <div class="no-data">
+                    <div class="no-data-icon">📄</div>
+                    <div class="no-data-text">Select an environment to view rendered YAML</div>
+                    <div class="no-data-hint">Choose an environment from the dropdown above</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="{{{chartJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{topologyJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>
@@ -43,6 +64,16 @@
         if (initDataStr) {
             window.initializeWebview(JSON.parse(initDataStr));
         }
+
+        // Listen for messages from the extension
+        window.addEventListener('message', function(event) {
+            var message = event.data;
+            if (message && message.type === 'renderedYaml') {
+                if (window.handleRenderedYamlResponse) {
+                    window.handleRenderedYamlResponse(message);
+                }
+            }
+        });
     </script>
 </body>
 </html>

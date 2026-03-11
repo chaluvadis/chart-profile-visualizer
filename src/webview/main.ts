@@ -122,6 +122,7 @@ function initializeWebview(data: WebviewData): void {
 		window.initTopology();
 	}
 	initCharts();
+	initRenderedYamlTab();
 }
 
 /**
@@ -183,6 +184,39 @@ function escapeHtml(text: unknown): string {
 	const div = document.createElement("div");
 	div.textContent = String(text);
 	return div.innerHTML;
+}
+
+/**
+ * Apply YAML syntax highlighting to a YAML string
+ */
+function highlightYaml(yaml: string): string {
+	// First escape HTML
+	let escaped = escapeHtml(yaml);
+
+	// Apply syntax highlighting using regex patterns
+	// Keys (before colon)
+	escaped = escaped.replace(
+		/^(\s*)([^:#\n]+)(:)/gm,
+		'$1<span class="yaml-key">$2</span><span class="yaml-colon">$3</span>'
+	);
+
+	// String values (quoted)
+	escaped = escaped.replace(/'([^']*)'/g, "<span class=\"yaml-string\">'$1'</span>");
+	escaped = escaped.replace(/"/g, '<span class="yaml-string">"$1"</span>');
+
+	// Boolean values
+	escaped = escaped.replace(/\b(true|false)\b/gi, '<span class="yaml-boolean">$1</span>');
+
+	// Null values
+	escaped = escaped.replace(/\bnull\b/gi, '<span class="yaml-null">null</span>');
+
+	// Numbers
+	escaped = escaped.replace(/(\b-?\d+(\.\d+)?\b)/g, '<span class="yaml-number">$1</span>');
+
+	// Comments
+	escaped = escaped.replace(/(#.*)$/gm, '<span class="yaml-comment">$1</span>');
+
+	return escaped;
 }
 
 /**
@@ -404,6 +438,11 @@ function renderComparisonResults(): void {
 								if (fieldDiffs) {
 									fieldDiffs.style.display = 'block';
 								}
+								// Highlight the modified field values
+								const leftValues = card.querySelectorAll('.field-left');
+								const rightValues = card.querySelectorAll('.field-right');
+								leftValues.forEach(el => el.classList.add('highlighted'));
+								rightValues.forEach(el => el.classList.add('highlighted'));
 							} else {
 								card.style.display = 'none';
 							}
@@ -411,6 +450,11 @@ function renderComparisonResults(): void {
 							const diffType = card.getAttribute('data-diff-type');
 							if (diffType === filter) {
 								card.style.display = '';
+								// Remove highlighting when showing other filters
+								const leftValues = card.querySelectorAll('.field-left');
+								const rightValues = card.querySelectorAll('.field-right');
+								leftValues.forEach(el => el.classList.remove('highlighted'));
+								rightValues.forEach(el => el.classList.remove('highlighted'));
 							} else {
 								card.style.display = 'none';
 							}
@@ -771,6 +815,137 @@ function initValuesChart(chartColors: Record<string, string>): void {
 }
 
 // Export for use in HTML
+window.initializeWebview = initializeWebview;
+
+/**
+ * Initialize the Rendered YAML tab with environment selector
+ */
+function initRenderedYamlTab(): void {
+	const envSelect = document.getElementById("rendered-env-select") as HTMLSelectElement | null;
+	const renderBtn = document.getElementById("render-yaml-btn") as HTMLButtonElement | null;
+	const exportBtn = document.getElementById("export-rendered-yaml-btn") as HTMLButtonElement | null;
+
+	if (!envSelect || !renderBtn || !exportBtn) {
+		return;
+	}
+
+	// Populate environment dropdown
+	const availableEnvs = window.webviewData.availableEnvs || [];
+	if (availableEnvs.length > 0) {
+		envSelect.innerHTML = '<option value="">Select environment...</option>';
+		for (const env of availableEnvs) {
+			const option = document.createElement("option");
+			option.value = env;
+			option.textContent = env;
+			envSelect.appendChild(option);
+		}
+	}
+
+	// Handle render button click
+	renderBtn.addEventListener("click", async () => {
+		const selectedEnv = envSelect.value;
+		if (!selectedEnv) {
+			vscode.postMessage({ type: "showError", message: "Please select an environment" });
+			return;
+		}
+
+		// Request rendered YAML from extension
+		vscode.postMessage({
+			type: "renderYaml",
+			environment: selectedEnv,
+		});
+	});
+
+	// Handle export button click
+	exportBtn.addEventListener("click", () => {
+		const selectedEnv = envSelect.value;
+		if (selectedEnv) {
+			vscode.postMessage({
+				type: "exportRenderedYaml",
+				environment: selectedEnv,
+			});
+		}
+	});
+
+	// Enable export button when environment is selected
+	envSelect.addEventListener("change", () => {
+		exportBtn.disabled = !envSelect.value;
+	});
+}
+
+/**
+ * Handle rendered YAML response from extension
+ */
+export function handleRenderedYamlResponse(data: {
+	yaml: string;
+	resources: Array<{ kind: string; name: string; namespace?: string }>;
+	chartName: string;
+	environment: string;
+}): void {
+	const contentDiv = document.getElementById("rendered-yaml-content") as HTMLElement | null;
+	if (!contentDiv) return;
+
+	if (!data.yaml) {
+		contentDiv.innerHTML = `
+			<div class="no-data">
+				<div class="no-data-icon">⚠️</div>
+				<div class="no-data-text">No rendered YAML available</div>
+				<div class="no-data-hint">Try selecting a different environment</div>
+			</div>`;
+		return;
+	}
+
+	// Group resources by kind
+	const resourceMap = new Map<string, Array<{ name: string; namespace?: string; yaml: string }>>();
+	const lines = data.yaml.split("---");
+	for (const section of lines) {
+		const trimmed = section.trim();
+		if (!trimmed) continue;
+
+		// Extract kind, name, namespace from YAML
+		const kindMatch = trimmed.match(/^kind:\s*(\S+)/m);
+		const nameMatch = trimmed.match(/^metadata:\s*\n\s*name:\s*(\S+)/m);
+		const nsMatch = trimmed.match(/^metadata:\s*\n\s*namespace:\s*(\S+)/m);
+
+		if (kindMatch && nameMatch) {
+			const kind = kindMatch[1];
+			const name = nameMatch[1];
+			const namespace = nsMatch ? nsMatch[1] : "default";
+
+			if (!resourceMap.has(kind)) {
+				resourceMap.set(kind, []);
+			}
+			resourceMap.get(kind)!.push({ name, namespace, yaml: trimmed });
+		}
+	}
+
+	// Build HTML
+	let html = '<div class="rendered-yaml">';
+	for (const [kind, resources] of resourceMap) {
+		html += `<div class="resource-group">`;
+		html += `<div class="resource-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">`;
+		html += `<span class="kind-badge">${kind}</span>`;
+		html += `<span class="name-badge">${resources.map((r) => r.name).join(", ")}</span>`;
+		html += `<span style="margin-left: auto; font-size: 10px;">▼</span>`;
+		html += `</div>`;
+		html += `<pre class="yaml-block">`;
+		for (const r of resources) {
+			html += `<div class="resource-item">`;
+			html += `<div class="resource-item-header"># ${r.name} (${r.namespace})</div>`;
+			html += highlightYaml(r.yaml);
+			html += `</div>`;
+		}
+		html += `</pre>`;
+		html += `</div>`;
+	}
+	html += `</div>`;
+
+	contentDiv.innerHTML = html;
+}
+
+// Export functions for use in HTML
+window.handleRenderedYamlResponse = handleRenderedYamlResponse;
+
 window.initializeWebview = initializeWebview;
 
 export {};

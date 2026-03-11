@@ -728,15 +728,27 @@ body {
 }
 
 .field-diff .field-left {
-    background-color: rgba(244, 67, 54, 0.1);
-    border: 1px solid rgba(244, 67, 54, 0.3);
-    color: #f44336;
+    background-color: rgba(211, 122, 73, 0.15);
+    border: 1px solid rgba(211, 122, 73, 0.4);
+    color: var(--vscode-editorWarning-foreground, #d37849);
+    transition: all 0.2s ease;
+}
+
+.field-diff .field-left.highlighted {
+    background-color: rgba(211, 122, 73, 0.35);
+    box-shadow: 0 0 0 2px rgba(211, 122, 73, 0.5);
 }
 
 .field-diff .field-right {
-    background-color: rgba(76, 175, 80, 0.1);
-    border: 1px solid rgba(76, 175, 80, 0.3);
-    color: #4caf50;
+    background-color: rgba(104, 157, 99, 0.15);
+    border: 1px solid rgba(104, 157, 99, 0.4);
+    color: var(--vscode-testing-iconPassed, #689d63);
+    transition: all 0.2s ease;
+}
+
+.field-diff .field-right.highlighted {
+    background-color: rgba(104, 157, 99, 0.35);
+    box-shadow: 0 0 0 2px rgba(104, 157, 99, 0.5);
 }
 
 .field-diff .field-value-content {
@@ -807,8 +819,8 @@ body {
 }
 
 .compare-resources .field-left {
-    color: #f44336;
-    background-color: rgba(244, 67, 54, 0.1);
+    color: var(--vscode-editorWarning-foreground, #d37849);
+    background-color: rgba(211, 122, 73, 0.15);
     padding: 2px 6px;
     border-radius: 3px;
     flex: 1;
@@ -820,8 +832,8 @@ body {
 }
 
 .compare-resources .field-right {
-    color: #4caf50;
-    background-color: rgba(76, 175, 80, 0.1);
+    color: var(--vscode-testing-iconPassed, #689d63);
+    background-color: rgba(104, 157, 99, 0.15);
     padding: 2px 6px;
     border-radius: 3px;
     flex: 1;
@@ -833,6 +845,111 @@ body {
     text-align: center;
     color: var(--vscode-descriptionForeground);
     font-size: 1rem;
+}
+
+/* Rendered YAML Tab Styles */
+.rendered-yaml-container {
+    padding: 16px;
+}
+
+.rendered-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.rendered-selector label {
+    font-weight: 500;
+    color: var(--vscode-foreground);
+}
+
+.rendered-selector .env-select {
+    flex: 1;
+    min-width: 150px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: var(--vscode-font-family);
+    background-color: var(--vscode-dropdown-background, var(--vscode-input-background, #3c3c3c));
+    color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground, #cccccc));
+    border: 1px solid var(--vscode-dropdown-border, var(--vscode-input-border, #3c3c3c));
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+}
+
+.rendered-selector .toolbar-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+.rendered-yaml-content {
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+    min-height: 400px;
+    max-height: 70vh;
+    overflow: auto;
+}
+
+.rendered-yaml-content pre {
+    margin: 0;
+    padding: 12px;
+    font-family: var(--vscode-editor-font-family, 'Consolas', 'Monaco', monospace);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.rendered-yaml-content .no-data {
+    padding: 60px 20px;
+}
+
+.rendered-yaml-content .resource-group {
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.rendered-yaml-content .resource-group:last-child {
+    border-bottom: none;
+}
+
+.rendered-yaml-content .resource-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    font-weight: 600;
+    cursor: pointer;
+    position: sticky;
+    top: 0;
+}
+
+.rendered-yaml-content .resource-header:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.rendered-yaml-content .kind-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+}
+
+.rendered-yaml-content .name-badge {
+    color: var(--vscode-foreground);
+}
+
+.rendered-yaml-content .namespace-badge {
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
 }
 
 /* Comparison placeholder */
