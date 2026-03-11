@@ -164,62 +164,6 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, delay = 300): T
  * Initialize Results tab with comparison data rendering
  */
 function initResultsTab(): void {
-	// Debounced export handler to prevent multiple file dialogs
-	const debouncedExport = debounce(() => {
-		vscode.postMessage({ type: "exportComparison" });
-	}, 500);
-
-	// Debounced refresh handler
-	const debouncedRefresh = debounce(() => {
-		vscode.postMessage({ type: "refreshComparison" });
-	}, 500);
-
-	// Initialize results sub-tab switching
-	document.querySelectorAll(".results-tab-btn").forEach((btn) => {
-		btn.addEventListener("click", () => {
-			const tabName = btn.getAttribute("data-tab");
-			if (!tabName) return;
-
-			document.querySelectorAll(".results-tab-btn").forEach((b) => b.classList.remove("active"));
-			btn.classList.add("active");
-
-			// Handle tab content visibility
-			const resultsContent = document.getElementById("results-content");
-			if (resultsContent) {
-				// For now, only compare tab has content
-				if (tabName === "compare") {
-					renderComparisonResults();
-				} else {
-					resultsContent.innerHTML = `<div class="placeholder">${tabName.charAt(0).toUpperCase() + tabName.slice(1)} view coming soon</div>`;
-				}
-			}
-		});
-	});
-
-	// Initialize export and refresh buttons with debounce
-	const exportBtn = document.getElementById("exportResults");
-	if (exportBtn) {
-		exportBtn.addEventListener("click", () => {
-			// Show visual feedback that click was registered
-			exportBtn.disabled = true;
-			debouncedExport();
-			setTimeout(() => {
-				exportBtn.disabled = false;
-			}, 500);
-		});
-	}
-
-	const refreshBtn = document.getElementById("refreshResults");
-	if (refreshBtn) {
-		refreshBtn.addEventListener("click", () => {
-			refreshBtn.disabled = true;
-			debouncedRefresh();
-			setTimeout(() => {
-				refreshBtn.disabled = false;
-			}, 500);
-		});
-	}
-
 	// Initialize comparison selector if available
 	initComparisonSelector();
 
@@ -242,9 +186,9 @@ function escapeHtml(text: unknown): string {
 }
 
 /**
- * Switch to the Results tab
+ * Switch to the Compare Environments tab
  */
-function switchToResultsTab(): void {
+function switchToCompareTab(): void {
 	// Deactivate all tab buttons
 	document.querySelectorAll(".tab-btn").forEach((b) => {
 		b.classList.remove("active");
@@ -253,15 +197,15 @@ function switchToResultsTab(): void {
 	document.querySelectorAll(".tab-content").forEach((c) => {
 		c.classList.remove("active");
 	});
-	// Activate the Results tab button
-	const resultsTabBtn = document.querySelector('.tab-btn[data-tab="results"]');
-	if (resultsTabBtn) {
-		resultsTabBtn.classList.add("active");
+	// Activate the Compare tab button
+	const compareTabBtn = document.querySelector('.tab-btn[data-tab="compare"]');
+	if (compareTabBtn) {
+		compareTabBtn.classList.add("active");
 	}
-	// Activate the Results tab content
-	const resultsContent = document.getElementById("results");
-	if (resultsContent) {
-		resultsContent.classList.add("active");
+	// Activate the Compare tab content
+	const compareContent = document.getElementById("compare");
+	if (compareContent) {
+		compareContent.classList.add("active");
 	}
 }
 
@@ -312,8 +256,8 @@ function renderComparisonResults(): void {
 		return;
 	}
 
-	// Switch to Results tab automatically when comparison results are available
-	switchToResultsTab();
+	// Switch to Compare tab automatically when comparison results are available
+	switchToCompareTab();
 
 	// Build the comparison HTML with simplified UX (avoid duplicate info)
 	const { header, summary, resources, kindGroups } = data;
