@@ -156,46 +156,6 @@ function generateOverviewTab(data: any): string {
         </div>
 
         ${
-			Object.keys(data.resourceCounts || {}).length > 0
-				? `
-        <div class="chart-container">
-            <h2>Resource Distribution</h2>
-            <div class="chart-wrapper">
-                <canvas id="resourceChart"></canvas>
-            </div>
-        </div>
-        `
-				: `
-        <div class="chart-container" style="display:none">
-            <h2>Resource Distribution</h2>
-            <div class="chart-wrapper">
-                <canvas id="resourceChart"></canvas>
-            </div>
-        </div>
-        `
-		}
-
-        ${
-			data.totalValues > 0
-				? `
-        <div class="chart-container">
-            <h2>Values Overview</h2>
-            <div class="chart-wrapper">
-                <canvas id="valuesChart"></canvas>
-            </div>
-        </div>
-        `
-				: `
-        <div class="chart-container" style="display:none">
-            <h2>Values Overview</h2>
-            <div class="chart-wrapper">
-                <canvas id="valuesChart"></canvas>
-            </div>
-        </div>
-        `
-		}
-
-        ${
 			data.overriddenValues.length > 0
 				? `
         <div class="chart-container">
