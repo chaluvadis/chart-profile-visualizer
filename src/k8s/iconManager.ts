@@ -13,6 +13,9 @@ const svgCache = new Map<string, string>();
 // Extension context for resolving paths
 let extensionContext: vscode.ExtensionContext;
 
+// Preload status
+let preloaded = false;
+
 /**
  * Initialize the icon manager with extension context
  */
@@ -132,9 +135,16 @@ export function getIconDataUri(kind: string, theme: "dark" | "light" = "dark"): 
 }
 
 /**
- * Preload all icons into cache
+ * Preload all icons into cache (lazy loaded)
  */
 export function preloadIcons(): void {
+	// Skip if already preloaded or context not available
+	if (preloaded || !extensionContext) {
+		return;
+	}
+
+	preloaded = true;
+
 	const k8sDir = path.join(extensionContext.extensionPath, "images", "k8s");
 
 	try {

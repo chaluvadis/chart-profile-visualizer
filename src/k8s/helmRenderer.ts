@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import * as yaml from "js-yaml";
 import { mergeValues } from "../processing/valuesMerger";
+import { BUFFER_SIZE, TIMEOUT } from "../utils/constants";
 
 const exec = promisify(cp.exec);
 
@@ -68,8 +69,8 @@ export async function renderHelmTemplate(
 		console.log(`Executing: ${command}`);
 
 		const { stdout, stderr } = await exec(command, {
-			maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-			timeout: 30000, // 30 second timeout
+			maxBuffer: BUFFER_SIZE.HELM_OUTPUT, // 10MB buffer
+			timeout: TIMEOUT.HELM_TEMPLATE, // 30 second timeout
 		});
 
 		if (stderr) {

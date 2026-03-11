@@ -2,7 +2,7 @@
   "name": "chart-profile-visualizer",
   "displayName": "Helm Chart Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "nomad-in-code",
   "repository": {
     "type": "git",
@@ -13,7 +13,7 @@
     "url": "https://github.com/chaluvadis/chart-profile-visualizer/issues"
   },
   "engines": {
-    "vscode": "^1.109.0"
+    "vscode": "^1.110.0"
   },
   "categories": [
     "Other",
@@ -69,6 +69,10 @@
         "command": "chartProfiles.viewDependencies",
         "title": "View Dependencies",
         "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "chartProfiles.viewMergedValues",
+        "title": "View Merged Values"
       }
     ],
     "menus": {
@@ -104,6 +108,10 @@
         {
           "command": "chartProfiles.viewDependencies",
           "when": "false"
+        },
+        {
+          "command": "chartProfiles.viewMergedValues",
+          "when": "false"
         }
       ]
     }
@@ -121,8 +129,8 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.6",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^25.3.5",
-    "@types/vscode": "^1.109.0",
+    "@types/node": "^25.4.0",
+    "@types/vscode": "^1.110.0",
     "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.3",
     "typescript": "^5.9.3"

@@ -6,6 +6,7 @@ import {
 	type HelmRelease,
 } from "../k8s/kubernetesConnector";
 import { renderHelmTemplate } from "../k8s/helmRenderer";
+import { CACHE_TTL, REFRESH_INTERVAL } from "../utils/constants";
 
 /**
  * Runtime state for all resources in a chart
@@ -68,7 +69,7 @@ export class RuntimeStateManager {
 		const cached = this.stateCache.get(cacheKey);
 		if (cached) {
 			const cacheAge = Date.now() - new Date(cached.lastUpdated).getTime();
-			if (cacheAge < 5000) {
+			if (cacheAge < CACHE_TTL.RUNTIME_STATE) {
 				return cached;
 			}
 		}
@@ -196,7 +197,7 @@ export class RuntimeStateManager {
 	/**
 	 * Start auto-refresh
 	 */
-	startAutoRefresh(intervalMs = 30000): void {
+	startAutoRefresh(intervalMs = REFRESH_INTERVAL.AUTO_REFRESH): void {
 		if (this.refreshInterval) {
 			clearInterval(this.refreshInterval);
 		}

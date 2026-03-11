@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { findHelmCharts, type HelmChart } from "../k8s/helmChart";
 import { getIconUris, hasIcon, getNormalizedIconName } from "../k8s/iconManager";
+import { FILE_PATTERNS } from "../utils/constants";
 
 export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<ChartTreeItem | undefined | null> = new vscode.EventEmitter<
@@ -137,7 +138,7 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 		try {
 			// Dynamically discover all values-*.yaml files
 			const files = fs.readdirSync(chart.path);
-			const valuesPattern = /^values-(.+)\.ya?ml$/;
+			const valuesPattern = FILE_PATTERNS.VALUES_ENV_REGEX;
 
 			for (const file of files) {
 				const match = file.match(valuesPattern);

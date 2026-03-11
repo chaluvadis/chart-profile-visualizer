@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as yaml from "js-yaml";
 import * as vscode from "vscode";
+import { SKIP_DIRECTORIES } from "../utils/constants";
+import { parseYaml, type ChartYaml } from "../utils/yaml";
 
 export interface HelmChart {
 	name: string;
@@ -61,7 +62,11 @@ async function findChartsRecursive(dirPath: string, charts: HelmChart[]): Promis
 async function parseChartYaml(chartYamlPath: string, chartPath: string): Promise<HelmChart | null> {
 	try {
 		const content = fs.readFileSync(chartYamlPath, "utf8");
-		const chartData = yaml.load(content) as any;
+		const chartData = parseYaml<ChartYaml>(content);
+
+		if (!chartData) {
+			return null;
+		}
 
 		return {
 			name: chartData.name || path.basename(chartPath),
@@ -80,11 +85,8 @@ function shouldSkipDirectory(dirName: string): boolean {
 	const config = vscode.workspace.getConfiguration("chartProfiles");
 	const userIgnored = config.get<string[]>("ignoredDirectories", []);
 
-	// Default safe directories to always skip
-	const defaultSkipDirs = ["node_modules", ".git", ".vscode", "dist", "out", "build", ".vscode-test"];
-
 	// Merge default and user-configured ignores
-	const skipDirs = [...defaultSkipDirs, ...userIgnored];
+	const skipDirs = [...SKIP_DIRECTORIES, ...userIgnored];
 
 	return skipDirs.includes(dirName) || dirName.startsWith(".");
 }

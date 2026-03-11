@@ -1,6 +1,7 @@
 import * as cp from "node:child_process";
 import { promisify } from "node:util";
 import * as yaml from "js-yaml";
+import { TIMEOUT } from "../utils/constants";
 
 const exec = promisify(cp.exec);
 
@@ -190,7 +191,7 @@ export class KubernetesConnector {
 		try {
 			// Get resource
 			const cmd = this.buildCommand(`get ${kind} ${name} -o yaml`, ns);
-			const { stdout } = await exec(cmd, { timeout: 10000 });
+			const { stdout } = await exec(cmd, { timeout: TIMEOUT.DEFAULT });
 			const resource = yaml.load(stdout) as any;
 
 			state.exists = true;
