@@ -121,8 +121,7 @@ function generateOverviewTab(data: any): string {
 	return `
         <div class="header">
             <h1 class="chart-title">
-                ${escapeHtml(data.chartName)}
-                <span class="environment-badge">${escapeHtml(data.environment)}</span>
+                <span class="chart-icon">📊</span> Chart: ${escapeHtml(data.chartName)} (${escapeHtml(data.environment)})
             </h1>
         </div>
 
