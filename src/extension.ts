@@ -94,7 +94,6 @@ export function activate(context: vscode.ExtensionContext) {
 			const item = e.selection[0];
 			// Check if this is an action item with a command
 			if (item.type === "action" && item.command) {
-				console.log("Executing command for action:", item.command.command);
 				try {
 					// Pass command arguments if available, otherwise pass the item
 					if (item.command.arguments && item.command.arguments.length > 0) {
@@ -155,7 +154,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const visualizeChartCommand = vscode.commands.registerCommand(
 		"chartProfiles.visualizeChart",
 		async (item: unknown) => {
-			console.log("Visualize chart command called with item:", item);
 			try {
 				await showChartVisualization(context, item as Parameters<typeof showChartVisualization>[1]);
 			} catch (error) {
@@ -393,9 +391,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const compareEnvironmentsCommand = vscode.commands.registerCommand(
 		"chartProfiles.compareEnvironments",
 		async (...args: unknown[]) => {
-			// This is the NEW code version - all error messages have [NEW]
-			console.log("[NEW] CompareEnvironments called with args:", JSON.stringify(args));
-
 			let chartPath = "";
 			let chartName = "";
 
@@ -404,22 +399,19 @@ export function activate(context: vscode.ExtensionContext) {
 				// Format: (chartPath, chartName) - from tree view
 				chartPath = args[0] as string;
 				chartName = args[1] as string;
-				console.log("[NEW] Parsed as string args:", { chartPath, chartName });
 			} else if (args.length === 1 && args[0] !== null && typeof args[0] === "object") {
 				// Format: ({ chart, chartPath, ... }) - direct call
 				const item = args[0] as any;
 				chartPath = item?.chartPath || item?.chart?.path || item?.path || "";
 				chartName = item?.chart?.name || item?.chartName || item?.name || item?.label || "";
-				console.log("[NEW] Parsed as object:", { chartPath, chartName, item });
 			} else {
-				console.error("[NEW] Unexpected args format:", args);
-				vscode.window.showErrorMessage("[NEW] Invalid arguments format");
+				vscode.window.showErrorMessage("Invalid arguments format");
 				return;
 			}
 
 			// Validate we have the required data
 			if (!chartPath || !chartName) {
-				vscode.window.showErrorMessage(`[NEW] Missing chart info: path="${chartPath}", name="${chartName}"`);
+				vscode.window.showErrorMessage(`Missing chart info: path="${chartPath}", name="${chartName}"`);
 				return;
 			}
 
@@ -431,14 +423,10 @@ export function activate(context: vscode.ExtensionContext) {
 				collapsibleState: vscode.TreeItemCollapsibleState.None,
 			};
 
-			console.log("[NEW] Calling showCompare with:", JSON.stringify(compareItem));
-
 			try {
 				await showCompare(context, compareItem as any);
-				console.log("[NEW] showCompare completed");
 			} catch (error: any) {
-				console.error("[NEW] Error in showCompare:", error);
-				vscode.window.showErrorMessage(`[NEW] Compare failed: ${error.message}`);
+				vscode.window.showErrorMessage(`Compare failed: ${error.message}`);
 			}
 		}
 	);
@@ -476,7 +464,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-	console.log("ChartProfiles extension is now deactivated");
 	const runtimeStateManager = getRuntimeStateManager();
 	runtimeStateManager.dispose();
 }

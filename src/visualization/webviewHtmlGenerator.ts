@@ -406,6 +406,7 @@ function generateInitializationData(data: any): string {
 		totalValues: data.totalValues || 0,
 		comparisonData: data.comparisonData || null,
 		availableEnvs: data.availableEnvs || [],
+		environment: data.environment || null,
 	};
 
 	// Safely serialize to JSON, escaping < characters for security

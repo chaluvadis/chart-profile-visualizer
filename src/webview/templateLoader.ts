@@ -33,28 +33,21 @@ export function escapeHtml(text: string): string {
  */
 export async function loadTemplate(templateUri: vscode.Uri, context: TemplateContext): Promise<string> {
 	try {
-		console.log("[TemplateLoader] Loading template:", templateUri.fsPath);
-		console.log("[TemplateLoader] Context keys:", Object.keys(context));
-
 		// Use VS Code's workspace API to read the file, which works with vscode-resource URIs
 		const templateBuffer = await vscode.workspace.fs.readFile(templateUri);
 		const template = new TextDecoder().decode(templateBuffer);
 
-		console.log("[TemplateLoader] Template loaded, length:", template.length);
-
 		const result = renderTemplate(template, context);
-
-		console.log("[TemplateLoader] Rendered result length:", result.length);
 
 		// Check for any remaining {{ placeholders
 		const remaining = result.match(/\{\{[^}]+\}\}/g);
 		if (remaining) {
-			console.log("[TemplateLoader] WARNING - Remaining placeholders:", remaining);
+			console.warn("WARNING - Remaining placeholders:", remaining);
 		}
 
 		return result;
 	} catch (error) {
-		console.error(`[TemplateLoader] Failed to load template: ${templateUri.fsPath}`, error);
+		console.error(`Failed to load template: ${templateUri.fsPath}`, error);
 		return `<!DOCTYPE html>
 <html lang="en">
 <head>

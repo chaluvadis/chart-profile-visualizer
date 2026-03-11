@@ -18,7 +18,6 @@ import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { getRuntimeStateManager } from "../state/runtimeStateManager";
 import type { ComparisonWebviewData } from "../diff/environmentDiff";
 import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
-import { formatRenderedOutput } from "../k8s/helmRenderer";
 
 // Re-export for backward compatibility
 export type { ComparisonWebviewData };
@@ -98,8 +97,6 @@ type WebviewMessageType =
 	| "runComparison"
 	| "copyResource"
 	| "revealSecret"
-	| "renderYaml"
-	| "exportRenderedYaml"
 	| "showError";
 
 interface WebviewMessage {
@@ -109,7 +106,6 @@ interface WebviewMessage {
 	namespace?: string;
 	env1?: string;
 	env2?: string;
-	environment?: string;
 	message?: string;
 }
 
@@ -153,13 +149,6 @@ export function clearComparisonData(): void {
  * Show chart comparison view (chart-level, no specific environment)
  */
 export async function showCompare(context: vscode.ExtensionContext, item: ChartTreeItem) {
-	console.log("showCompare called with item:", JSON.stringify(item, null, 2));
-	console.log("item.chart:", item?.chart);
-	console.log("item.chart?.path:", item?.chart?.path);
-	console.log("item.chart?.name:", item?.chart?.name);
-	console.log("item type:", typeof item);
-	console.log("item keys:", item ? Object.keys(item) : "N/A");
-
 	if (!item || !item.chart) {
 		vscode.window.showErrorMessage("Invalid chart selected for comparison");
 		return;
@@ -454,16 +443,6 @@ async function handleMessage(message: WebviewMessage) {
 		case "revealSecret":
 			if (message.secretName) {
 				await revealSecret(message.secretName, message.namespace);
-			}
-			break;
-		case "renderYaml":
-			if (message.environment) {
-				await handleRenderYaml(message.environment);
-			}
-			break;
-		case "exportRenderedYaml":
-			if (message.environment) {
-				await handleExportRenderedYaml(message.environment);
 			}
 			break;
 		case "showError":
@@ -899,14 +878,11 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
  * Collect chart data for comparison view (chart-level, no specific environment)
  */
 async function collectChartDataForCompare(item: ChartTreeItem): Promise<ChartData> {
-	console.log("[collectChartDataForCompare] item:", JSON.stringify(item, null, 2));
-	console.log("[collectChartDataForCompare] item.chart:", item.chart);
 	const chart = item.chart;
 
 	// Validate required fields
 	if (!chart?.path || !chart?.name) {
 		const errorDetails = `chart=${JSON.stringify(chart)}, chartPath=${chart?.path}, chartName=${chart?.name}`;
-		console.error("[collectChartDataForCompare] Invalid chart item:", errorDetails);
 		throw new Error(`Invalid chart item: missing required fields. Details: ${errorDetails}`);
 	}
 
@@ -1103,92 +1079,6 @@ function getValueByPath(obj: any, path: string): any {
 	}
 
 	return current;
-}
-
-/**
- * Handle render YAML request from webview
- */
-async function handleRenderYaml(environment: string): Promise<void> {
-	const currentItem = getCurrentChartItem();
-	if (!currentItem) {
-		vscode.window.showErrorMessage("No chart selected");
-		return;
-	}
-
-	const chartPath = currentItem.chart?.path;
-	const chartName = currentItem.chart?.name;
-
-	if (!chartPath || !chartName) {
-		vscode.window.showErrorMessage("Invalid chart information");
-		return;
-	}
-
-	try {
-		vscode.window.showInformationMessage(`Rendering YAML for ${environment}...`);
-
-		const releaseName = `${chartName}-${environment}`;
-		const resources = await renderHelmTemplate(chartPath, environment, releaseName);
-		const output = formatRenderedOutput(resources);
-
-		// Send to webview
-		if (currentPanel) {
-			currentPanel.webview.postMessage({
-				type: "renderedYaml",
-				yaml: output,
-				resources: resources.map((r) => ({ kind: r.kind, name: r.name, namespace: r.namespace })),
-				chartName,
-				environment,
-			});
-		}
-
-		vscode.window.showInformationMessage(`Rendered ${resources.length} resources for ${environment}`);
-	} catch (error) {
-		console.error("Error rendering YAML:", error);
-		vscode.window.showErrorMessage(
-			`Failed to render YAML: ${error instanceof Error ? error.message : String(error)}`
-		);
-	}
-}
-
-/**
- * Handle export rendered YAML request from webview
- */
-async function handleExportRenderedYaml(environment: string): Promise<void> {
-	const currentItem = getCurrentChartItem();
-	if (!currentItem) {
-		vscode.window.showErrorMessage("No chart selected");
-		return;
-	}
-
-	const chartPath = currentItem.chart?.path;
-	const chartName = currentItem.chart?.name;
-
-	if (!chartPath || !chartName) {
-		vscode.window.showErrorMessage("Invalid chart information");
-		return;
-	}
-
-	try {
-		const releaseName = `${chartName}-${environment}`;
-		const resources = await renderHelmTemplate(chartPath, environment, releaseName);
-		const output = formatRenderedOutput(resources);
-
-		// Show save dialog
-		const saveUri = await vscode.window.showSaveDialog({
-			defaultUri: vscode.Uri.file(`${chartName}-${environment}.yaml`),
-			filters: { YAML: ["yaml", "yml"] },
-		});
-
-		if (saveUri) {
-			await fs.promises.writeFile(saveUri.fsPath, output, "utf8");
-			vscode.window.showInformationMessage(`Exported rendered YAML to ${saveUri.fsPath}`);
-		}
-	} catch (error) {
-		console.error("Error exporting YAML:", error);
-		vscode.window.showErrorMessage(
-			`Failed to export YAML: ${error instanceof Error ? error.message : String(error)}`
-		);
-	}
 }
 
 /**
