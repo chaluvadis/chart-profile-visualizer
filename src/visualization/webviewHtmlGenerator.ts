@@ -63,18 +63,12 @@ export async function generateEnhancedHtml(
 ): Promise<string> {
 	const nonce = getNonce();
 
-	// Debug: Show message to confirm code is running
-	vscode.window.showInformationMessage("Generating webview HTML...");
-
 	try {
 		// Get local Chart.js, CSS, and webview JS URIs
 		const chartJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "vendor", "chart.umd.js"));
 		const stylesUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "styles.css"));
 		const mainJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "main.js"));
 		const topologyJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "topology.js"));
-
-		// Debug: Show URI info
-		vscode.window.showInformationMessage(`Chart.js: ${chartJsUri}`);
 
 		// Generate dynamic content
 		const overviewContent = generateOverviewTab(data);

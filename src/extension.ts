@@ -68,9 +68,6 @@ function formatValidationMarkdown(result: {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	// Show message to confirm extension is running
-	vscode.window.showInformationMessage("Chart Profile Visualizer extension activated!");
-
 	// Initialize icon manager and preload icons
 	initializeIconManager(context);
 	preloadIcons();
