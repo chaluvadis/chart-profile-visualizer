@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+    <title>Validation Results</title>
+    <style>
+        :root {
+            --error-color: #f85149;
+            --error-bg: rgba(248, 81, 73, 0.1);
+            --warning-color: #d29922;
+            --warning-bg: rgba(210, 153, 34, 0.1);
+            --info-color: #58a6ff;
+            --info-bg: rgba(88, 166, 255, 0.1);
+            --success-color: #3fb950;
+            --success-bg: rgba(63, 185, 80, 0.1);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--vscode-font-family);
+            color: var(--vscode-foreground);
+            background-color: var(--vscode-editor-background);
+            padding: 16px;
+            margin: 0;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background-color: var(--vscode-editor-lineHighlightBackground);
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        .status-badge {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 20px;
+        }
+        .status-badge.valid { background-color: var(--success-bg); color: var(--success-color); }
+        .status-badge.invalid { background-color: var(--error-bg); color: var(--error-color); }
+        .header-text { flex: 1; }
+        .header-title { font-size: 16px; font-weight: 600; margin: 0; }
+        .header-subtitle { font-size: 12px; color: var(--vscode-descriptionForeground); margin: 4px 0 0 0; }
+
+        .summary { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+        .summary-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px;
+            background-color: var(--vscode-editor-lineHighlightBackground);
+            border-radius: 6px; flex: 1; min-width: 80px;
+        }
+        .summary-item.error { border-left: 3px solid var(--error-color); }
+        .summary-item.warning { border-left: 3px solid var(--warning-color); }
+        .summary-item.info { border-left: 3px solid var(--info-color); }
+        .summary-count { font-size: 20px; font-weight: 700; }
+        .summary-count.error { color: var(--error-color); }
+        .summary-count.warning { color: var(--warning-color); }
+        .summary-count.info { color: var(--info-color); }
+        .summary-label { font-size: 12px; color: var(--vscode-descriptionForeground); }
+
+        .search-box { margin-bottom: 16px; }
+        .search-input {
+            width: 100%; padding: 10px 14px; font-size: 13px;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            border-radius: 6px; color: var(--vscode-foreground);
+        }
+        .search-input:focus { outline: none; border-color: var(--info-color); }
+        .search-input::placeholder { color: var(--vscode-descriptionForeground); }
+
+        .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .filter-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; font-size: 12px;
+            background-color: var(--vscode-editor-lineHighlightBackground);
+            border: 1px solid transparent; border-radius: 16px;
+            color: var(--vscode-foreground); cursor: pointer;
+        }
+        .filter-btn:hover { background-color: var(--vscode-editor-selectionBackground); }
+        .filter-btn.active { border-color: currentColor; }
+        .filter-btn.error.active { color: var(--error-color); background: var(--error-bg); }
+        .filter-btn.warning.active { color: var(--warning-color); background: var(--warning-bg); }
+        .filter-btn.info.active { color: var(--info-color); background: var(--info-bg); }
+
+        .section { margin-bottom: 16px; }
+        .section-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px;
+            background-color: var(--vscode-editor-lineHighlightBackground);
+            border-radius: 6px; margin-bottom: 8px; cursor: pointer; user-select: none;
+        }
+        .section-header:hover { background-color: var(--vscode-editor-selectionBackground); }
+        .section-header.error { border-left: 4px solid var(--error-color); }
+        .section-header.warning { border-left: 4px solid var(--warning-color); }
+        .section-header.info { border-left: 4px solid var(--info-color); }
+        .section-icon { font-size: 14px; width: 20px; text-align: center; }
+        .section-icon.error { color: var(--error-color); }
+        .section-icon.warning { color: var(--warning-color); }
+        .section-icon.info { color: var(--info-color); }
+        .section-title { font-weight: 600; font-size: 13px; flex: 1; }
+        .section-count { font-size: 12px; padding: 2px 8px; background-color: var(--vscode-editor-background); border-radius: 10px; }
+        .chevron { color: var(--vscode-descriptionForeground); font-size: 12px; transition: transform 0.2s; }
+        .chevron.collapsed { transform: rotate(-90deg); }
+
+        .issue-list { padding: 0; margin: 0; list-style: none; }
+        .issue-card {
+            padding: 12px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid;
+            background-color: var(--vscode-editor-lineHighlightBackground);
+        }
+        .issue-card.error { border-left-color: var(--error-color); background-color: var(--error-bg); }
+        .issue-card.warning { border-left-color: var(--warning-color); background-color: var(--warning-bg); }
+        .issue-card.info { border-left-color: var(--info-color); background-color: var(--info-bg); }
+        .issue-code {
+            display: inline-block; font-family: var(--vscode-editor-font-family);
+            font-size: 11px; padding: 2px 6px; background-color: var(--vscode-editor-background);
+            border-radius: 3px; margin-bottom: 6px; color: var(--vscode-descriptionForeground);
+        }
+        .issue-message { font-size: 13px; line-height: 1.5; margin: 0; }
+        .issue-details { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(128,128,128,0.2); display: flex; flex-wrap: wrap; gap: 6px; }
+        .detail-tag { font-size: 11px; padding: 3px 8px; background-color: var(--vscode-editor-background); border-radius: 4px; color: var(--vscode-descriptionForeground); }
+        .detail-tag.resource { color: #7ee787; }
+        .detail-tag.file { color: var(--vscode-foreground); cursor: pointer; }
+        .detail-tag.remediation { color: #ffa657; }
+
+        .issue-actions { margin-top: 10px; display: flex; gap: 6px; }
+        .action-btn { font-size: 11px; padding: 4px 8px; background-color: var(--vscode-editor-background); border: 1px solid var(--vscode-editor-lineHighlightBackground); border-radius: 4px; color: var(--vscode-descriptionForeground); cursor: pointer; }
+        .action-btn:hover { background-color: var(--vscode-editor-selectionBackground); }
+
+        .collapsible { max-height: 1000px; overflow: hidden; transition: max-height 0.3s ease; }
+        .collapsible.collapsed { max-height: 0; }
+
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--vscode-descriptionForeground); }
+        .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+        .footer { margin-top: 20px; padding: 12px; background-color: var(--vscode-editor-lineHighlightBackground); border-radius: 6px; font-size: 11px; color: var(--vscode-descriptionForeground); display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .footer-item { display: flex; flex-direction: column; }
+        .footer-label { font-size: 10px; text-transform: uppercase; opacity: 0.7; }
+        .footer-value { color: var(--vscode-foreground); word-break: break-all; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {{#if valid}}
+        <div class="status-badge valid">&#10003;</div>
+        <div class="header-text">
+            <h2 class="header-title">Chart Valid</h2>
+            <p class="header-subtitle">All validations passed</p>
+        </div>
+        {{#else}}
+        <div class="status-badge invalid">&#10007;</div>
+        <div class="header-text">
+            <h2 class="header-title">Validation Failed</h2>
+            <p class="header-subtitle">{{totalIssues}} issue(s) found</p>
+        </div>
+        {{/if}}
+    </div>
+
+    <div class="summary">
+        <div class="summary-item error">
+            <span class="summary-count error">{{summary.errors}}</span>
+            <span class="summary-label">Errors</span>
+        </div>
+        <div class="summary-item warning">
+            <span class="summary-count warning">{{summary.warnings}}</span>
+            <span class="summary-label">Warnings</span>
+        </div>
+        <div class="summary-item info">
+            <span class="summary-count info">{{summary.info}}</span>
+            <span class="summary-label">Info</span>
+        </div>
+    </div>
+
+    <div class="search-box">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search issues..." oninput="filterIssues()">
+    </div>
+
+    <div class="filter-bar">
+        <button class="filter-btn error active" onclick="toggleFilter('error', this)">Errors ({{summary.errors}})</button>
+        <button class="filter-btn warning active" onclick="toggleFilter('warning', this)">Warnings ({{summary.warnings}})</button>
+        <button class="filter-btn info active" onclick="toggleFilter('info', this)">Info ({{summary.info}})</button>
+    </div>
+
+    {{#if hasErrors}}
+    <div class="section" id="section-error">
+        <div class="section-header error" onclick="toggleSection(this)">
+            <span class="section-icon error">&#10007;</span>
+            <span class="section-title">Errors</span>
+            <span class="section-count">{{errorCount}}</span>
+            <span class="chevron">&#9660;</span>
+        </div>
+        <ul class="collapsible" id="content-error">
+            {{#each errors}}
+            <li class="issue-card error">
+                <span class="issue-code">{{code}}</span>
+                <p class="issue-message">{{message}}</p>
+                <div class="issue-details">
+                    {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
+                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{line}}">&#128196; {{file}}{{#if line}}:{{line}}{{/if}}</span>{{/if}}
+                    {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
+                </div>
+                <div class="issue-actions">
+                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)">&#128203; Copy</button>
+                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{line}}" onclick="jumpToFile(this)">&#10140; Jump</button>{{/if}}
+                </div>
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+    {{/if}}
+
+    {{#if hasWarnings}}
+    <div class="section" id="section-warning">
+        <div class="section-header warning" onclick="toggleSection(this)">
+            <span class="section-icon warning">&#9888;</span>
+            <span class="section-title">Warnings</span>
+            <span class="section-count">{{warningCount}}</span>
+            <span class="chevron">&#9660;</span>
+        </div>
+        <ul class="collapsible" id="content-warning">
+            {{#each warnings}}
+            <li class="issue-card warning">
+                <span class="issue-code">{{code}}</span>
+                <p class="issue-message">{{message}}</p>
+                <div class="issue-details">
+                    {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
+                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{line}}">&#128196; {{file}}{{#if line}}:{{line}}{{/if}}</span>{{/if}}
+                    {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
+                </div>
+                <div class="issue-actions">
+                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)">&#128203; Copy</button>
+                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{line}}" onclick="jumpToFile(this)">&#10140; Jump</button>{{/if}}
+                </div>
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+    {{/if}}
+
+    {{#if hasInfo}}
+    <div class="section" id="section-info">
+        <div class="section-header info" onclick="toggleSection(this)">
+            <span class="section-icon info">&#8505;</span>
+            <span class="section-title">Info</span>
+            <span class="section-count">{{infoCount}}</span>
+            <span class="chevron">&#9660;</span>
+        </div>
+        <ul class="collapsible" id="content-info">
+            {{#each info}}
+            <li class="issue-card info">
+                <span class="issue-code">{{code}}</span>
+                <p class="issue-message">{{message}}</p>
+                <div class="issue-details">
+                    {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
+                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{line}}">&#128196; {{file}}{{#if line}}:{{line}}{{/if}}</span>{{/if}}
+                    {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
+                </div>
+                <div class="issue-actions">
+                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)">&#128203; Copy</button>
+                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{line}}" onclick="jumpToFile(this)">&#10140; Jump</button>{{/if}}
+                </div>
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+    {{/if}}
+
+    {{#if valid}}
+    <div class="empty-state">
+        <div class="empty-icon">&#10004;</div>
+        <p>No issues found!</p>
+    </div>
+    {{/if}}
+
+    <div class="footer">
+        <div class="footer-item">
+            <span class="footer-label">Chart</span>
+            <span class="footer-value">{{chartName}}</span>
+        </div>
+        <div class="footer-item">
+            <span class="footer-label">Environment</span>
+            <span class="footer-value">{{environment}}</span>
+        </div>
+        <div class="footer-item" style="grid-column: span 2;">
+            <span class="footer-label">Path</span>
+            <span class="footer-value">{{chartPath}}</span>
+        </div>
+        <div class="footer-item" style="grid-column: span 2;">
+            <span class="footer-label">Validated</span>
+            <span class="footer-value">{{timestamp}}</span>
+        </div>
+    </div>
+
+    <script>
+        function toggleSection(header) {
+            var content = header.nextElementSibling;
+            var chevron = header.querySelector('.chevron');
+            if (content) content.classList.toggle('collapsed');
+            if (chevron) chevron.classList.toggle('collapsed');
+        }
+
+        var activeFilters = { error: true, warning: true, info: true };
+
+        function toggleFilter(type, btn) {
+            activeFilters[type] = !activeFilters[type];
+            btn.classList.toggle('active');
+            filterIssues();
+        }
+
+        function filterIssues() {
+            var search = document.getElementById('searchInput').value.toLowerCase();
+            var sections = document.querySelectorAll('.section');
+            sections.forEach(function(section) {
+                var cards = section.querySelectorAll('.issue-card');
+                var count = 0;
+                cards.forEach(function(card) {
+                    var severity = card.classList.contains('error') ? 'error' : card.classList.contains('warning') ? 'warning' : 'info';
+                    var code = (card.querySelector('.issue-code') || {}).textContent || '';
+                    var msg = (card.querySelector('.issue-message') || {}).textContent || '';
+                    var matchSearch = !search || code.toLowerCase().indexOf(search) !== -1 || msg.toLowerCase().indexOf(search) !== -1;
+                    var matchFilter = activeFilters[severity];
+                    if (matchSearch && matchFilter) {
+                        card.style.display = 'block';
+                        count++;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                var content = section.querySelector('.collapsible');
+                if (content) content.style.display = count === 0 ? 'none' : 'block';
+            });
+        }
+
+        function copyIssue(btn) {
+            var code = btn.getAttribute('data-code') || '';
+            var message = btn.getAttribute('data-message') || '';
+            var text = '[' + code + '] ' + message;
+            navigator.clipboard.writeText(text).then(function() {
+                var orig = btn.innerHTML;
+                btn.innerHTML = '&#10004; Copied!';
+                setTimeout(function() { btn.innerHTML = orig; }, 1500);
+            });
+        }
+
+        function jumpToFile(btn) {
+            var file = btn.getAttribute('data-file');
+            var line = btn.getAttribute('data-line') || 1;
+            if (typeof acquireVsCodeApi !== 'undefined') {
+                acquireVsCodeApi().postMessage({
+                    command: 'jumpToFile',
+                    file: file,
+                    line: parseInt(line, 10) || 1
+                });
+            }
+        }
+    </script>
+</body>
+</html>
+

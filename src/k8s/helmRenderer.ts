@@ -443,35 +443,3 @@ function getNestedValue(obj: any, path: string): any {
 
 	return current;
 }
-
-/**
- * Formats rendered resources with origin information
- */
-export function formatRenderedOutput(resources: RenderedResource[]): string {
-	const lines: string[] = [];
-
-	lines.push("# Helm Template Rendering Output");
-	lines.push("# Environment-specific values have been merged and applied");
-	lines.push("");
-	lines.push(`# Total Resources: ${resources.length}`);
-	lines.push("");
-
-	for (let i = 0; i < resources.length; i++) {
-		const resource = resources[i];
-
-		lines.push("---");
-		lines.push(`# Resource ${i + 1}/${resources.length}`);
-		lines.push(`# Kind: ${resource.kind}`);
-		lines.push(`# Name: ${resource.name}`);
-		if (resource.namespace) {
-			lines.push(`# Namespace: ${resource.namespace}`);
-		}
-		lines.push(`# Template Source: ${resource.template}`);
-		lines.push(`# Chart: ${resource.chart}`);
-		lines.push("");
-		lines.push(resource.yaml);
-		lines.push("");
-	}
-
-	return lines.join("\n");
-}

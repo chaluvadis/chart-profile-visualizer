@@ -2288,3 +2288,70 @@ body[data-view-mode="compare"] .compare-content,
 .view-mode-compare .compare-content {
     display: block;
 }
+
+/* ============================================
+   DEPENDENCY SECTION STYLES
+   ============================================ */
+.dependency-summary {
+    display: flex;
+    gap: 12px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    background: var(--vscode-editor-background);
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.dep-stat {
+    color: var(--vscode-foreground);
+    opacity: 0.8;
+}
+
+.dep-stat::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+    background: var(--vscode-foreground);
+    opacity: 0.6;
+}
+
+.dep-stat.dep-conflicts {
+    color: var(--vscode-errorForeground);
+}
+
+.dep-stat.dep-conflicts::before {
+    background: var(--vscode-errorForeground);
+    opacity: 1;
+}
+
+.dependency-version {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.8rem;
+    margin-left: 8px;
+}
+
+.dependency-status {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: auto;
+}
+
+.dependency-status.enabled {
+    background: rgba(16, 124, 16, 0.2);
+    color: #107c10;
+}
+
+.dependency-status.disabled {
+    background: rgba(232, 17, 35, 0.2);
+    color: #e81123;
+}
+
+.no-dependencies {
+    padding: 16px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+}

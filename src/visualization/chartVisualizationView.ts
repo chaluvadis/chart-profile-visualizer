@@ -14,6 +14,7 @@ import {
 import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
 import { mergeValues } from "../processing/valuesMerger";
 import { generateEnhancedHtml } from "./webviewHtmlGenerator";
+import { generateDependencyVisualizationData } from "./dependencyVisualizer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { getRuntimeStateManager } from "../state/runtimeStateManager";
 import type { ComparisonWebviewData } from "../diff/environmentDiff";
@@ -856,6 +857,15 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		console.warn("Could not read environment files:", error);
 	}
 
+	// Get dependency visualization data
+	let dependencyData;
+	try {
+		dependencyData = generateDependencyVisualizationData(chartPath);
+	} catch (error) {
+		console.warn("Failed to generate dependency data:", error);
+		dependencyData = { nodes: [], edges: [], summary: { total: 0, enabled: 0, disabled: 0, conflicts: 0 } };
+
+	}
 	return {
 		chartName,
 		environment,
@@ -871,6 +881,7 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		relationships,
 		comparisonData: getCurrentComparisonData(),
 		availableEnvs,
+		dependencyData,
 	};
 }
 
@@ -1053,6 +1064,27 @@ interface ChartData {
 	relationships: ResourceRelationship[];
 	comparisonData?: ComparisonWebviewData | null;
 	availableEnvs?: string[];
+	dependencyData?: {
+		nodes: Array<{
+			id: string;
+			label: string;
+			type: "root" | "dependency";
+			version: string;
+			enabled: boolean;
+			repository: string;
+		}>;
+		edges: Array<{
+			source: string;
+			target: string;
+			type: string;
+		}>;
+		summary: {
+			total: number;
+			enabled: number;
+			disabled: number;
+			conflicts: number;
+		};
+	};
 }
 
 function escapeHtml(text: string): string {

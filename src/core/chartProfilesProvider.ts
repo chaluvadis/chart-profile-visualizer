@@ -4,6 +4,13 @@ import * as vscode from "vscode";
 import { findHelmCharts, type HelmChart } from "../k8s/helmChart";
 import { getIconUris, hasIcon, getNormalizedIconName } from "../k8s/iconManager";
 import { FILE_PATTERNS } from "../utils/constants";
+import { createCache } from "../utils/cache";
+
+// Cache for environments per chart path
+const environmentCache = createCache<string[]>();
+
+// TTL for environment cache (5 minutes)
+const ENV_CACHE_TTL = 5 * 60 * 1000;
 
 export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<ChartTreeItem | undefined | null> = new vscode.EventEmitter<
@@ -19,6 +26,13 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 
 	refresh(): void {
 		this._onDidChangeTreeData.fire(null);
+	}
+
+	/**
+	 * Clear the environment cache (call after chart files change)
+	 */
+	clearCache(): void {
+		environmentCache.clear();
 	}
 
 	getTreeItem(element: ChartTreeItem): vscode.TreeItem {
@@ -116,16 +130,6 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 					undefined,
 					"runtime"
 				),
-				new ChartTreeItem(
-					"View Dependencies",
-					element.chart!.path,
-					vscode.TreeItemCollapsibleState.None,
-					"action",
-					element.chart,
-					element.environment,
-					undefined,
-					"dependencies"
-				),
 			];
 		}
 
@@ -133,6 +137,14 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 	}
 
 	private getEnvironments(chart: HelmChart): string[] {
+		const cacheKey = `environments:${chart.path}`;
+
+		// Check cache first
+		const cached = environmentCache.get(cacheKey);
+		if (cached) {
+			return cached;
+		}
+
 		const foundEnvs: string[] = [];
 
 		try {
@@ -154,7 +166,12 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 		foundEnvs.sort();
 
 		// Always include base if no specific environments found
-		return foundEnvs.length > 0 ? foundEnvs : ["default"];
+		const result = foundEnvs.length > 0 ? foundEnvs : ["default"];
+
+		// Cache the result
+		environmentCache.set(cacheKey, result, ENV_CACHE_TTL);
+
+		return result;
 	}
 }
 
@@ -169,7 +186,7 @@ export class ChartTreeItem extends vscode.TreeItem {
 		public readonly chart?: HelmChart,
 		public readonly environment?: string,
 		public readonly secondEnvironment?: string,
-		public readonly action?: "visualize" | "validate" | "runtime" | "dependencies" | "compare"
+		public readonly action?: "visualize" | "validate" | "runtime" | "compare"
 	) {
 		super(label, collapsibleState);
 
@@ -201,12 +218,6 @@ export class ChartTreeItem extends vscode.TreeItem {
 				this.command = {
 					command: "chartProfiles.checkRuntimeState",
 					title: "Check Runtime",
-					arguments: [this],
-				};
-			} else if (action === "dependencies") {
-				this.command = {
-					command: "chartProfiles.viewDependencies",
-					title: "View Dependencies",
 					arguments: [this],
 				};
 			} else if (action === "compare") {
@@ -317,8 +328,6 @@ export class ChartTreeItem extends vscode.TreeItem {
 			return `Validate chart configuration and check for best practices`;
 		} else if (this.action === "runtime") {
 			return `Check runtime state of deployed resources in ${this.environment} environment`;
-		} else if (this.action === "dependencies") {
-			return `View chart dependencies and check for security issues`;
 		}
 		return this.label;
 	}
@@ -361,8 +370,6 @@ export class ChartTreeItem extends vscode.TreeItem {
 			return new vscode.ThemeIcon("check");
 		} else if (this.action === "runtime") {
 			return new vscode.ThemeIcon("sync");
-		} else if (this.action === "dependencies") {
-			return new vscode.ThemeIcon("type-hierarchy");
 		}
 		return new vscode.ThemeIcon("file");
 	}

@@ -6,6 +6,19 @@ import { getIconDataUriWithFallback } from "../k8s/iconManager";
 import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
 
 /**
+ * Interface for dependency node from visualization data
+ * This mirrors the structure returned by generateDependencyVisualizationData
+ */
+interface DependencyNode {
+	id: string;
+	label: string;
+	type: "root" | "dependency";
+	version: string;
+	enabled: boolean;
+	repository: string;
+}
+
+/**
  * Interface for Kubernetes Secret object structure
  */
 interface SecretObject {
@@ -73,7 +86,12 @@ export async function generateEnhancedHtml(
 
 		// Generate dynamic content
 		const overviewContent = generateOverviewTab(data);
-		const resourceExplorerHtml = generateResourceExplorer(data.resourceHierarchy, webview, extensionUri);
+		const resourceExplorerHtml = generateResourceExplorer(
+			data.resourceHierarchy,
+			data.dependencyData,
+			webview,
+			extensionUri
+		);
 		const resultsContent = await loadTemplate(getTemplatePath("results", extensionUri), {
 			availableEnvs: data.availableEnvs || [],
 		});
@@ -305,12 +323,92 @@ function highlightYamlValue(value: string): string {
 	return escapeHtml(value);
 }
 
+/**
+ * Generate dependency section HTML when there are no resources but dependencies exist
+ */
+function generateDependencySection(dependencyData: any): string {
+	return generateDependencySectionHtml(dependencyData);
+}
+
+/**
+ * Generate HTML for the Dependencies section
+ */
+function generateDependencySectionHtml(dependencyData: any): string {
+	const nodes = dependencyData.nodes || [];
+	const summary = dependencyData.summary || { total: 0, enabled: 0, disabled: 0, conflicts: 0 };
+
+	// Filter out the root node - we only want dependencies
+	const dependencyNodes = nodes.filter((n: DependencyNode) => n.type === "dependency");
+
+	let html = `
+        <div class="kind-group" data-kind="Dependencies">
+            <div class="kind-header">
+                <span class="expand-icon">▶</span>
+                <span class="kind-icon">📦</span>
+                <span class="kind-name" data-color="#8661c5">Dependencies</span>
+                <span class="kind-count">${dependencyNodes.length}</span>
+            </div>
+            <div class="kind-resources" data-collapsed="true">
+    `;
+
+	// Add summary stats
+	html += `
+        <div class="dependency-summary">
+            <span class="dep-stat">${summary.enabled} enabled</span>
+            <span class="dep-stat">${summary.disabled} disabled</span>
+            ${summary.conflicts > 0 ? `<span class="dep-stat dep-conflicts">${summary.conflicts} conflicts</span>` : ""}
+        </div>
+    `;
+
+	// Add each dependency as a resource card
+	for (const node of dependencyNodes) {
+		const statusClass = node.enabled ? "enabled" : "disabled";
+		const statusIcon = node.enabled ? "✅" : "❌";
+
+		html += `
+            <div class="resource-card" data-color="#8661c5" data-resource-name="${escapeAttr(node.id)}">
+                <div class="resource-header">
+                    <span class="expand-icon">▶</span>
+                    <span class="resource-icon">${statusIcon}</span>
+                    <span class="resource-name">${escapeHtml(node.label)}</span>
+                    <span class="dependency-version">${escapeHtml(node.version)}</span>
+                    <span class="dependency-status ${statusClass}">${node.enabled ? "Enabled" : "Disabled"}</span>
+                </div>
+                <div class="resource-details" data-collapsed="true">
+                    <pre class="code-block yaml-block">${escapeHtml(`# Dependency: ${node.label}\nversion: ${node.version}\nrepository: ${node.repository || "(default)"}\nenabled: ${node.enabled}`)}</pre>
+                </div>
+            </div>
+        `;
+	}
+
+	if (dependencyNodes.length === 0) {
+		html += `
+            <div class="no-dependencies">
+                <div class="no-data-text">No dependencies</div>
+                <div class="no-data-hint">This chart has no dependencies</div>
+            </div>
+        `;
+	}
+
+	html += `
+            </div>
+        </div>
+    `;
+
+	return html;
+}
+
 function generateResourceExplorer(
 	hierarchy: ResourceHierarchy,
+	dependencyData: any,
 	webview: vscode.Webview,
 	extensionUri: vscode.Uri
 ): string {
 	if (!hierarchy || hierarchy.totalCount === 0) {
+		// Still show dependencies if available
+		if (dependencyData && dependencyData.nodes && dependencyData.nodes.length > 0) {
+			return generateDependencySection(dependencyData);
+		}
 		return `
 			<div class="no-data">
 				<div class="no-data-icon">📦</div>
@@ -369,6 +467,11 @@ function generateResourceExplorer(
         `;
 	}
 
+	// Add Dependencies section if available
+	if (dependencyData && dependencyData.nodes && dependencyData.nodes.length > 0) {
+		html += generateDependencySectionHtml(dependencyData);
+	}
+
 	html += "</div>";
 	return html;
 }
@@ -407,6 +510,7 @@ function generateInitializationData(data: any): string {
 		comparisonData: data.comparisonData || null,
 		availableEnvs: data.availableEnvs || [],
 		environment: data.environment || null,
+		dependencyData: data.dependencyData || null,
 	};
 
 	// Safely serialize to JSON, escaping < characters for security

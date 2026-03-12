@@ -94,6 +94,30 @@ export interface HelmRelease {
 }
 
 /**
+ * Parsed Kubernetes resource interface
+ */
+interface K8sResource {
+	apiVersion?: string;
+	kind?: string;
+	metadata?: {
+		name?: string;
+		namespace?: string;
+		creationTimestamp?: string;
+		labels?: Record<string, string>;
+		annotations?: Record<string, string>;
+		ownerReferences?: Array<{
+			kind: string;
+			name: string;
+			apiVersion: string;
+		}>;
+		[key: string]: unknown;
+	};
+	spec?: Record<string, unknown>;
+	status?: Record<string, unknown>;
+	[key: string]: unknown;
+}
+
+/**
  * Kubernetes cluster connector for runtime state integration
  */
 export class KubernetesConnector {

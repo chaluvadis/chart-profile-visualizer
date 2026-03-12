@@ -2,71 +2,14 @@ import * as vscode from "vscode";
 import { ChartProfilesProvider } from "./core/chartProfilesProvider";
 import type { HelmChart } from "./k8s/helmChart";
 import { show as showChartVisualization, showCompare } from "./visualization/chartVisualizationView";
+import { showValidationResults } from "./visualization/validationResultView";
 import { isHelmAvailable } from "./k8s/helmRenderer";
 import { showRenderedYaml } from "./utils/renderedYamlView";
 import { createChartValidator } from "./processing/chartValidator";
 import { getKubernetesConnector } from "./k8s/kubernetesConnector";
 import { getRuntimeStateManager } from "./state/runtimeStateManager";
-import { generateDependencyVisualizationData, checkDependencySecurity } from "./visualization/dependencyVisualizer";
+
 import { initializeIconManager, preloadIcons } from "./k8s/iconManager";
-
-function formatValidationMarkdown(result: {
-	valid: boolean;
-	issues: Array<{
-		severity: string;
-		code: string;
-		message: string;
-		resource?: string;
-		remediation?: string;
-	}>;
-	summary: { errors: number; warnings: number; info: number };
-}): string {
-	const lines: string[] = [];
-
-	lines.push("# Chart Validation Report");
-	lines.push("");
-	lines.push("## Summary");
-	lines.push(`- **Status**: ${result.valid ? "✅ Valid" : "❌ Invalid"}`);
-	lines.push(`- **Errors**: ${result.summary.errors}`);
-	lines.push(`- **Warnings**: ${result.summary.warnings}`);
-	lines.push(`- **Info**: ${result.summary.info}`);
-	lines.push("");
-
-	// Group by severity
-	const errors = result.issues.filter((i) => i.severity === "error");
-	const warnings = result.issues.filter((i) => i.severity === "warning");
-	const info = result.issues.filter((i) => i.severity === "info");
-
-	if (errors.length > 0) {
-		lines.push("## ❌ Errors");
-		for (const issue of errors) {
-			lines.push(`- **[${issue.code}]** ${issue.message}`);
-			if (issue.resource) lines.push(`  - Resource: ${issue.resource}`);
-			if (issue.remediation) lines.push(`  - Fix: ${issue.remediation}`);
-		}
-		lines.push("");
-	}
-
-	if (warnings.length > 0) {
-		lines.push("## ⚠️ Warnings");
-		for (const issue of warnings) {
-			lines.push(`- **[${issue.code}]** ${issue.message}`);
-			if (issue.resource) lines.push(`  - Resource: ${issue.resource}`);
-			if (issue.remediation) lines.push(`  - Suggestion: ${issue.remediation}`);
-		}
-		lines.push("");
-	}
-
-	if (info.length > 0) {
-		lines.push("## ℹ️ Info");
-		for (const issue of info) {
-			lines.push(`- **[${issue.code}]** ${issue.message}`);
-		}
-		lines.push("");
-	}
-
-	return lines.join("\n");
-}
 
 export function activate(context: vscode.ExtensionContext) {
 	// Initialize icon manager and preload icons
@@ -88,30 +31,19 @@ export function activate(context: vscode.ExtensionContext) {
 		showCollapseAll: true,
 	});
 
-	// Handle tree item activation (single click execution)
-	treeView.onDidChangeSelection(async (e) => {
-		if (e.selection && e.selection.length > 0) {
-			const item = e.selection[0];
-			// Check if this is an action item with a command
-			if (item.type === "action" && item.command) {
-				try {
-					// Pass command arguments if available, otherwise pass the item
-					if (item.command.arguments && item.command.arguments.length > 0) {
-						await vscode.commands.executeCommand(item.command.command, ...item.command.arguments);
-					} else {
-						await vscode.commands.executeCommand(item.command.command, item);
-					}
-				} catch (error) {
-					console.error("Error executing command:", error);
-					vscode.window.showErrorMessage(`Error: ${error}`);
-				}
-			}
+	// Register expand all command
+	const expandAllCommand = vscode.commands.registerCommand("chartProfiles.expandAll", async () => {
+		// Get all root items and expand them
+		const roots = await chartProfilesProvider.getChildren(undefined);
+		for (const root of roots) {
+			await treeView.reveal(root, { expand: 3, focus: false });
 		}
 	});
 
 	// Register refresh command
 	const refreshCommand = vscode.commands.registerCommand("chartProfiles.refreshCharts", () => {
 		chartProfilesProvider.refresh();
+		chartProfilesProvider.clearCache();
 		runtimeStateManager.clearCache();
 		vscode.window.showInformationMessage("Charts refreshed");
 	});
@@ -186,13 +118,8 @@ export function activate(context: vscode.ExtensionContext) {
 					const validator = createChartValidator(chartPath);
 					const result = await validator.validateAll(environment);
 
-					// Display validation report
-					const doc = await vscode.workspace.openTextDocument({
-						content: formatValidationMarkdown(result),
-						language: "markdown",
-					});
-
-					await vscode.window.showTextDocument(doc);
+					// Display validation results in dedicated webview panel
+					await showValidationResults(context, result);
 
 					if (result.valid) {
 						vscode.window.showInformationMessage("Chart validation passed!");
@@ -322,71 +249,6 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	// Register view dependencies command
-	const viewDependenciesCommand = vscode.commands.registerCommand(
-		"chartProfiles.viewDependencies",
-		async (item: unknown) => {
-			const typedItem = item as { chartPath?: string };
-			if (!typedItem?.chartPath) {
-				vscode.window.showErrorMessage("No chart selected");
-				return;
-			}
-
-			const viz = generateDependencyVisualizationData(typedItem.chartPath);
-			const securityIssues = checkDependencySecurity(
-				viz.nodes
-					.filter((n) => n.type === "dependency")
-					.map((n) => ({
-						name: n.label,
-						version: n.version,
-						repository: n.repository,
-						enabled: n.enabled,
-					}))
-			);
-
-			// Build report
-			const lines: string[] = [];
-			lines.push("# Chart Dependencies");
-			lines.push("");
-
-			lines.push("## Summary");
-			lines.push(`- **Total Dependencies**: ${viz.summary.total}`);
-			lines.push(`- **Enabled**: ${viz.summary.enabled}`);
-			lines.push(`- **Disabled**: ${viz.summary.disabled}`);
-			lines.push(`- **Conflicts**: ${viz.summary.conflicts}`);
-			lines.push("");
-
-			if (viz.nodes.length > 1) {
-				lines.push("## Dependency Tree");
-				for (const node of viz.nodes) {
-					if (node.type === "root") continue;
-					const indent = "  ".repeat(1);
-					const status = node.enabled ? "✅" : "⬜";
-					lines.push(`${indent}- ${status} **${node.label}** (${node.version})`);
-					if (node.repository) {
-						lines.push(`${indent}  - Repository: ${node.repository}`);
-					}
-				}
-				lines.push("");
-			}
-
-			if (securityIssues.length > 0) {
-				lines.push("## ⚠️ Security Issues");
-				for (const issue of securityIssues) {
-					lines.push(`- **${issue.dependency}**: ${issue.issue}`);
-				}
-				lines.push("");
-			}
-
-			const doc = await vscode.workspace.openTextDocument({
-				content: lines.join("\n"),
-				language: "markdown",
-			});
-
-			await vscode.window.showTextDocument(doc);
-		}
-	);
-
 	// Register compare environments command - NEW VERSION with proper item handling
 	const compareEnvironmentsCommand = vscode.commands.registerCommand(
 		"chartProfiles.compareEnvironments",
@@ -433,6 +295,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		treeView,
+		expandAllCommand,
 		refreshCommand,
 		viewRenderedCommand,
 		viewMergedValuesCommand,
@@ -440,7 +303,6 @@ export function activate(context: vscode.ExtensionContext) {
 		validateChartCommand,
 		checkClusterStatusCommand,
 		checkRuntimeStateCommand,
-		viewDependenciesCommand,
 		compareEnvironmentsCommand
 	);
 

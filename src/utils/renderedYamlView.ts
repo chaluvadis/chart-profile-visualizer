@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ChartTreeItem } from "../core/chartProfilesProvider";
-import { formatRenderedOutput, renderHelmTemplate } from "../k8s/helmRenderer";
+import { renderHelmTemplate, type RenderedResource } from "../k8s/helmRenderer";
 import { generateAnnotatedYaml, mergeValues } from "../processing/valuesMerger";
 
 // WeakMap to store decorations for each editor to avoid using `as any`
@@ -9,6 +9,38 @@ const editorDecorations = new WeakMap<vscode.TextEditor, vscode.TextEditorDecora
 
 // Regex pattern for matching annotation comments in YAML
 const ANNOTATION_PATTERN = /^\s*([^:]+):\s*.*#\s*\[(OVERRIDE|BASE|ADDED) from [^\]]+\]/i;
+
+/**
+ * Formats rendered resources with origin information
+ */
+function formatRenderedOutput(resources: RenderedResource[]): string {
+	const lines: string[] = [];
+
+	lines.push("# Helm Template Rendering Output");
+	lines.push("# Environment-specific values have been merged and applied");
+	lines.push("");
+	lines.push(`# Total Resources: ${resources.length}`);
+	lines.push("");
+
+	for (let i = 0; i < resources.length; i++) {
+		const resource = resources[i];
+
+		lines.push("---");
+		lines.push(`# Resource ${i + 1}/${resources.length}`);
+		lines.push(`# Kind: ${resource.kind}`);
+		lines.push(`# Name: ${resource.name}`);
+		if (resource.namespace) {
+			lines.push(`# Namespace: ${resource.namespace}`);
+		}
+		lines.push(`# Template Source: ${resource.template}`);
+		lines.push(`# Chart: ${resource.chart}`);
+		lines.push("");
+		lines.push(resource.yaml);
+		lines.push("");
+	}
+
+	return lines.join("\n");
+}
 
 /**
  * Shows rendered YAML or merged values in a new editor
@@ -23,15 +55,20 @@ export async function showRenderedYaml(item: ChartTreeItem): Promise<void> {
 	const environment = item.environment;
 
 	try {
-		if (item.action === "values") {
+		// Default to showing merged values when no specific action is provided.
+		// Available actions: undefined (default=values), "visualize" (values), "validate", "runtime", "compare"
+		const showValues = item.action === undefined || item.action === "visualize";
+
+		if (showValues) {
 			// Show merged values with annotations
 			await showMergedValues(chartPath, environment, item.chart.name);
-		} else if (item.action === "rendered") {
+		} else {
 			// Show rendered Helm templates
 			await showRenderedTemplates(chartPath, environment, item.chart.name);
 		}
-	} catch (error: any) {
-		vscode.window.showErrorMessage(`Error displaying YAML: ${error.message}`);
+	} catch (error: unknown) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		vscode.window.showErrorMessage(`Error displaying YAML: ${errorMessage}`);
 	}
 }
 
@@ -110,11 +147,11 @@ async function showRenderedTemplates(chartPath: string, environment: string, cha
 export function highlightValueDifferences(
 	editor: vscode.TextEditor,
 	comparison: {
-		merged: any;
+		merged: Record<string, unknown>;
 		details: Map<
 			string,
 			{
-				value: any;
+				value: unknown;
 				source: { file: string };
 				overridden: boolean;
 				missingInBase?: boolean;
