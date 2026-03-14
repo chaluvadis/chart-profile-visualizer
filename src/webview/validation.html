@@ -27,11 +27,17 @@
         .header {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 12px;
             padding: 16px;
             background-color: var(--vscode-editor-lineHighlightBackground);
             border-radius: 6px;
             margin-bottom: 16px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
         .status-badge {
             width: 40px;
@@ -135,11 +141,22 @@
         .collapsible { max-height: 1000px; overflow: hidden; transition: max-height 0.3s ease; }
         .collapsible.collapsed { max-height: 0; }
 
+        .filter-btn.refresh-btn {
+            margin-left: auto;
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: 1px solid var(--vscode-button-background);
+        }
+        .filter-btn.refresh-btn:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
+
         .empty-state { text-align: center; padding: 40px 20px; color: var(--vscode-descriptionForeground); }
         .empty-icon { font-size: 40px; margin-bottom: 12px; }
 
         .footer { margin-top: 20px; padding: 12px; background-color: var(--vscode-editor-lineHighlightBackground); border-radius: 6px; font-size: 11px; color: var(--vscode-descriptionForeground); display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
         .footer-item { display: flex; flex-direction: column; }
+        .footer-item-full { grid-column: span 2; }
         .footer-label { font-size: 10px; text-transform: uppercase; opacity: 0.7; }
         .footer-value { color: var(--vscode-foreground); word-break: break-all; }
         .hidden { display: none !important; }
@@ -147,32 +164,34 @@
 </head>
 <body>
     <div class="header">
-        {{#if valid}}
-        <div class="status-badge valid">&#10003;</div>
-        <div class="header-text">
-            <h2 class="header-title">Chart Valid</h2>
-            <p class="header-subtitle">All validations passed</p>
+        <div class="header-left">
+            {{#if valid}}
+            <div class="status-badge valid">&#10003;</div>
+            <div class="header-text">
+                <h2 class="header-title">Chart Valid</h2>
+                <p class="header-subtitle">All validations passed</p>
+            </div>
+            {{#else}}
+            <div class="status-badge invalid">&#10007;</div>
+            <div class="header-text">
+                <h2 class="header-title">Validation Failed</h2>
+                <p class="header-subtitle">{{totalIssues}} issue(s) found</p>
+            </div>
+            {{/if}}
         </div>
-        {{#else}}
-        <div class="status-badge invalid">&#10007;</div>
-        <div class="header-text">
-            <h2 class="header-title">Validation Failed</h2>
-            <p class="header-subtitle">{{totalIssues}} issue(s) found</p>
-        </div>
-        {{/if}}
     </div>
 
     <div class="summary">
         <div class="summary-item error">
-            <span class="summary-count error">{{summary.errors}}</span>
+            <span class="summary-count error">{{errorCount}}</span>
             <span class="summary-label">Errors</span>
         </div>
         <div class="summary-item warning">
-            <span class="summary-count warning">{{summary.warnings}}</span>
+            <span class="summary-count warning">{{warningCount}}</span>
             <span class="summary-label">Warnings</span>
         </div>
         <div class="summary-item info">
-            <span class="summary-count info">{{summary.info}}</span>
+            <span class="summary-count info">{{infoCount}}</span>
             <span class="summary-label">Info</span>
         </div>
     </div>
@@ -182,9 +201,10 @@
     </div>
 
     <div class="filter-bar">
-        <button class="filter-btn error active" onclick="toggleFilter('error', this)">Errors ({{summary.errors}})</button>
-        <button class="filter-btn warning active" onclick="toggleFilter('warning', this)">Warnings ({{summary.warnings}})</button>
-        <button class="filter-btn info active" onclick="toggleFilter('info', this)">Info ({{summary.info}})</button>
+        <button class="filter-btn error active" onclick="toggleFilter('error', this)">Errors ({{errorCount}})</button>
+        <button class="filter-btn warning active" onclick="toggleFilter('warning', this)">Warnings ({{warningCount}})</button>
+        <button class="filter-btn info active" onclick="toggleFilter('info', this)">Info ({{infoCount}})</button>
+        <button class="filter-btn refresh-btn" onclick="refreshValidation()" title="Re-run validation">&#8635; Refresh</button>
     </div>
 
     {{#if hasErrors}}
@@ -287,11 +307,11 @@
             <span class="footer-label">Environment</span>
             <span class="footer-value">{{environment}}</span>
         </div>
-        <div class="footer-item" style="grid-column: span 2;">
+        <div class="footer-item footer-item-full">
             <span class="footer-label">Path</span>
             <span class="footer-value">{{chartPath}}</span>
         </div>
-        <div class="footer-item" style="grid-column: span 2;">
+        <div class="footer-item footer-item-full">
             <span class="footer-label">Validated</span>
             <span class="footer-value">{{timestamp}}</span>
         </div>
@@ -326,14 +346,22 @@
                     var matchSearch = !search || code.toLowerCase().indexOf(search) !== -1 || msg.toLowerCase().indexOf(search) !== -1;
                     var matchFilter = activeFilters[severity];
                     if (matchSearch && matchFilter) {
-                        card.style.display = 'block';
+                        card.classList.remove('validation-hidden');
+                        card.classList.add('validation-visible');
                         count++;
                     } else {
-                        card.style.display = 'none';
+                        card.classList.remove('validation-visible');
+                        card.classList.add('validation-hidden');
                     }
                 });
                 var content = section.querySelector('.collapsible');
-                if (content) content.style.display = count === 0 ? 'none' : 'block';
+                if (content) {
+                    if (count === 0) {
+                        content.classList.add('validation-hidden');
+                    } else {
+                        content.classList.remove('validation-hidden');
+                    }
+                }
             });
         }
 
@@ -359,7 +387,27 @@
                 });
             }
         }
+
+        function refreshValidation() {
+            if (typeof acquireVsCodeApi !== 'undefined') {
+                acquireVsCodeApi().postMessage({
+                    command: 'refreshValidation'
+                });
+            }
+        }
+
+        // Auto-collapse sections on load for better UX
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add animation to section headers
+            document.querySelectorAll('.section-header').forEach(function(header) {
+                header.style.transition = 'background-color 0.2s ease';
+            });
+            // Auto-focus search input
+            var searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.focus();
+            }
+        });
     </script>
 </body>
 </html>
-

@@ -1,20 +1,30 @@
 <div id="results-content" class="results-content">
     <div id="comparison-selector" class="comparison-selector">
+        <div class="selector-header">
+            <h3 class="selector-title">Compare Environments</h3>
+            <p class="selector-hint">Select two environments to compare their configurations</p>
+        </div>
         <div class="selector-form">
             <div class="form-row">
-                <select id="env1-select" class="env-select">
-                    <option value="">Select base environment</option>
-                    {{#each availableEnvs}}
-                    <option value="{{this}}">{{this}}</option>
-                    {{/each}}
-                </select>
+                <div class="env-select-group">
+                    <label for="env1-select" class="env-label">Base Environment</label>
+                    <select id="env1-select" class="env-select">
+                        <option value="">Select base environment</option>
+                        {{#each availableEnvs}}
+                        <option value="{{this}}">{{this}}</option>
+                        {{/each}}
+                    </select>
+                </div>
                 <span class="vs">vs</span>
-                <select id="env2-select" class="env-select">
-                    <option value="">Select compare environment</option>
-                    {{#each availableEnvs}}
-                    <option value="{{this}}">{{this}}</option>
-                    {{/each}}
-                </select>
+                <div class="env-select-group">
+                    <label for="env2-select" class="env-label">Compare Environment</label>
+                    <select id="env2-select" class="env-select">
+                        <option value="">Select compare environment</option>
+                        {{#each availableEnvs}}
+                        <option value="{{this}}">{{this}}</option>
+                        {{/each}}
+                    </select>
+                </div>
             </div>
             <button id="run-comparison" class="run-comparison-btn" disabled>Compare</button>
         </div>
@@ -23,3 +33,124 @@
         <!-- Comparison results will be rendered here -->
     </div>
 </div>
+
+<style>
+    .comparison-selector {
+        padding: 20px;
+        background-color: var(--vscode-editor-inactiveSelectionBackground);
+        border-bottom: 1px solid var(--vscode-panel-border);
+    }
+
+    .selector-header {
+        margin-bottom: 16px;
+    }
+
+    .selector-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: var(--vscode-foreground);
+    }
+
+    .selector-hint {
+        font-size: 12px;
+        color: var(--vscode-descriptionForeground);
+        margin: 0;
+    }
+
+    .selector-form {
+        display: flex;
+        align-items: flex-end;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .form-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 16px;
+        flex: 1;
+        flex-wrap: wrap;
+    }
+
+    .env-select-group {
+        flex: 1;
+        min-width: 180px;
+    }
+
+    .env-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--vscode-descriptionForeground);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .env-select {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-family: var(--vscode-font-family);
+        background-color: var(--vscode-dropdown-background, var(--vscode-input-background, #3c3c3c));
+        color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground, #cccccc));
+        border: 1px solid var(--vscode-dropdown-border, var(--vscode-input-border, #3c3c3c));
+        border-radius: 4px;
+        outline: none;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23cccccc' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 32px;
+    }
+
+    .env-select:focus {
+        border-color: var(--vscode-focusBorder, #007acc);
+    }
+
+    .env-select:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .env-select option {
+        background-color: var(--vscode-dropdown-background, #252526);
+        color: var(--vscode-dropdown-foreground, #cccccc);
+        padding: 8px;
+    }
+
+    .vs {
+        color: var(--vscode-descriptionForeground);
+        font-size: 14px;
+        font-weight: 500;
+        padding-bottom: 10px;
+    }
+
+    .run-comparison-btn {
+        padding: 10px 24px;
+        font-size: 14px;
+        font-weight: 500;
+        background-color: var(--vscode-button-background, #0e639c);
+        color: var(--vscode-button-foreground, #ffffff);
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .run-comparison-btn:hover:not(:disabled) {
+        background-color: var(--vscode-button-hoverBackground, #1177bb);
+    }
+
+    .run-comparison-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .comparison-results {
+        padding: 16px;
+    }
+</style>

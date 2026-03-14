@@ -3,11 +3,14 @@
  * Handles tab switching, toolbar actions, search, and resource explorer interactions
  */
 
+export {}; // Make this file a module to enable global augmentation
+
 // Global state
 const currentZoom = 1;
 
 // VS Code API instance - acquired once at initialization
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
+declare const acquireVsCodeApi: () => { postMessage: (message: unknown) => void };
 const vscode = acquireVsCodeApi();
 
 // Webview data interfaces
@@ -91,6 +94,7 @@ declare global {
 		webviewData: WebviewData;
 		initTopology: () => void;
 		resourceChartInstance: unknown;
+		initializeWebview: (data: WebviewData) => void;
 	}
 }
 
@@ -326,7 +330,7 @@ function renderComparisonResults(): void {
 		for (const resource of changedResources) {
 			const diffClass = resource.diffType.toLowerCase();
 			const hasFields = resource.fields && resource.fields.length > 0;
-			const fieldCount = hasFields ? resource.fields.length : 0;
+			const fieldCount = hasFields ? resource.fields!.length : 0;
 
 			// Only show field diffs expanded for modified resources
 			const showFieldsExpanded = diffClass === "modified";
@@ -342,7 +346,7 @@ function renderComparisonResults(): void {
 			// Add field diffs - expanded for modified and unchanged
 			if (hasFields) {
 				html += `<div class="field-diffs field-diffs-visible ${showFieldsExpanded ? "field-diffs-expanded" : ""}>`;
-				for (const field of resource.fields) {
+				for (const field of resource.fields!) {
 					// Format values properly - use JSON.stringify for complex objects
 					const leftVal =
 						typeof field.leftValue === "object"
@@ -469,13 +473,13 @@ function initComparisonSelector(): void {
 
 	// Update options for env2 (exclude selected env1)
 	function updateEnv2Options(): void {
-		env2Select.innerHTML = '<option value="">Select environment...</option>';
+		env2Select!.innerHTML = '<option value="">Select environment...</option>';
 		for (const env of availableEnvs) {
-			if (env !== env1Select.value) {
+			if (env !== env1Select!.value) {
 				const option = document.createElement("option");
 				option.value = env;
 				option.textContent = env;
-				env2Select.appendChild(option);
+				env2Select!.appendChild(option);
 			}
 		}
 	}
@@ -541,7 +545,8 @@ function initSearch(): void {
 		const search = target.value.toLowerCase();
 		document.querySelectorAll(".resource-card").forEach((card) => {
 			const text = card.textContent?.toLowerCase() || "";
-			card.style.display = text.includes(search) ? "block" : "none";
+			const el = card as HTMLElement;
+			el.style.display = text.includes(search) ? "block" : "none";
 		});
 	});
 }
@@ -748,7 +753,7 @@ function initResourceChart(colorPalette: string[]): void {
 			const ro = new ResizeObserver(() => {
 				const maxPx = Math.round(window.innerHeight * 0.6);
 				const newHeight = Math.min(maxPx, basePx + labels.length * perBarPx);
-				canvas.style.height = `${newHeight}px`;
+				canvas!.style.height = `${newHeight}px`;
 				const inst = window.resourceChartInstance;
 				if (inst) {
 					try {

@@ -71,6 +71,8 @@ export async function loadTemplate(templateUri: vscode.Uri, context: TemplateCon
  */
 export function renderTemplate(template: string, context: TemplateContext): string {
 	let result = template;
+	// Remove zero-width and invisible formatting characters that can interfere with template matching
+	result = result.replace(/[\u200b\u200c\u200d\u2060\ufeff]/g, "");
 
 	// First: Replace triple-brace {{{variable}}} with RAW (unescaped) values
 	result = result.replace(/\{\{\{(\w+)\}\}\}/g, (match, key) => {
@@ -85,6 +87,71 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 		return items
 			.map((item: any, index: number) => {
 				let itemResult = itemTemplate;
+
+				// Helper function to process #if blocks recursively within an item
+				// This handles nested {{#if}} blocks like {{#if file}}...{{#if line}}...{{/if}}...{{/if}}
+				const processIfBlocks = (template: string): string => {
+					let processed = template;
+					let hasChanges = true;
+					let iterations = 0;
+					const maxIterations = 10; // Prevent infinite loops
+
+					while (hasChanges && iterations < maxIterations) {
+						hasChanges = false;
+						iterations++;
+
+						// Process {{#if condition}}...{{/if}} blocks
+						const newProcessed = processed.replace(
+							/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+							(ifMatch: string, condition: string, ifContent: string): string => {
+								const value = item[condition];
+								if (!value) return "";
+								hasChanges = true;
+								// Process simple {{variable}} placeholders within the if-block content
+								return ifContent.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
+									if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
+									if (k === "@index") return String(index);
+									// Handle nested property access like "item.nested.key"
+									const propValue = k.split(".").reduce((obj: any, key: string) => obj?.[key], item);
+									return propValue !== undefined ? escapeHtml(String(propValue)) : m;
+								});
+							}
+						);
+
+						// Process {{#if condition}}...{{else}}...{{/if}} blocks
+						const newProcessed2 = newProcessed.replace(
+							/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
+							(ifMatch: string, condition: string, ifContent: string, elseContent: string): string => {
+								const value = item[condition];
+								if (!value) {
+									hasChanges = true;
+									return elseContent.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
+										if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
+										if (k === "@index") return String(index);
+										const propValue = k
+											.split(".")
+											.reduce((obj: any, key: string) => obj?.[key], item);
+										return propValue !== undefined ? escapeHtml(String(propValue)) : m;
+									});
+								}
+								// Process simple {{variable}} placeholders within the if-block content
+								return ifContent.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
+									if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
+									if (k === "@index") return String(index);
+									const propValue = k.split(".").reduce((obj: any, key: string) => obj?.[key], item);
+									return propValue !== undefined ? escapeHtml(String(propValue)) : m;
+								});
+							}
+						);
+
+						processed = newProcessed2;
+					}
+					return processed;
+				};
+
+				// Process nested #if blocks recursively within each item
+				itemResult = processIfBlocks(itemResult);
+
 				// Replace {{key}} and {{nested.key}} patterns with item values (with HTML escaping)
 				// Also handle {{this}} as a special keyword for the current item
 				itemResult = itemResult.replace(/\{\{([\w.]+|this)\}\}/g, (m: string, k: string): string => {

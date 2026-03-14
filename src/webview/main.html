@@ -9,30 +9,30 @@
 </head>
 <body data-init="{{{initData}}}" data-view-mode="{{{viewMode}}}">
     <div class="toolbar">
-        <button id="exportYaml" class="toolbar-btn">📄 Export YAML</button>
-        <button id="exportJson" class="toolbar-btn">📋 Export JSON</button>
+        <button id="exportYaml" class="toolbar-btn" title="Export rendered YAML">📄 Export YAML</button>
+        <button id="exportJson" class="toolbar-btn" title="Export as JSON">📋 Export JSON</button>
         <input type="search" id="searchBox" placeholder="Search resources..." class="search-box">
     </div>
 
-    <div class="tabs">
+    <div class="tabs" role="tablist">
         <!-- Visualize view tabs -->
-        <button class="tab-btn visualize-tab active" data-tab="overview">📈 Overview</button>
-        <button class="tab-btn visualize-tab" data-tab="resources">📋 Resources</button>
+        <button class="tab-btn visualize-tab active" data-tab="overview" role="tab" aria-selected="true">📈 Overview</button>
+        <button class="tab-btn visualize-tab" data-tab="resources" role="tab" aria-selected="false">📋 Resources</button>
         <!-- Compare view tabs -->
-        <button class="tab-btn compare-tab" data-tab="compare">⚖️ Compare Environments</button>
+        <button class="tab-btn compare-tab" data-tab="compare" role="tab" aria-selected="false">⚖️ Compare Environments</button>
     </div>
 
     <!-- Visualize view content -->
-    <div id="overview" class="tab-content visualize-content active">
+    <div id="overview" class="tab-content visualize-content active" role="tabpanel">
         {{{overviewContent}}}
     </div>
 
-    <div id="resources" class="tab-content visualize-content">
+    <div id="resources" class="tab-content visualize-content" role="tabpanel">
         {{{resourcesContent}}}
     </div>
 
     <!-- Compare view content -->
-    <div id="compare" class="tab-content compare-content">
+    <div id="compare" class="tab-content compare-content" role="tabpanel">
         {{{resultsContent}}}
     </div>
 
@@ -41,42 +41,43 @@
     <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>
     <script nonce="{{{nonce}}}">
         // Initialize webview with data - decode HTML entities first
-        var initDataStr = document.body.getAttribute('data-init').replace(/&quot;/g, '"');
-        if (initDataStr) {
-            try {
-                window.initializeWebview(JSON.parse(initDataStr));
-            } catch (e) {
-                console.error('Failed to parse init data:', e);
+        (function() {
+            var initDataStr = document.body.getAttribute('data-init');
+            if (initDataStr) {
+                // First replace HTML entities
+                initDataStr = initDataStr.replace(/"/g, '"').replace(/</g, '<').replace(/>/g, '>').replace(/&/g, '&');
+                try {
+                    window.initializeWebview(JSON.parse(initDataStr));
+                } catch (e) {
+                    console.error('Failed to parse init data:', e);
+                    console.error('Raw init data:', initDataStr);
+                }
             }
-        }
 
-        // Check view mode - 'visualize' or 'compare'
-        var viewMode = document.body.getAttribute('data-view-mode') || 'visualize';
+            // Check view mode - 'visualize' or 'compare'
+            var viewMode = document.body.getAttribute('data-view-mode') || 'visualize';
 
-        if (viewMode === 'compare') {
-            // Show only Compare tab using CSS classes
-            document.querySelectorAll('.visualize-tab').forEach(function(tab) {
-                tab.classList.add('hidden');
-            });
-            document.querySelectorAll('.visualize-content').forEach(function(content) {
-                content.classList.add('hidden');
-            });
-            document.querySelectorAll('.compare-tab').forEach(function(tab) {
-                tab.classList.remove('hidden');
-            });
-            document.querySelectorAll('.compare-content').forEach(function(content) {
-                content.classList.remove('hidden');
-            });
-            // Activate Compare tab
-            var compareTab = document.querySelector('.compare-tab');
-            if (compareTab) {
-                compareTab.classList.add('active');
+            if (viewMode === 'compare') {
+                // Hide visualize tabs and content
+                document.querySelectorAll('.visualize-tab').forEach(function(tab) {
+                    tab.classList.add('hidden');
+                    tab.setAttribute('aria-selected', 'false');
+                });
+                document.querySelectorAll('.visualize-content').forEach(function(content) {
+                    content.classList.remove('active');
+                });
+
+                // Show compare tab and content
+                document.querySelectorAll('.compare-tab').forEach(function(tab) {
+                    tab.classList.remove('hidden');
+                    tab.classList.add('active');
+                    tab.setAttribute('aria-selected', 'true');
+                });
+                document.querySelectorAll('.compare-content').forEach(function(content) {
+                    content.classList.add('active');
+                });
             }
-            var compareContent = document.getElementById('compare');
-            if (compareContent) {
-                compareContent.classList.add('active');
-            }
-        }
+        })();
     </script>
 </body>
 </html>

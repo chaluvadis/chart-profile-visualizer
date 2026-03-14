@@ -6,6 +6,9 @@ import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
 let validationPanel: vscode.WebviewPanel | undefined;
 let validationContext: vscode.ExtensionContext | undefined;
 
+// Store current validation params for refresh functionality
+let currentValidationParams: { chartPath: string; environment: string } | undefined;
+
 /**
  * Show validation results in a dedicated webview panel
  */
@@ -38,6 +41,15 @@ export async function showValidationResults(context: vscode.ExtensionContext, re
 			null,
 			context.subscriptions
 		);
+
+		// Handle messages from the webview
+		validationPanel.webview.onDidReceiveMessage(
+			async (message) => {
+				await handleValidationMessage(message, context);
+			},
+			null,
+			context.subscriptions
+		);
 	}
 
 	// Update the panel content
@@ -57,6 +69,12 @@ async function updateValidationPanel(result: ValidationResult): Promise<void> {
 
 	// Update title
 	panel.title = `Validation: ${chartName} (${result.environment})`;
+
+	// Store current validation params for refresh
+	currentValidationParams = {
+		chartPath: result.chartPath,
+		environment: result.environment,
+	};
 
 	try {
 		// Prepare data for the template
@@ -444,5 +462,61 @@ export function closeValidationPanel(): void {
 	if (validationPanel) {
 		validationPanel.dispose();
 		validationPanel = undefined;
+	}
+}
+
+/**
+ * Handle messages from the validation webview
+ */
+async function handleValidationMessage(
+	message: { command?: string; file?: string; line?: number },
+	context: vscode.ExtensionContext
+): Promise<void> {
+	switch (message.command) {
+		case "jumpToFile":
+			if (message.file) {
+				try {
+					const document = await vscode.workspace.openTextDocument(message.file);
+					const editor = await vscode.window.showTextDocument(document, {
+						viewColumn: vscode.ViewColumn.One,
+						preserveFocus: false,
+					});
+					// Go to line if specified
+					if (message.line && message.line > 0) {
+						const position = new vscode.Position(message.line - 1, 0);
+						editor.selection = new vscode.Selection(position, position);
+						editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+					}
+				} catch (error) {
+					vscode.window.showErrorMessage(`Failed to open file: ${message.file}`);
+				}
+			}
+			break;
+		case "refreshValidation":
+			// Re-run validation
+			if (!currentValidationParams) {
+				vscode.window.showWarningMessage("No validation to refresh");
+				return;
+			}
+			vscode.window.showInformationMessage("Re-running validation...");
+			try {
+				// Import the validator and re-run
+				const { createChartValidator } = await import("../processing/chartValidator");
+				const validator = createChartValidator(currentValidationParams.chartPath);
+				const newResult = await validator.validateAll(currentValidationParams.environment);
+				// Update the panel with new results
+				await updateValidationPanel(newResult);
+				// Update stored params
+				currentValidationParams = {
+					chartPath: newResult.chartPath,
+					environment: newResult.environment,
+				};
+				vscode.window.showInformationMessage(`Validation complete: ${newResult.issues.length} issue(s) found`);
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`Failed to re-run validation: ${error instanceof Error ? error.message : String(error)}`
+				);
+			}
+			break;
 	}
 }
