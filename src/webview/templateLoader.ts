@@ -100,8 +100,25 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 						hasChanges = false;
 						iterations++;
 
+						// Process {{#if condition}}...{{else}}...{{/if}} blocks first
+						// so generic {{#if ...}}{{/if}} does not consume them partially.
+						const withElseProcessed = processed.replace(
+							/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
+							(ifMatch: string, condition: string, ifContent: string, elseContent: string): string => {
+								const value = item[condition];
+								const selected = value ? ifContent : elseContent;
+								hasChanges = true;
+								return selected.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
+									if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
+									if (k === "@index") return String(index);
+									const propValue = k.split(".").reduce((obj: any, key: string) => obj?.[key], item);
+									return propValue !== undefined ? escapeHtml(String(propValue)) : m;
+								});
+							}
+						);
+
 						// Process {{#if condition}}...{{/if}} blocks
-						const newProcessed = processed.replace(
+						const newProcessed = withElseProcessed.replace(
 							/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
 							(ifMatch: string, condition: string, ifContent: string): string => {
 								const value = item[condition];
@@ -118,33 +135,7 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 							}
 						);
 
-						// Process {{#if condition}}...{{else}}...{{/if}} blocks
-						const newProcessed2 = newProcessed.replace(
-							/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
-							(ifMatch: string, condition: string, ifContent: string, elseContent: string): string => {
-								const value = item[condition];
-								if (!value) {
-									hasChanges = true;
-									return elseContent.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
-										if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
-										if (k === "@index") return String(index);
-										const propValue = k
-											.split(".")
-											.reduce((obj: any, key: string) => obj?.[key], item);
-										return propValue !== undefined ? escapeHtml(String(propValue)) : m;
-									});
-								}
-								// Process simple {{variable}} placeholders within the if-block content
-								return ifContent.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
-									if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
-									if (k === "@index") return String(index);
-									const propValue = k.split(".").reduce((obj: any, key: string) => obj?.[key], item);
-									return propValue !== undefined ? escapeHtml(String(propValue)) : m;
-								});
-							}
-						);
-
-						processed = newProcessed2;
+						processed = newProcessed;
 					}
 					return processed;
 				};
@@ -166,21 +157,6 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 			.join("");
 	});
 
-	// Replace {{#if condition}}...{{/if}} blocks
-	// Process #if blocks and re-apply variable substitution to the selected content
-	result = result.replace(
-		/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
-		(match: string, condition: string, content: string): string => {
-			if (!context[condition]) {
-				return "";
-			}
-			// Process simple {{variable}} placeholders within the if-block content
-			return content.replace(/\{\{(\w+)\}\}/g, (m: string, key: string): string => {
-				return context[key] !== undefined ? escapeHtml(String(context[key])) : m;
-			});
-		}
-	);
-
 	// Handle {{#if condition}}...{{else}}...{{/if}} blocks
 	result = result.replace(
 		/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
@@ -188,6 +164,19 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 			const selectedContent = context[condition] ? ifContent : elseContent;
 			// Process simple {{variable}} placeholders within the selected content
 			return selectedContent.replace(/\{\{(\w+)\}\}/g, (m: string, key: string): string => {
+				return context[key] !== undefined ? escapeHtml(String(context[key])) : m;
+			});
+		}
+	);
+
+	// Replace {{#if condition}}...{{/if}} blocks after if/else blocks.
+	result = result.replace(
+		/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+		(match: string, condition: string, content: string): string => {
+			if (!context[condition]) {
+				return "";
+			}
+			return content.replace(/\{\{(\w+)\}\}/g, (m: string, key: string): string => {
 				return context[key] !== undefined ? escapeHtml(String(context[key])) : m;
 			});
 		}

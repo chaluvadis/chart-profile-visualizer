@@ -110,6 +110,49 @@ interface WebviewMessage {
 	message?: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function getOptionalString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+function parseWebviewMessage(raw: unknown): WebviewMessage | null {
+	if (!isRecord(raw) || typeof raw.type !== "string") {
+		return null;
+	}
+
+	const baseType = raw.type as WebviewMessageType;
+	const msg: WebviewMessage = {
+		type: baseType,
+		yaml: getOptionalString(raw.yaml),
+		secretName: getOptionalString(raw.secretName),
+		namespace: getOptionalString(raw.namespace),
+		env1: getOptionalString(raw.env1),
+		env2: getOptionalString(raw.env2),
+		message: getOptionalString(raw.message),
+	};
+
+	switch (msg.type) {
+		case "exportYaml":
+		case "exportJson":
+		case "exportComparison":
+		case "refreshComparison":
+			return msg;
+		case "runComparison":
+			return msg.env1 && msg.env2 ? msg : null;
+		case "copyResource":
+			return msg.yaml !== undefined ? msg : null;
+		case "revealSecret":
+			return msg.secretName ? msg : null;
+		case "showError":
+			return msg.message ? msg : null;
+		default:
+			return null;
+	}
+}
+
 function getCurrentChartItem(): ChartTreeItem | null {
 	return currentChartItem;
 }
@@ -198,7 +241,12 @@ export async function showCompare(context: vscode.ExtensionContext, item: ChartT
 
 		// Handle messages from the webview
 		currentPanel.webview.onDidReceiveMessage(
-			async (message) => {
+			async (rawMessage: unknown) => {
+				const message = parseWebviewMessage(rawMessage);
+				if (!message) {
+					vscode.window.showWarningMessage("Ignored invalid webview message");
+					return;
+				}
 				await handleMessage(message);
 			},
 			undefined,
@@ -276,7 +324,12 @@ export async function show(
 
 		// Handle messages from the webview
 		currentPanel.webview.onDidReceiveMessage(
-			async (message) => {
+			async (rawMessage: unknown) => {
+				const message = parseWebviewMessage(rawMessage);
+				if (!message) {
+					vscode.window.showWarningMessage("Ignored invalid webview message");
+					return;
+				}
 				await handleMessage(message);
 			},
 			undefined,
@@ -448,7 +501,7 @@ async function handleMessage(message: WebviewMessage) {
 			break;
 		case "showError":
 			if (message.message) {
-				vscode.window.showErrorMessage(message.message);
+				vscode.window.showErrorMessage(message.message.slice(0, 500));
 			}
 			break;
 	}
@@ -858,13 +911,23 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	}
 
 	// Get dependency visualization data
-	let dependencyData;
+	let dependencyData: {
+		nodes: Array<{
+			id: string;
+			label: string;
+			type: "root" | "dependency";
+			version: string;
+			enabled: boolean;
+			repository: string;
+		}>;
+		edges: Array<{ source: string; target: string; type: string }>;
+		summary: { total: number; enabled: number; disabled: number; conflicts: number };
+	};
 	try {
 		dependencyData = generateDependencyVisualizationData(chartPath);
 	} catch (error) {
 		console.warn("Failed to generate dependency data:", error);
 		dependencyData = { nodes: [], edges: [], summary: { total: 0, enabled: 0, disabled: 0, conflicts: 0 } };
-
 	}
 	return {
 		chartName,

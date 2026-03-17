@@ -80,6 +80,8 @@ declare global {
 			totalValues: number;
 			overriddenCount: number;
 			comparisonData: unknown;
+			availableEnvs: string[];
+			environment: string | null;
 		};
 		initTopology: () => void;
 		fitTopologyToScreen: () => void;
@@ -621,8 +623,12 @@ function handleNodeClick(
 	nodeElement: Element
 ): void {
 	// Clear previous selection
-	container.querySelectorAll(".topo-node").forEach((n) => n.classList.remove("selected"));
-	container.querySelectorAll(".topo-edge").forEach((e) => e.classList.remove("highlighted"));
+	container.querySelectorAll(".topo-node").forEach((n) => {
+		n.classList.remove("selected");
+	});
+	container.querySelectorAll(".topo-edge").forEach((e) => {
+		e.classList.remove("highlighted");
+	});
 
 	if (selectedNode === nodeId) {
 		selectedNode = null;

@@ -1,6 +1,6 @@
 /**
  * Main webview script for Helm Chart Visualizer
- * Handles tab switching, toolbar actions, search, and resource explorer interactions
+ * Handles tab switching, toolbar actions, and resource explorer interactions
  */
 
 export {}; // Make this file a module to enable global augmentation
@@ -120,7 +120,6 @@ function initializeWebview(data: WebviewData): void {
 	// Initialize all components
 	initTabSwitching();
 	initToolbarActions();
-	initSearch();
 	initResourceExplorer();
 	initResultsTab();
 	// Call initTopology from window (defined in topology.ts)
@@ -139,8 +138,12 @@ function initTabSwitching(): void {
 			const tabName = btn.getAttribute("data-tab");
 			if (!tabName) return;
 
-			document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-			document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+			document.querySelectorAll(".tab-btn").forEach((b) => {
+				b.classList.remove("active");
+			});
+			document.querySelectorAll(".tab-content").forEach((c) => {
+				c.classList.remove("active");
+			});
 			btn.classList.add("active");
 			const tabContent = document.getElementById(tabName);
 			if (tabContent) {
@@ -346,6 +349,7 @@ function renderComparisonResults(): void {
 			// Add field diffs - expanded for modified and unchanged
 			if (hasFields) {
 				html += `<div class="field-diffs field-diffs-visible ${showFieldsExpanded ? "field-diffs-expanded" : ""}>`;
+				html += `<div class="field-diff-header"><span class="field-env-label">${escapeHtml(header.leftEnv)}</span><span class="field-arrow-header">→</span><span class="field-env-label">${escapeHtml(header.rightEnv)}</span></div>`;
 				for (const field of resource.fields!) {
 					// Format values properly - use JSON.stringify for complex objects
 					const leftVal =
@@ -383,70 +387,63 @@ function renderComparisonResults(): void {
 
 	html += `</div></div>`;
 
-	// Add filter button click handlers - only for changed resources (added, removed, modified)
-	html += `<script>
-		(function() {
-			const filterBtns = document.querySelectorAll('.filter-btn');
-			const resourceCards = document.querySelectorAll('.compare-resource-card');
-
-			filterBtns.forEach(btn => {
-				btn.addEventListener('click', () => {
-					// Remove active class from all buttons
-					filterBtns.forEach(b => b.classList.remove('active'));
-					// Add active class to clicked button
-					btn.classList.add('active');
-
-					const filter = btn.getAttribute('data-filter');
-
-					resourceCards.forEach(card => {
-						if (filter === 'all') {
-							card.classList.remove('resource-card-hidden');
-							// Expand field diffs for modified cards in 'all' view
-							const diffType = card.getAttribute('data-diff-type');
-							const fieldDiffs = card.querySelector('.field-diffs');
-							if (diffType === 'modified' && fieldDiffs) {
-								fieldDiffs.classList.add('field-diffs-visible');
-							}
-						} else if (filter === 'modified') {
-							const diffType = card.getAttribute('data-diff-type');
-							if (diffType === filter) {
-								card.classList.remove('resource-card-hidden');
-								// Auto-expand field diffs when filtering by modified
-								const fieldDiffs = card.querySelector('.field-diffs');
-								if (fieldDiffs) {
-									fieldDiffs.classList.add('field-diffs-visible');
-								}
-								// Highlight the modified field values
-								const leftValues = card.querySelectorAll('.field-left');
-								const rightValues = card.querySelectorAll('.field-right');
-								leftValues.forEach(el => el.classList.add('highlighted'));
-								rightValues.forEach(el => el.classList.add('highlighted'));
-							} else {
-								card.classList.add('resource-card-hidden');
-							}
-						} else {
-							const diffType = card.getAttribute('data-diff-type');
-							if (diffType === filter) {
-								card.classList.remove('resource-card-hidden');
-								// Remove highlighting when showing other filters
-								const leftValues = card.querySelectorAll('.field-left');
-								const rightValues = card.querySelectorAll('.field-right');
-								leftValues.forEach(el => el.classList.remove('highlighted'));
-								rightValues.forEach(el => el.classList.remove('highlighted'));
-							} else {
-								card.classList.add('resource-card-hidden');
-							}
-						}
-					});
-				});
-			});
-		})();
-	</script>`;
-
 	// Render into comparison-results div and show it
 	comparisonResults.innerHTML = html;
+	attachComparisonFilterHandlers(comparisonResults);
 	comparisonResults.classList.remove("hidden");
 	comparisonResults.style.display = "block";
+}
+
+function attachComparisonFilterHandlers(container: HTMLElement): void {
+	const filterBtns = Array.from(container.querySelectorAll<HTMLButtonElement>(".filter-btn"));
+	const resourceCards = Array.from(container.querySelectorAll<HTMLElement>(".compare-resource-card"));
+
+	if (filterBtns.length === 0 || resourceCards.length === 0) {
+		return;
+	}
+
+	for (const btn of filterBtns) {
+		btn.addEventListener("click", () => {
+			for (const b of filterBtns) {
+				b.classList.remove("active");
+			}
+			btn.classList.add("active");
+
+			const filter = btn.getAttribute("data-filter");
+
+			for (const card of resourceCards) {
+				const diffType = card.getAttribute("data-diff-type");
+				const fieldDiffs = card.querySelector<HTMLElement>(".field-diffs");
+				const leftValues = card.querySelectorAll<HTMLElement>(".field-left");
+				const rightValues = card.querySelectorAll<HTMLElement>(".field-right");
+
+				if (filter === "all") {
+					card.classList.remove("resource-card-hidden");
+					if (diffType === "modified" && fieldDiffs) {
+						fieldDiffs.classList.add("field-diffs-visible");
+					}
+					for (const el of leftValues) el.classList.remove("highlighted");
+					for (const el of rightValues) el.classList.remove("highlighted");
+					continue;
+				}
+
+				if (diffType === filter) {
+					card.classList.remove("resource-card-hidden");
+					if (filter === "modified" && fieldDiffs) {
+						fieldDiffs.classList.add("field-diffs-visible");
+					}
+					for (const el of leftValues) {
+						el.classList.toggle("highlighted", filter === "modified");
+					}
+					for (const el of rightValues) {
+						el.classList.toggle("highlighted", filter === "modified");
+					}
+				} else {
+					card.classList.add("resource-card-hidden");
+				}
+			}
+		});
+	}
 }
 
 /**
@@ -531,24 +528,6 @@ function initToolbarActions(): void {
 			vscode.postMessage({ type: "exportJson" });
 		});
 	}
-}
-
-/**
- * Search functionality for resource explorer
- */
-function initSearch(): void {
-	const searchBox = document.getElementById("searchBox");
-	if (!searchBox) return;
-
-	searchBox.addEventListener("input", (e) => {
-		const target = e.target as HTMLInputElement;
-		const search = target.value.toLowerCase();
-		document.querySelectorAll(".resource-card").forEach((card) => {
-			const text = card.textContent?.toLowerCase() || "";
-			const el = card as HTMLElement;
-			el.style.display = text.includes(search) ? "block" : "none";
-		});
-	});
 }
 
 /**

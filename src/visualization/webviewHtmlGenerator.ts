@@ -117,18 +117,19 @@ export async function generateEnhancedHtml(
 	} catch (error) {
 		vscode.window.showErrorMessage(`Error generating webview: ${error}`);
 		// Return fallback HTML
+		const errorText = escapeHtml(error instanceof Error ? error.message : String(error));
 		const fallbackHtml = `
 		<!DOCTYPE html>
 		<html>
 		<head>
 			<meta charset="UTF-8">
-				<meta http-equiv="Content-Security-Policy" content="${webview.cspSource} script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
 				<title>Chart Profile Visualizer</title>
 		</head>
 		<body>
 			<div class="error-container">
 				<h1>Error Loading Chart Profile</h1>
-				<p>${error}</p>
+				<p>${errorText}</p>
 			</div>
 		</body>
 		</html>

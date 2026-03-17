@@ -17,30 +17,48 @@ body {
    ============================================ */
 .tabs {
     display: flex;
+    gap: 8px;
+    padding: 8px 12px 0;
     background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
 }
 
 .tab-btn {
-    background: none;
-    border: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
     color: var(--vscode-foreground);
-    padding: 8px 16px;
+    padding: 8px 14px;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
     font-size: 12px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
+
+.tab-btn:hover {
+    background-color: var(--vscode-list-hoverBackground);
 }
 
 .tab-btn.active {
-    border-bottom-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-editor-background);
+    border-color: var(--vscode-panel-border);
+    color: var(--vscode-foreground);
+    font-weight: 600;
 }
 
 .tab-content {
     display: none;
-    padding: 12px;
+    padding: 14px;
 }
 
 .tab-content.active {
     display: block;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-top: none;
+    margin: 0 12px 12px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
 /* Results Tab Sub-tabs */
@@ -70,47 +88,42 @@ body {
    ============================================ */
 .toolbar {
     background-color: var(--vscode-editor-inactiveSelectionBackground);
-    padding: 8px 12px;
+    padding: 10px 12px;
     display: flex;
     gap: 8px;
     align-items: center;
     position: sticky;
     top: 0;
     z-index: 100;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .toolbar-btn {
     background-color: var(--vscode-button-background);
     color: var(--vscode-button-foreground);
-    border: none;
-    padding: 4px 10px;
-    border-radius: 3px;
+    border: 1px solid var(--vscode-button-background);
+    padding: 5px 11px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
+    font-weight: 500;
 }
 
 .toolbar-btn:hover {
     background-color: var(--vscode-button-hoverBackground);
 }
 
-.search-box {
-    flex: 1;
-    max-width: 300px;
-    padding: 8px 12px;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border);
-    border-radius: 4px;
-    font-size: 13px;
-}
-
-.search-box:focus {
-    outline: none;
-    border-color: var(--vscode-focusBorder);
-}
-
-.search-box::placeholder {
-    color: var(--vscode-placeholderForeground);
+.toolbar-btn:focus-visible,
+.tab-btn:focus-visible,
+.results-tab-btn:focus-visible {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
 }
 
 /* Results Tab Header */
@@ -464,10 +477,10 @@ body {
 
 /* New Comparison Header Section */
 .compare-container {
-    padding: 16px;
+    padding: 10px 2px 4px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
 
 .compare-header-section {
@@ -475,8 +488,10 @@ body {
     justify-content: space-between;
     align-items: flex-start;
     gap: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    padding: 12px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 8px;
+    background: var(--vscode-editor-inactiveSelectionBackground);
     flex-wrap: wrap;
 }
 
@@ -488,7 +503,7 @@ body {
 
 .compare-chart-name {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     font-weight: 600;
     color: var(--vscode-foreground);
 }
@@ -501,9 +516,9 @@ body {
 }
 
 .env-tag {
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 0.85rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
     font-weight: 500;
 }
 
@@ -525,7 +540,7 @@ body {
 
 .compare-summary-stats {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
@@ -533,15 +548,15 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 8px 16px;
-    border-radius: 8px;
+    padding: 7px 12px;
+    border-radius: 6px;
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
-    min-width: 60px;
+    min-width: 72px;
 }
 
 .compare-summary-stats .summary-count {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 700;
 }
 
@@ -571,17 +586,18 @@ body {
 /* New Comparison Filters */
 .compare-filters {
     display: flex;
-    gap: 8px;
+    gap: 7px;
     flex-wrap: wrap;
+    padding: 0 2px;
 }
 
 .compare-filters .filter-btn {
-    padding: 6px 14px;
+    padding: 5px 12px;
     border-radius: 16px;
     border: 1px solid var(--vscode-panel-border);
     background-color: transparent;
     color: var(--vscode-foreground);
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -642,14 +658,24 @@ body {
 .compare-resources .resource-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+}
+
+.compare-resources .resource-list .compare-resource-card + .compare-resource-card {
+    margin-top: 6px;
 }
 
 .compare-resources .compare-resource-card {
-    padding: 12px;
-    border-radius: 6px;
+    padding: 11px;
+    border-radius: 8px;
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.compare-resources .compare-resource-card:hover {
+    border-color: var(--vscode-focusBorder);
+    background-color: color-mix(in srgb, var(--vscode-list-hoverBackground) 50%, transparent);
 }
 
 .compare-resources .compare-resource-card.added {
@@ -671,8 +697,17 @@ body {
 .compare-resources .compare-resource-card .resource-summary {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
+}
+
+.compare-resources .compare-resource-card .resource-kind {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.compare-resources .compare-resource-card .resource-name {
+    font-weight: 600;
 }
 
 .compare-resources .compare-resource-card .field-count-badge {
@@ -695,11 +730,16 @@ body {
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
-    padding: 4px 8px;
+    padding: 6px 8px;
     margin-bottom: 8px;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
     font-size: 0.75rem;
     color: var(--vscode-descriptionForeground);
+    background: color-mix(in srgb, var(--vscode-editor-lineHighlightBackground) 65%, transparent);
+    position: sticky;
+    top: 0;
+    z-index: 3;
 }
 
 .field-env-label {
@@ -721,11 +761,11 @@ body {
 .field-diff .field-values-row,
 .field-diff .field-values {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-between;
     gap: 12px;
     padding: 8px;
-    border-radius: 4px;
+    border-radius: 6px;
     background-color: var(--vscode-editor-inactiveSelectionBackground);
 }
 
@@ -735,10 +775,11 @@ body {
     padding: 8px 10px;
     border-radius: 4px;
     font-family: var(--vscode-editor-font-family, monospace);
-    font-size: 0.85rem;
-    word-break: break-all;
+    font-size: 0.8rem;
+    word-break: break-word;
     min-width: 0;
-    overflow-x: auto;
+    overflow: auto;
+    max-height: 220px;
 }
 
 .field-diff .field-left {
@@ -769,6 +810,7 @@ body {
     margin: 0;
     padding: 0;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
     font-family: inherit;
     font-size: inherit;
     line-height: 1.4;
@@ -801,20 +843,24 @@ body {
 
 .compare-resources .field-diffs {
     margin-top: 12px;
-    padding-top: 12px;
+    padding-top: 10px;
     border-top: 1px dashed var(--vscode-panel-border);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
 }
 
 .compare-resources .field-diff {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 8px;
+    gap: 6px;
+    padding: 7px;
     background-color: var(--vscode-editor-inactiveSelectionBackground);
-    border-radius: 4px;
+    border-radius: 6px;
+}
+
+.compare-resources .field-diff + .field-diff {
+    margin-top: 6px;
 }
 
 .compare-resources .field-path {
@@ -998,22 +1044,25 @@ body {
    RESOURCE EXPLORER
    ============================================ */
 .resource-explorer {
-    padding: 8px 0;
+    padding: 4px 0 8px;
 }
 
 .kind-group {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 55%, transparent);
 }
 
 .kind-header {
-    background-color: var(--vscode-editor-inactiveSelectionBackground);
-    padding: 8px 10px;
-    border-radius: 4px;
+    background-color: color-mix(in srgb, var(--vscode-editor-inactiveSelectionBackground) 82%, transparent);
+    padding: 9px 12px;
     cursor: pointer;
     font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 12px;
 }
 
@@ -1034,6 +1083,18 @@ body {
     background-color: var(--vscode-list-hoverBackground);
 }
 
+.kind-count {
+    margin-left: auto;
+    min-width: 24px;
+    text-align: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+}
+
 .expand-icon {
     transition: transform 0.15s;
     font-size: 10px;
@@ -1044,8 +1105,7 @@ body {
 }
 
 .kind-resources {
-    margin-left: 16px;
-    margin-top: 6px;
+    margin: 8px 10px 10px;
 }
 
 .kind-resources[data-collapsed="true"] {
@@ -1056,14 +1116,18 @@ body {
 .resource-card {
     background-color: var(--vscode-editor-background);
     border-left: 3px solid;
-    border-radius: 3px;
-    margin-bottom: 6px;
+    border: 1px solid var(--vscode-panel-border);
+    border-left-width: 3px;
+    border-radius: 5px;
+    margin-bottom: 8px;
     padding: 8px 10px;
     cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .resource-card:hover {
     background-color: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-focusBorder);
 }
 
 .resource-card[data-color="#0078d4"] { border-left-color: #0078d4; }
@@ -1077,7 +1141,7 @@ body {
 .resource-header {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     cursor: pointer;
     font-size: 12px;
 }
@@ -1092,20 +1156,28 @@ body {
 
 .copy-btn {
     margin-left: auto;
-    background: none;
-    border: none;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
-    opacity: 0.5;
+    font-size: 12px;
+    opacity: 0.85;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .copy-btn:hover {
     opacity: 1;
+    background-color: var(--vscode-button-hoverBackground);
 }
 
 .resource-details {
-    margin-top: 8px;
-    padding-top: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--vscode-panel-border);
 }
 
 .resource-details[data-collapsed="true"] {
@@ -1689,9 +1761,10 @@ body {
     white-space: pre;
     overflow-x: auto;
     margin: 0;
-    padding: 10px;
+    padding: 12px;
     background-color: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.1));
     border-radius: 4px;
+    border: 1px solid var(--vscode-panel-border);
 }
 
 .yaml-content, .yaml-block { color: var(--vscode-editor-foreground); }
@@ -1811,8 +1884,9 @@ body[data-vscode-theme-kind="vscode-high-contrast"] .yaml-comment { color: #00ff
     padding: 12px;
     margin: 12px 0;
     border-radius: 4px;
-    max-height: 50vh;
-    overflow: auto;
+    max-height: none;
+    overflow: visible;
+    border: 1px solid var(--vscode-panel-border);
 }
 
 .chart-canvas {

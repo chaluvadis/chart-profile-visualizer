@@ -36,17 +36,19 @@
 
 <style>
     .comparison-selector {
-        padding: 20px;
-        background-color: var(--vscode-editor-inactiveSelectionBackground);
-        border-bottom: 1px solid var(--vscode-panel-border);
+        padding: 16px;
+        background-color: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        border-radius: 8px;
+        margin-bottom: 14px;
     }
 
     .selector-header {
-        margin-bottom: 16px;
+        margin-bottom: 12px;
     }
 
     .selector-title {
-        font-size: 16px;
+        font-size: 17px;
         font-weight: 600;
         margin: 0 0 4px 0;
         color: var(--vscode-foreground);
@@ -59,23 +61,22 @@
     }
 
     .selector-form {
-        display: flex;
-        align-items: flex-end;
-        gap: 16px;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: end;
     }
 
     .form-row {
         display: flex;
         align-items: flex-end;
-        gap: 16px;
+        gap: 12px;
         flex: 1;
-        flex-wrap: wrap;
     }
 
     .env-select-group {
         flex: 1;
-        min-width: 180px;
+        min-width: 220px;
     }
 
     .env-label {
@@ -85,18 +86,18 @@
         color: var(--vscode-descriptionForeground);
         margin-bottom: 6px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
     }
 
     .env-select {
         width: 100%;
-        padding: 10px 12px;
+        padding: 8px 10px;
         font-size: 13px;
         font-family: var(--vscode-font-family);
         background-color: var(--vscode-dropdown-background, var(--vscode-input-background, #3c3c3c));
         color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground, #cccccc));
         border: 1px solid var(--vscode-dropdown-border, var(--vscode-input-border, #3c3c3c));
-        border-radius: 4px;
+        border-radius: 6px;
         outline: none;
         cursor: pointer;
         appearance: none;
@@ -109,6 +110,7 @@
 
     .env-select:focus {
         border-color: var(--vscode-focusBorder, #007acc);
+        box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007acc);
     }
 
     .env-select:disabled {
@@ -124,19 +126,22 @@
 
     .vs {
         color: var(--vscode-descriptionForeground);
-        font-size: 14px;
+        font-size: 12px;
         font-weight: 500;
-        padding-bottom: 10px;
+        padding-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .run-comparison-btn {
-        padding: 10px 24px;
-        font-size: 14px;
-        font-weight: 500;
+        padding: 8px 16px;
+        min-width: 110px;
+        font-size: 12px;
+        font-weight: 600;
         background-color: var(--vscode-button-background, #0e639c);
         color: var(--vscode-button-foreground, #ffffff);
-        border: none;
-        border-radius: 4px;
+        border: 1px solid var(--vscode-button-background, #0e639c);
+        border-radius: 6px;
         cursor: pointer;
         transition: background 0.2s;
     }
@@ -151,6 +156,18 @@
     }
 
     .comparison-results {
-        padding: 16px;
+        padding: 0;
+    }
+
+    @media (max-width: 980px) {
+        .selector-form {
+            grid-template-columns: 1fr;
+        }
+        .form-row {
+            flex-wrap: wrap;
+        }
+        .run-comparison-btn {
+            width: 100%;
+        }
     }
 </style>

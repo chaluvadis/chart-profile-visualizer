@@ -7,6 +7,8 @@ import {
 } from "../k8s/kubernetesConnector";
 import { renderHelmTemplate } from "../k8s/helmRenderer";
 import { CACHE_TTL, REFRESH_INTERVAL } from "../utils/constants";
+import { validateCliIdentifier } from "../utils/cliValidation";
+import { runKubectl as runKubectlCommand } from "../utils/cliRunner";
 
 /**
  * Runtime state for all resources in a chart
@@ -47,11 +49,8 @@ export class RuntimeStateManager {
 		this.connector = new KubernetesConnector();
 	}
 
-	/**
-	 * Escape shell argument to prevent command injection
-	 */
-	private shellEscape(value: string): string {
-		return `'${value.replace(/'/g, "'\\''")}'`;
+	private async runKubectl(args: string[]): Promise<{ stdout: string; stderr: string }> {
+		return runKubectlCommand(args, { timeout: 10000 });
 	}
 
 	/**
@@ -249,16 +248,15 @@ export class RuntimeStateManager {
 	async getPodLogs(podName: string, namespace?: string, container?: string, tailLines = 100): Promise<string> {
 		const ns = namespace || "default";
 		try {
-			const { exec } = await import("node:child_process");
-			const { promisify } = await import("node:util");
-			const execAsync = promisify(exec);
-
-			let cmd = `kubectl logs ${this.shellEscape(podName)} -n ${this.shellEscape(ns)} --tail=${tailLines}`;
+			const safePod = validateCliIdentifier(podName, "pod name");
+			const safeNamespace = validateCliIdentifier(ns, "namespace");
+			const safeTailLines = Math.max(1, Math.min(10000, Math.floor(tailLines)));
+			const args = ["logs", safePod, "-n", safeNamespace, `--tail=${safeTailLines}`];
 			if (container) {
-				cmd += ` -c ${this.shellEscape(container)}`;
+				args.push("-c", validateCliIdentifier(container, "container name"));
 			}
 
-			const { stdout } = await execAsync(cmd, { timeout: 10000 });
+			const { stdout } = await this.runKubectl(args);
 			return stdout;
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -272,12 +270,10 @@ export class RuntimeStateManager {
 	async getResourceYaml(kind: string, name: string, namespace?: string): Promise<string> {
 		const ns = namespace || "default";
 		try {
-			const { exec } = await import("node:child_process");
-			const { promisify } = await import("node:util");
-			const execAsync = promisify(exec);
-
-			const cmd = `kubectl get ${this.shellEscape(kind)} ${this.shellEscape(name)} -n ${this.shellEscape(ns)} -o yaml`;
-			const { stdout } = await execAsync(cmd, { timeout: 10000 });
+			const safeKind = validateCliIdentifier(kind, "resource kind");
+			const safeName = validateCliIdentifier(name, "resource name");
+			const safeNamespace = validateCliIdentifier(ns, "namespace");
+			const { stdout } = await this.runKubectl(["get", safeKind, safeName, "-n", safeNamespace, "-o", "yaml"]);
 			return stdout;
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : String(error);

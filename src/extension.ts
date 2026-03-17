@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
-import { ChartProfilesProvider } from "./core/chartProfilesProvider";
+import { ChartProfilesProvider, ChartTreeItem } from "./core/chartProfilesProvider";
 import type { HelmChart } from "./k8s/helmChart";
 import { show as showChartVisualization, showCompare } from "./visualization/chartVisualizationView";
 import { showValidationResults } from "./visualization/validationResultView";
+import { showRuntimeStateResults } from "./visualization/runtimeStateView";
 import { isHelmAvailable } from "./k8s/helmRenderer";
 import { showRenderedYaml } from "./utils/renderedYamlView";
 import { createChartValidator } from "./processing/chartValidator";
@@ -169,81 +170,16 @@ export function activate(context: vscode.ExtensionContext) {
 						vscode.window.showErrorMessage("Chart path not found");
 						return;
 					}
-					const state = await runtimeStateManager.getChartRuntimeState(
-						chartPath,
-						typedItem.environment || "default"
-					);
+					const environment = typedItem.environment || "default";
+					const state = await runtimeStateManager.getChartRuntimeState(chartPath, environment);
 
 					const healthSummary = runtimeStateManager.getHealthSummary(state);
-
-					// Build report
-					const lines: string[] = [];
-					lines.push("# Runtime State Report");
-					lines.push("");
-					lines.push("## Cluster Info");
-					lines.push(`- **Connected**: ${state.isConnected ? "Yes" : "No"}`);
-					if (state.clusterInfo.server) {
-						lines.push(`- **Server**: ${state.clusterInfo.server}`);
-					}
-					if (state.clusterInfo.context) {
-						lines.push(`- **Context**: ${state.clusterInfo.context}`);
-					}
-					lines.push("");
-
-					lines.push("## Health Summary");
-					lines.push(`- **Overall Status**: ${healthSummary.overallStatus.toUpperCase()}`);
-					lines.push(`- **Total Resources**: ${healthSummary.totalResources}`);
-					lines.push(`- **Healthy**: ${healthSummary.healthy}`);
-					lines.push(`- **Warning**: ${healthSummary.warning}`);
-					lines.push(`- **Critical**: ${healthSummary.critical}`);
-					lines.push(`- **Not Found**: ${healthSummary.notFound}`);
-					lines.push("");
-
-					// List resources by status
-					const critical: string[] = [];
-					const warning: string[] = [];
-					const notFound: string[] = [];
-
-					for (const [id, resourceState] of state.resources) {
-						if (resourceState.status.state === "Critical") {
-							critical.push(`${id}: ${resourceState.status.message}`);
-						} else if (resourceState.status.state === "Warning") {
-							warning.push(`${id}: ${resourceState.status.message}`);
-						} else if (resourceState.status.state === "NotFound") {
-							notFound.push(id);
-						}
-					}
-
-					if (critical.length > 0) {
-						lines.push("## ❌ Critical Issues");
-						for (const c of critical) {
-							lines.push(`- ${c}`);
-						}
-						lines.push("");
-					}
-
-					if (warning.length > 0) {
-						lines.push("## ⚠️ Warnings");
-						for (const w of warning) {
-							lines.push(`- ${w}`);
-						}
-						lines.push("");
-					}
-
-					if (notFound.length > 0) {
-						lines.push("## 🚫 Not Deployed");
-						for (const n of notFound) {
-							lines.push(`- ${n}`);
-						}
-						lines.push("");
-					}
-
-					const doc = await vscode.workspace.openTextDocument({
-						content: lines.join("\n"),
-						language: "markdown",
+					await showRuntimeStateResults(context, {
+						chartPath,
+						environment,
+						state,
+						healthSummary,
 					});
-
-					await vscode.window.showTextDocument(doc);
 				}
 			);
 		}
@@ -263,9 +199,16 @@ export function activate(context: vscode.ExtensionContext) {
 				chartName = args[1] as string;
 			} else if (args.length === 1 && args[0] !== null && typeof args[0] === "object") {
 				// Format: ({ chart, chartPath, ... }) - direct call
-				const item = args[0] as any;
+				const item = args[0] as {
+					chartPath?: string;
+					chart?: { path?: string; name?: string };
+					path?: string;
+					name?: string;
+					label?: string;
+					chartName?: string;
+				};
 				chartPath = item?.chartPath || item?.chart?.path || item?.path || "";
-				chartName = item?.chart?.name || item?.chartName || item?.name || item?.label || "";
+				chartName = item?.chart?.name || item?.chartName || item?.name || item?.label || item?.chartName || "";
 			} else {
 				vscode.window.showErrorMessage("Invalid arguments format");
 				return;
@@ -277,18 +220,24 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			// Create properly structured item for showCompare
-			const compareItem = {
-				chart: { name: chartName, path: chartPath } as HelmChart,
-				chartPath: chartPath,
-				label: chartName,
-				collapsibleState: vscode.TreeItemCollapsibleState.None,
-			};
+			// Create properly structured ChartTreeItem for showCompare
+			const chart: HelmChart = { name: chartName, path: chartPath };
+			const compareItem = new ChartTreeItem(
+				chartName,
+				chartPath,
+				vscode.TreeItemCollapsibleState.None,
+				"comparison",
+				chart,
+				"",
+				"",
+				"compare"
+			);
 
 			try {
-				await showCompare(context, compareItem as any);
-			} catch (error: any) {
-				vscode.window.showErrorMessage(`Compare failed: ${error.message}`);
+				await showCompare(context, compareItem);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Compare failed: ${message}`);
 			}
 		}
 	);

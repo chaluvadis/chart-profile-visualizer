@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ValidationResult, ValidationIssue } from "../processing/chartValidator";
 import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
@@ -8,6 +9,62 @@ let validationContext: vscode.ExtensionContext | undefined;
 
 // Store current validation params for refresh functionality
 let currentValidationParams: { chartPath: string; environment: string } | undefined;
+
+type ValidationWebviewCommand = "jumpToFile" | "refreshValidation" | "copyText";
+
+interface ValidationWebviewMessage {
+	command: ValidationWebviewCommand;
+	file?: string;
+	line?: number;
+	text?: string;
+}
+
+function escapeHtml(text: string): string {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/\"/g, "&quot;")
+		.replace(/'/g, "&#039;");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function parseValidationMessage(raw: unknown): ValidationWebviewMessage | null {
+	if (!isRecord(raw) || typeof raw.command !== "string") {
+		return null;
+	}
+
+	if (raw.command === "refreshValidation") {
+		return { command: "refreshValidation" };
+	}
+
+	if (raw.command === "jumpToFile" && typeof raw.file === "string") {
+		const line = typeof raw.line === "number" && Number.isFinite(raw.line) ? Math.floor(raw.line) : undefined;
+		return {
+			command: "jumpToFile",
+			file: raw.file,
+			line,
+		};
+	}
+
+	if (raw.command === "copyText" && typeof raw.text === "string") {
+		return {
+			command: "copyText",
+			text: raw.text,
+		};
+	}
+
+	return null;
+}
+
+function isAllowedJumpPath(filePath: string): boolean {
+	const normalized = path.resolve(filePath);
+	const roots = vscode.workspace.workspaceFolders?.map((w) => path.resolve(w.uri.fsPath)) || [];
+	return roots.some((root) => normalized === root || normalized.startsWith(`${root}${path.sep}`));
+}
 
 /**
  * Show validation results in a dedicated webview panel
@@ -44,7 +101,12 @@ export async function showValidationResults(context: vscode.ExtensionContext, re
 
 		// Handle messages from the webview
 		validationPanel.webview.onDidReceiveMessage(
-			async (message) => {
+			async (rawMessage: unknown) => {
+				const message = parseValidationMessage(rawMessage);
+				if (!message) {
+					vscode.window.showWarningMessage("Ignored invalid validation webview message");
+					return;
+				}
 				await handleValidationMessage(message, context);
 			},
 			null,
@@ -105,6 +167,27 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 
 	// Format timestamp
 	const timestamp = new Date(result.timestamp).toLocaleString();
+	const useCompactSummary = result.issues.length > 0 && result.issues.length <= 3;
+	const hasErrors = errors.length > 0;
+	const hasWarnings = warnings.length > 0;
+	const hasInfo = infos.length > 0;
+
+	const statusClass = hasErrors ? "invalid" : hasWarnings || hasInfo ? "attention" : "valid";
+	const statusIcon = hasErrors ? "✗" : hasWarnings ? "!" : hasInfo ? "i" : "✓";
+
+	let statusTitle = "Validation Passed";
+	let statusSubtitle = "All checks passed for this chart/environment";
+
+	if (hasErrors) {
+		statusTitle = "Validation Failed";
+		statusSubtitle = `${result.issues.length} issue(s) found`;
+	} else if (hasWarnings) {
+		statusTitle = "Validation Passed with Warnings";
+		statusSubtitle = `${warnings.length} warning(s) and ${infos.length} info item(s)`;
+	} else if (hasInfo) {
+		statusTitle = "Validation Passed with Notes";
+		statusSubtitle = `${infos.length} informational check(s) found`;
+	}
 
 	return {
 		chartName,
@@ -112,11 +195,17 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		environment: result.environment,
 		timestamp,
 		valid: result.valid,
+		statusIcon,
+		statusClass,
+		statusTitle,
+		statusSubtitle,
+		useCompactSummary,
+		showFullSummary: !useCompactSummary,
 		totalIssues: result.issues.length,
 		summary: result.summary,
-		hasErrors: errors.length > 0,
-		hasWarnings: warnings.length > 0,
-		hasInfo: infos.length > 0,
+		hasErrors,
+		hasWarnings,
+		hasInfo,
 		errors: formatIssues(errors),
 		warnings: formatIssues(warnings),
 		info: formatIssues(infos),
@@ -136,6 +225,8 @@ function formatIssues(issues: ValidationIssue[]): Record<string, unknown>[] {
 		resource: issue.resource || null,
 		file: issue.file || null,
 		line: issue.line || null,
+		lineNumber: issue.line && issue.line > 0 ? issue.line : 1,
+		fileDisplay: issue.file ? `${issue.file}${issue.line && issue.line > 0 ? `:${issue.line}` : ""}` : null,
 		remediation: issue.remediation || null,
 		hasDetails: !!(issue.resource || issue.file || issue.remediation),
 	}));
@@ -410,7 +501,7 @@ function generateErrorHtml(errorMessage: string, extensionUri?: vscode.Uri): str
 		}).toString();
 	}
 
-	const escapedMessage = errorMessage.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
+	const escapedMessage = escapeHtml(errorMessage);
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -469,12 +560,21 @@ export function closeValidationPanel(): void {
  * Handle messages from the validation webview
  */
 async function handleValidationMessage(
-	message: { command?: string; file?: string; line?: number },
+	message: ValidationWebviewMessage,
 	context: vscode.ExtensionContext
 ): Promise<void> {
 	switch (message.command) {
+		case "copyText":
+			if (typeof message.text === "string") {
+				await vscode.env.clipboard.writeText(message.text);
+			}
+			break;
 		case "jumpToFile":
 			if (message.file) {
+				if (!isAllowedJumpPath(message.file)) {
+					vscode.window.showErrorMessage("Refused to open file outside workspace");
+					return;
+				}
 				try {
 					const document = await vscode.workspace.openTextDocument(message.file);
 					const editor = await vscode.window.showTextDocument(document, {

@@ -1,12 +1,9 @@
-import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { promisify } from "node:util";
 import * as yaml from "js-yaml";
 import { renderHelmTemplate, isHelmAvailable } from "../k8s/helmRenderer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
-
-const exec = promisify(cp.exec);
+import { runHelm } from "../utils/cliRunner";
 
 /**
  * Validation severity levels
@@ -100,7 +97,7 @@ export class ChartValidator {
 		}
 
 		try {
-			const { stdout, stderr } = await exec(`helm lint "${this.chartPath}"`, {
+			const { stdout, stderr } = await runHelm(["lint", this.chartPath], {
 				timeout: 30000,
 			});
 

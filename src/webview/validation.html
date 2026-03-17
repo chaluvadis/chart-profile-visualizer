@@ -50,6 +50,7 @@
         }
         .status-badge.valid { background-color: var(--success-bg); color: var(--success-color); }
         .status-badge.invalid { background-color: var(--error-bg); color: var(--error-color); }
+        .status-badge.attention { background-color: var(--warning-bg); color: var(--warning-color); }
         .header-text { flex: 1; }
         .header-title { font-size: 16px; font-weight: 600; margin: 0; }
         .header-subtitle { font-size: 12px; color: var(--vscode-descriptionForeground); margin: 4px 0 0 0; }
@@ -64,13 +65,56 @@
         .summary-item.error { border-left: 3px solid var(--error-color); }
         .summary-item.warning { border-left: 3px solid var(--warning-color); }
         .summary-item.info { border-left: 3px solid var(--info-color); }
+        .summary-item.total { border-left: 3px solid var(--vscode-focusBorder); }
         .summary-count { font-size: 20px; font-weight: 700; }
         .summary-count.error { color: var(--error-color); }
         .summary-count.warning { color: var(--warning-color); }
         .summary-count.info { color: var(--info-color); }
+        .summary-count.total { color: var(--vscode-foreground); }
         .summary-label { font-size: 12px; color: var(--vscode-descriptionForeground); }
 
-        .search-box { margin-bottom: 16px; }
+        .health-strip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            background: var(--vscode-editor-background);
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+            flex-wrap: wrap;
+        }
+        .health-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+        }
+        .health-chip.error { color: var(--error-color); background: var(--error-bg); border-color: var(--error-color); }
+        .health-chip.warning { color: var(--warning-color); background: var(--warning-bg); border-color: var(--warning-color); }
+        .health-chip.info { color: var(--info-color); background: var(--info-bg); border-color: var(--info-color); }
+        .health-chip.total { color: var(--vscode-foreground); background: var(--vscode-editor-lineHighlightBackground); border-color: var(--vscode-focusBorder); }
+
+        .overview-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .meta-pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            color: var(--vscode-descriptionForeground);
+            background: var(--vscode-editor-background);
+        }
+
+        .search-box { margin-bottom: 12px; }
         .search-input {
             width: 100%; padding: 10px 14px; font-size: 13px;
             background-color: var(--vscode-editor-background);
@@ -78,9 +122,13 @@
             border-radius: 6px; color: var(--vscode-foreground);
         }
         .search-input:focus { outline: none; border-color: var(--info-color); }
+        .search-input:focus-visible {
+            outline: 2px solid var(--vscode-focusBorder);
+            outline-offset: 1px;
+        }
         .search-input::placeholder { color: var(--vscode-descriptionForeground); }
 
-        .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
         .filter-btn {
             display: flex; align-items: center; gap: 6px;
             padding: 6px 12px; font-size: 12px;
@@ -89,17 +137,42 @@
             color: var(--vscode-foreground); cursor: pointer;
         }
         .filter-btn:hover { background-color: var(--vscode-editor-selectionBackground); }
+        .filter-btn:focus-visible,
+        .filter-select:focus-visible,
+        .action-btn:focus-visible,
+        .section-header:focus-visible {
+            outline: 2px solid var(--vscode-focusBorder);
+            outline-offset: 1px;
+        }
         .filter-btn.active { border-color: currentColor; }
         .filter-btn.error.active { color: var(--error-color); background: var(--error-bg); }
         .filter-btn.warning.active { color: var(--warning-color); background: var(--warning-bg); }
         .filter-btn.info.active { color: var(--info-color); background: var(--info-bg); }
+        .view-btn.active {
+            color: var(--vscode-button-foreground);
+            background: var(--vscode-button-background);
+            border-color: var(--vscode-button-background);
+        }
+        .filter-btn.actionable.active {
+            color: var(--vscode-button-foreground);
+            background: var(--vscode-button-background);
+            border-color: var(--vscode-button-background);
+        }
+        .filter-select {
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 16px;
+            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            background: var(--vscode-editor-background);
+            color: var(--vscode-foreground);
+        }
 
-        .section { margin-bottom: 16px; }
+        .section { margin-bottom: 10px; }
         .section-header {
             display: flex; align-items: center; gap: 10px;
-            padding: 12px 14px;
+            padding: 10px 12px;
             background-color: var(--vscode-editor-lineHighlightBackground);
-            border-radius: 6px; margin-bottom: 8px; cursor: pointer; user-select: none;
+            border-radius: 6px; margin-bottom: 6px; cursor: pointer; user-select: none;
         }
         .section-header:hover { background-color: var(--vscode-editor-selectionBackground); }
         .section-header.error { border-left: 4px solid var(--error-color); }
@@ -116,7 +189,7 @@
 
         .issue-list { padding: 0; margin: 0; list-style: none; }
         .issue-card {
-            padding: 12px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid;
+            padding: 10px; margin-bottom: 6px; border-radius: 6px; border-left: 3px solid;
             background-color: var(--vscode-editor-lineHighlightBackground);
         }
         .issue-card.error { border-left-color: var(--error-color); background-color: var(--error-bg); }
@@ -124,21 +197,46 @@
         .issue-card.info { border-left-color: var(--info-color); background-color: var(--info-bg); }
         .issue-code {
             display: inline-block; font-family: var(--vscode-editor-font-family);
-            font-size: 11px; padding: 2px 6px; background-color: var(--vscode-editor-background);
+            font-size: 10px; padding: 2px 6px; background-color: var(--vscode-editor-background);
             border-radius: 3px; margin-bottom: 6px; color: var(--vscode-descriptionForeground);
         }
-        .issue-message { font-size: 13px; line-height: 1.5; margin: 0; }
-        .issue-details { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(128,128,128,0.2); display: flex; flex-wrap: wrap; gap: 6px; }
+        .issue-message { font-size: 12px; line-height: 1.4; margin: 0; }
+        .issue-details { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(128,128,128,0.2); display: flex; flex-wrap: wrap; gap: 4px; }
         .detail-tag { font-size: 11px; padding: 3px 8px; background-color: var(--vscode-editor-background); border-radius: 4px; color: var(--vscode-descriptionForeground); }
         .detail-tag.resource { color: #7ee787; }
         .detail-tag.file { color: var(--vscode-foreground); cursor: pointer; }
         .detail-tag.remediation { color: #ffa657; }
 
-        .issue-actions { margin-top: 10px; display: flex; gap: 6px; }
-        .action-btn { font-size: 11px; padding: 4px 8px; background-color: var(--vscode-editor-background); border: 1px solid var(--vscode-editor-lineHighlightBackground); border-radius: 4px; color: var(--vscode-descriptionForeground); cursor: pointer; }
+        .issue-actions { margin-top: 8px; display: flex; gap: 4px; }
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            font-size: 11px;
+            padding: 4px 8px;
+            min-height: 24px;
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            border-radius: 4px;
+            color: var(--vscode-foreground);
+            cursor: pointer;
+            line-height: 1.2;
+        }
+        .action-icon {
+            display: inline-block;
+            width: 12px;
+            text-align: center;
+            flex: 0 0 12px;
+        }
         .action-btn:hover { background-color: var(--vscode-editor-selectionBackground); }
 
-        .collapsible { max-height: 1000px; overflow: hidden; transition: max-height 0.3s ease; }
+        .collapsible {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
         .collapsible.collapsed { max-height: 0; }
 
         .filter-btn.refresh-btn {
@@ -154,34 +252,137 @@
         .empty-state { text-align: center; padding: 40px 20px; color: var(--vscode-descriptionForeground); }
         .empty-icon { font-size: 40px; margin-bottom: 12px; }
 
-        .footer { margin-top: 20px; padding: 12px; background-color: var(--vscode-editor-lineHighlightBackground); border-radius: 6px; font-size: 11px; color: var(--vscode-descriptionForeground); display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        .footer-item { display: flex; flex-direction: column; }
-        .footer-item-full { grid-column: span 2; }
-        .footer-label { font-size: 10px; text-transform: uppercase; opacity: 0.7; }
-        .footer-value { color: var(--vscode-foreground); word-break: break-all; }
+        .validation-hidden { display: none !important; }
+        .validation-visible { display: block; }
+
+        .table-view {
+            margin-bottom: 16px;
+            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--vscode-editor-background);
+        }
+        .table-wrap {
+            overflow: auto;
+            max-height: 55vh;
+        }
+        .issues-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .issues-table th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            text-align: left;
+            padding: 10px;
+            background: var(--vscode-editor-lineHighlightBackground);
+            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
+            color: var(--vscode-descriptionForeground);
+            font-weight: 600;
+            user-select: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .issues-table td {
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
+            vertical-align: top;
+        }
+        .issues-table tr:hover td {
+            background: color-mix(in srgb, var(--vscode-editor-selectionBackground) 45%, transparent);
+        }
+        .issues-table tbody tr:nth-child(even):not(.group-row) td {
+            background: color-mix(in srgb, var(--vscode-editor-lineHighlightBackground) 45%, transparent);
+        }
+        .issues-table tr.group-row td {
+            background: var(--vscode-editor-lineHighlightBackground);
+            color: var(--vscode-descriptionForeground);
+            font-weight: 600;
+            border-top: 1px solid var(--vscode-editor-lineHighlightBackground);
+        }
+        .severity-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            font-weight: 700;
+        }
+        .severity-pill.error { color: var(--error-color); background: var(--error-bg); }
+        .severity-pill.warning { color: var(--warning-color); background: var(--warning-bg); }
+        .severity-pill.info { color: var(--info-color); background: var(--info-bg); }
+        .table-message {
+            min-width: 300px;
+            max-width: 560px;
+            line-height: 1.4;
+        }
+        .table-location {
+            color: var(--vscode-descriptionForeground);
+            white-space: nowrap;
+        }
+        .table-remediation {
+            color: #ffa657;
+            min-width: 220px;
+            max-width: 420px;
+        }
+        .table-actions { white-space: nowrap; }
+        .table-actions .action-btn {
+            min-width: 64px;
+            justify-content: center;
+        }
+        .table-actions .action-btn + .action-btn {
+            margin-left: 6px;
+        }
+        .table-empty {
+            padding: 18px;
+            color: var(--vscode-descriptionForeground);
+            text-align: center;
+        }
+
+        .copy-toast {
+            position: fixed;
+            right: 14px;
+            bottom: 14px;
+            z-index: 20;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: var(--vscode-notifications-foreground, var(--vscode-editor-background));
+            background: var(--vscode-notifications-background, var(--vscode-foreground));
+            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            opacity: 0;
+            transform: translateY(4px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            pointer-events: none;
+        }
+        .copy-toast.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-left">
-            {{#if valid}}
-            <div class="status-badge valid">&#10003;</div>
+            <div class="status-badge {{statusClass}}">{{statusIcon}}</div>
             <div class="header-text">
-                <h2 class="header-title">Chart Valid</h2>
-                <p class="header-subtitle">All validations passed</p>
+                <h2 class="header-title">{{statusTitle}}</h2>
+                <p class="header-subtitle">{{statusSubtitle}}</p>
             </div>
-            {{#else}}
-            <div class="status-badge invalid">&#10007;</div>
-            <div class="header-text">
-                <h2 class="header-title">Validation Failed</h2>
-                <p class="header-subtitle">{{totalIssues}} issue(s) found</p>
-            </div>
-            {{/if}}
         </div>
     </div>
 
+    {{#if showFullSummary}}
     <div class="summary">
+        <div class="summary-item total">
+            <span class="summary-count total">{{totalIssues}}</span>
+            <span class="summary-label">Total Issues</span>
+        </div>
         <div class="summary-item error">
             <span class="summary-count error">{{errorCount}}</span>
             <span class="summary-label">Errors</span>
@@ -195,6 +396,22 @@
             <span class="summary-label">Info</span>
         </div>
     </div>
+    {{/if}}
+
+    {{#if useCompactSummary}}
+    <div class="health-strip">
+        <span class="health-chip total">Total {{totalIssues}}</span>
+        <span class="health-chip error">Errors {{errorCount}}</span>
+        <span class="health-chip warning">Warnings {{warningCount}}</span>
+        <span class="health-chip info">Info {{infoCount}}</span>
+    </div>
+    {{/if}}
+
+    <div class="overview-bar">
+        <span class="meta-pill">{{chartName}}</span>
+        <span class="meta-pill">{{environment}}</span>
+        <span class="meta-pill">{{timestamp}}</span>
+    </div>
 
     <div class="search-box">
         <input type="text" class="search-input" id="searchInput" placeholder="Search issues..." oninput="filterIssues()">
@@ -204,12 +421,21 @@
         <button class="filter-btn error active" onclick="toggleFilter('error', this)">Errors ({{errorCount}})</button>
         <button class="filter-btn warning active" onclick="toggleFilter('warning', this)">Warnings ({{warningCount}})</button>
         <button class="filter-btn info active" onclick="toggleFilter('info', this)">Info ({{infoCount}})</button>
+        <button class="filter-btn actionable" id="actionableBtn" onclick="toggleActionable(this)">Only Actionable</button>
+        <button class="filter-btn view-btn active" id="cardsViewBtn" onclick="setView('cards')">Cards</button>
+        <button class="filter-btn view-btn" id="tableViewBtn" onclick="setView('table')">Table</button>
+        <select id="groupBySelect" class="filter-select" onchange="setGroupBy(this.value)">
+            <option value="none">Group: None</option>
+            <option value="file">Group: File</option>
+            <option value="resource">Group: Resource</option>
+        </select>
         <button class="filter-btn refresh-btn" onclick="refreshValidation()" title="Re-run validation">&#8635; Refresh</button>
     </div>
 
+    <div id="cardsView">
     {{#if hasErrors}}
     <div class="section" id="section-error">
-        <div class="section-header error" onclick="toggleSection(this)">
+        <div class="section-header error" onclick="toggleSection(this)" onkeydown="handleSectionKey(event, this)" role="button" tabindex="0" aria-expanded="true" aria-controls="content-error">
             <span class="section-icon error">&#10007;</span>
             <span class="section-title">Errors</span>
             <span class="section-count">{{errorCount}}</span>
@@ -222,12 +448,12 @@
                 <p class="issue-message">{{message}}</p>
                 <div class="issue-details">
                     {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
-                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{line}}">&#128196; {{file}}{{#if line}}:{{line}}{{/if}}</span>{{/if}}
+                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{lineNumber}}">&#128196; {{fileDisplay}}</span>{{/if}}
                     {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
                 </div>
                 <div class="issue-actions">
-                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)">&#128203; Copy</button>
-                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{line}}" onclick="jumpToFile(this)">&#10140; Jump</button>{{/if}}
+                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)"><span class="action-icon">&#128203;</span><span>Copy</span></button>
+                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{lineNumber}}" onclick="jumpToFile(this)"><span class="action-icon">&#10140;</span><span>Jump</span></button>{{/if}}
                 </div>
             </li>
             {{/each}}
@@ -237,7 +463,7 @@
 
     {{#if hasWarnings}}
     <div class="section" id="section-warning">
-        <div class="section-header warning" onclick="toggleSection(this)">
+        <div class="section-header warning" onclick="toggleSection(this)" onkeydown="handleSectionKey(event, this)" role="button" tabindex="0" aria-expanded="true" aria-controls="content-warning">
             <span class="section-icon warning">&#9888;</span>
             <span class="section-title">Warnings</span>
             <span class="section-count">{{warningCount}}</span>
@@ -250,12 +476,12 @@
                 <p class="issue-message">{{message}}</p>
                 <div class="issue-details">
                     {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
-                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{line}}">&#128196; {{file}}{{#if line}}:{{line}}{{/if}}</span>{{/if}}
+                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{lineNumber}}">&#128196; {{fileDisplay}}</span>{{/if}}
                     {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
                 </div>
                 <div class="issue-actions">
-                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)">&#128203; Copy</button>
-                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{line}}" onclick="jumpToFile(this)">&#10140; Jump</button>{{/if}}
+                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)"><span class="action-icon">&#128203;</span><span>Copy</span></button>
+                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{lineNumber}}" onclick="jumpToFile(this)"><span class="action-icon">&#10140;</span><span>Jump</span></button>{{/if}}
                 </div>
             </li>
             {{/each}}
@@ -265,7 +491,7 @@
 
     {{#if hasInfo}}
     <div class="section" id="section-info">
-        <div class="section-header info" onclick="toggleSection(this)">
+        <div class="section-header info" onclick="toggleSection(this)" onkeydown="handleSectionKey(event, this)" role="button" tabindex="0" aria-expanded="true" aria-controls="content-info">
             <span class="section-icon info">&#8505;</span>
             <span class="section-title">Info</span>
             <span class="section-count">{{infoCount}}</span>
@@ -278,44 +504,40 @@
                 <p class="issue-message">{{message}}</p>
                 <div class="issue-details">
                     {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
-                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{line}}">&#128196; {{file}}{{#if line}}:{{line}}{{/if}}</span>{{/if}}
+                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{lineNumber}}">&#128196; {{fileDisplay}}</span>{{/if}}
                     {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
                 </div>
                 <div class="issue-actions">
-                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)">&#128203; Copy</button>
-                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{line}}" onclick="jumpToFile(this)">&#10140; Jump</button>{{/if}}
+                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)"><span class="action-icon">&#128203;</span><span>Copy</span></button>
+                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{lineNumber}}" onclick="jumpToFile(this)"><span class="action-icon">&#10140;</span><span>Jump</span></button>{{/if}}
                 </div>
             </li>
             {{/each}}
         </ul>
     </div>
     {{/if}}
-
-    {{#if valid}}
-    <div class="empty-state">
-        <div class="empty-icon">&#10004;</div>
-        <p>No issues found!</p>
     </div>
-    {{/if}}
 
-    <div class="footer">
-        <div class="footer-item">
-            <span class="footer-label">Chart</span>
-            <span class="footer-value">{{chartName}}</span>
+    <div id="tableView" class="table-view validation-hidden">
+        <div class="table-wrap">
+            <table class="issues-table">
+                <thead>
+                    <tr>
+                        <th data-sort="severity" onclick="sortTableBy('severity')">Severity</th>
+                        <th data-sort="code" onclick="sortTableBy('code')">Code</th>
+                        <th data-sort="message" onclick="sortTableBy('message')">Message</th>
+                        <th data-sort="location" onclick="sortTableBy('location')">Location</th>
+                        <th data-sort="remediation" onclick="sortTableBy('remediation')">Remediation</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="issueTableBody"></tbody>
+            </table>
         </div>
-        <div class="footer-item">
-            <span class="footer-label">Environment</span>
-            <span class="footer-value">{{environment}}</span>
-        </div>
-        <div class="footer-item footer-item-full">
-            <span class="footer-label">Path</span>
-            <span class="footer-value">{{chartPath}}</span>
-        </div>
-        <div class="footer-item footer-item-full">
-            <span class="footer-label">Validated</span>
-            <span class="footer-value">{{timestamp}}</span>
-        </div>
+        <div id="tableEmptyState" class="table-empty validation-hidden">No issues match the current filters.</div>
     </div>
+
+    <div id="copyToast" class="copy-toast" role="status" aria-live="polite">Copied</div>
 
     <script>
         function toggleSection(header) {
@@ -323,14 +545,227 @@
             var chevron = header.querySelector('.chevron');
             if (content) content.classList.toggle('collapsed');
             if (chevron) chevron.classList.toggle('collapsed');
+            if (content) {
+                var expanded = !content.classList.contains('collapsed');
+                header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            }
+        }
+
+        function handleSectionKey(event, header) {
+            if (!event || !header) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleSection(header);
+            }
         }
 
         var activeFilters = { error: true, warning: true, info: true };
+        var currentView = 'cards';
+        var currentSort = { key: 'severity', dir: 'asc' };
+        var onlyActionable = false;
+        var currentGroupBy = 'none';
+        var vscodeApi = (typeof acquireVsCodeApi === 'function') ? acquireVsCodeApi() : null;
+
+        function postVsCodeMessage(payload) {
+            if (vscodeApi && payload && typeof payload.command === 'string') {
+                vscodeApi.postMessage(payload);
+                return true;
+            }
+            return false;
+        }
 
         function toggleFilter(type, btn) {
             activeFilters[type] = !activeFilters[type];
             btn.classList.toggle('active');
             filterIssues();
+        }
+
+        function toggleActionable(btn) {
+            onlyActionable = !onlyActionable;
+            btn.classList.toggle('active', onlyActionable);
+            filterIssues();
+        }
+
+        function setGroupBy(value) {
+            currentGroupBy = value || 'none';
+            if (currentView === 'table') {
+                renderIssueTable();
+            }
+        }
+
+        function setView(view) {
+            currentView = view;
+            var cardsWrap = document.getElementById('cardsView');
+            var tableWrap = document.getElementById('tableView');
+            var cardsBtn = document.getElementById('cardsViewBtn');
+            var tableBtn = document.getElementById('tableViewBtn');
+
+            if (view === 'table') {
+                if (cardsWrap) cardsWrap.classList.add('validation-hidden');
+                if (tableWrap) tableWrap.classList.remove('validation-hidden');
+                if (cardsBtn) cardsBtn.classList.remove('active');
+                if (tableBtn) tableBtn.classList.add('active');
+                renderIssueTable();
+            } else {
+                if (cardsWrap) cardsWrap.classList.remove('validation-hidden');
+                if (tableWrap) tableWrap.classList.add('validation-hidden');
+                if (cardsBtn) cardsBtn.classList.add('active');
+                if (tableBtn) tableBtn.classList.remove('active');
+            }
+        }
+
+        function getSeverityRank(severity) {
+            if (severity === 'error') return 0;
+            if (severity === 'warning') return 1;
+            return 2;
+        }
+
+        function getVisibleIssueRows() {
+            var cards = document.querySelectorAll('.issue-card');
+            var rows = [];
+            cards.forEach(function(card) {
+                if (card.classList.contains('validation-hidden')) return;
+
+                var severity = card.classList.contains('error') ? 'error' : card.classList.contains('warning') ? 'warning' : 'info';
+                var code = (card.querySelector('.issue-code') || {}).textContent || '';
+                var message = (card.querySelector('.issue-message') || {}).textContent || '';
+                var remediationEl = card.querySelector('.detail-tag.remediation');
+                var resourceEl = card.querySelector('.detail-tag.resource');
+                var fileBtn = card.querySelector('.action-btn[onclick="jumpToFile(this)"]');
+                var copyBtn = card.querySelector('.action-btn[onclick="copyIssue(this)"]');
+                var resourceText = resourceEl ? (resourceEl.textContent || '').replace(/^\s*📦\s*/, '').trim() : '';
+
+                rows.push({
+                    severity: severity,
+                    code: code,
+                    message: message,
+                    resource: resourceText,
+                    remediation: remediationEl ? remediationEl.textContent || '' : '',
+                    file: fileBtn ? fileBtn.getAttribute('data-file') || '' : '',
+                    line: fileBtn ? fileBtn.getAttribute('data-line') || '1' : '1',
+                    location: fileBtn ? ((fileBtn.getAttribute('data-file') || '') + ':' + (fileBtn.getAttribute('data-line') || '1')) : '-',
+                    copyCode: copyBtn ? copyBtn.getAttribute('data-code') || '' : code,
+                    copyMessage: copyBtn ? copyBtn.getAttribute('data-message') || '' : message,
+                    actionable: !!(fileBtn || remediationEl)
+                });
+            });
+
+            rows.sort(function(a, b) {
+                var key = currentSort.key;
+                var dir = currentSort.dir === 'asc' ? 1 : -1;
+                var av = a[key] || '';
+                var bv = b[key] || '';
+
+                if (key === 'severity') {
+                    return (getSeverityRank(a.severity) - getSeverityRank(b.severity)) * dir;
+                }
+
+                return String(av).localeCompare(String(bv), undefined, { sensitivity: 'base' }) * dir;
+            });
+
+            return rows;
+        }
+
+        function renderIssueTable() {
+            var tbody = document.getElementById('issueTableBody');
+            var empty = document.getElementById('tableEmptyState');
+            if (!tbody || !empty) return;
+
+            var rows = getVisibleIssueRows();
+            if (rows.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('validation-hidden');
+                return;
+            }
+
+            empty.classList.add('validation-hidden');
+
+            if (currentGroupBy === 'none') {
+                tbody.innerHTML = rows.map(function(row) {
+                    var remediation = row.remediation || '-';
+                    var jumpAction = row.file
+                        ? '<button class="action-btn" onclick="jumpToLocation(\'' + escapeForAttr(row.file) + '\',' + parseInt(row.line || '1', 10) + ')"><span class="action-icon">&#10140;</span><span>Jump</span></button>'
+                        : '';
+                    return '<tr>' +
+                        '<td><span class="severity-pill ' + row.severity + '">' + row.severity + '</span></td>' +
+                        '<td><span class="issue-code">' + escapeHtml(row.code) + '</span></td>' +
+                        '<td class="table-message">' + escapeHtml(row.message) + '</td>' +
+                        '<td class="table-location">' + escapeHtml(row.location) + '</td>' +
+                        '<td class="table-remediation">' + escapeHtml(remediation.replace('💡 ', '')) + '</td>' +
+                        '<td class="table-actions">' +
+                            '<button class="action-btn" onclick="copyIssueText(\'' + escapeForAttr(row.copyCode) + '\',\'' + escapeForAttr(row.copyMessage) + '")"><span class="action-icon">&#128203;</span><span>Copy</span></button>' +
+                            jumpAction +
+                        '</td>' +
+                    '</tr>';
+                }).join('');
+                return;
+            }
+
+            var grouped = {};
+            rows.forEach(function(row) {
+                var key = currentGroupBy === 'file' ? (row.file || '(no file)') : (row.resource || '(no resource)');
+                if (!grouped[key]) {
+                    grouped[key] = [];
+                }
+                grouped[key].push(row);
+            });
+
+            var groupKeys = Object.keys(grouped).sort(function(a, b) {
+                return a.localeCompare(b, undefined, { sensitivity: 'base' });
+            });
+
+            var html = '';
+            groupKeys.forEach(function(groupKey) {
+                var groupRows = grouped[groupKey];
+                html += '<tr class="group-row"><td colspan="6">' +
+                    escapeHtml((currentGroupBy === 'file' ? 'File: ' : 'Resource: ') + groupKey + ' (' + groupRows.length + ')') +
+                    '</td></tr>';
+
+                html += groupRows.map(function(row) {
+                    var remediation = row.remediation || '-';
+                    var jumpAction = row.file
+                        ? '<button class="action-btn" onclick="jumpToLocation(\'' + escapeForAttr(row.file) + '\',' + parseInt(row.line || '1', 10) + ')"><span class="action-icon">&#10140;</span><span>Jump</span></button>'
+                        : '';
+                    return '<tr>' +
+                        '<td><span class="severity-pill ' + row.severity + '">' + row.severity + '</span></td>' +
+                        '<td><span class="issue-code">' + escapeHtml(row.code) + '</span></td>' +
+                        '<td class="table-message">' + escapeHtml(row.message) + '</td>' +
+                        '<td class="table-location">' + escapeHtml(row.location) + '</td>' +
+                        '<td class="table-remediation">' + escapeHtml(remediation.replace('💡 ', '')) + '</td>' +
+                        '<td class="table-actions">' +
+                            '<button class="action-btn" onclick="copyIssueText(\'' + escapeForAttr(row.copyCode) + '\',\'' + escapeForAttr(row.copyMessage) + '")"><span class="action-icon">&#128203;</span><span>Copy</span></button>' +
+                            jumpAction +
+                        '</td>' +
+                    '</tr>';
+                }).join('');
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function sortTableBy(key) {
+            if (currentSort.key === key) {
+                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.key = key;
+                currentSort.dir = key === 'severity' ? 'asc' : 'asc';
+            }
+            if (currentView === 'table') {
+                renderIssueTable();
+            }
+        }
+
+        function escapeForAttr(value) {
+            return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
 
         function filterIssues() {
@@ -343,9 +778,12 @@
                     var severity = card.classList.contains('error') ? 'error' : card.classList.contains('warning') ? 'warning' : 'info';
                     var code = (card.querySelector('.issue-code') || {}).textContent || '';
                     var msg = (card.querySelector('.issue-message') || {}).textContent || '';
+                    var remediationEl = card.querySelector('.detail-tag.remediation');
+                    var jumpBtn = card.querySelector('.action-btn[onclick="jumpToFile(this)"]');
+                    var matchActionable = !onlyActionable || !!(remediationEl || jumpBtn);
                     var matchSearch = !search || code.toLowerCase().indexOf(search) !== -1 || msg.toLowerCase().indexOf(search) !== -1;
                     var matchFilter = activeFilters[severity];
-                    if (matchSearch && matchFilter) {
+                    if (matchSearch && matchFilter && matchActionable) {
                         card.classList.remove('validation-hidden');
                         card.classList.add('validation-visible');
                         count++;
@@ -358,42 +796,82 @@
                 if (content) {
                     if (count === 0) {
                         content.classList.add('validation-hidden');
+                        section.classList.add('validation-hidden');
                     } else {
                         content.classList.remove('validation-hidden');
+                        section.classList.remove('validation-hidden');
                     }
                 }
             });
+
+            if (currentView === 'table') {
+                renderIssueTable();
+            }
+        }
+
+        function showCopyFeedback(button) {
+            if (button && button.innerHTML) {
+                var original = button.innerHTML;
+                button.innerHTML = '<span class="action-icon">&#10004;</span><span>Copied!</span>';
+                setTimeout(function() {
+                    button.innerHTML = original;
+                }, 1200);
+            }
+
+            var toast = document.getElementById('copyToast');
+            if (!toast) return;
+            toast.classList.add('visible');
+            setTimeout(function() {
+                toast.classList.remove('visible');
+            }, 1200);
         }
 
         function copyIssue(btn) {
             var code = btn.getAttribute('data-code') || '';
             var message = btn.getAttribute('data-message') || '';
             var text = '[' + code + '] ' + message;
+            var copiedViaHost = postVsCodeMessage({ command: 'copyText', text: text });
+
+            if (copiedViaHost) {
+                showCopyFeedback(btn);
+                return;
+            }
+
             navigator.clipboard.writeText(text).then(function() {
-                var orig = btn.innerHTML;
-                btn.innerHTML = '&#10004; Copied!';
-                setTimeout(function() { btn.innerHTML = orig; }, 1500);
+                showCopyFeedback(btn);
             });
         }
 
         function jumpToFile(btn) {
             var file = btn.getAttribute('data-file');
             var line = btn.getAttribute('data-line') || 1;
-            if (typeof acquireVsCodeApi !== 'undefined') {
-                acquireVsCodeApi().postMessage({
-                    command: 'jumpToFile',
-                    file: file,
-                    line: parseInt(line, 10) || 1
-                });
+            jumpToLocation(file, parseInt(line, 10) || 1);
+        }
+
+        function jumpToLocation(file, line) {
+            postVsCodeMessage({
+                command: 'jumpToFile',
+                file: file,
+                line: parseInt(line, 10) || 1
+            });
+        }
+
+        function copyIssueText(code, message) {
+            var text = '[' + code + '] ' + message;
+            if (postVsCodeMessage({ command: 'copyText', text: text })) {
+                showCopyFeedback();
+                return;
             }
+
+            navigator.clipboard.writeText(text).then(function() {
+                showCopyFeedback();
+            });
         }
 
         function refreshValidation() {
-            if (typeof acquireVsCodeApi !== 'undefined') {
-                acquireVsCodeApi().postMessage({
-                    command: 'refreshValidation'
-                });
-            }
+            postVsCodeMessage({
+                command: 'refreshValidation'
+            });
         }
 
         // Auto-collapse sections on load for better UX
@@ -402,11 +880,24 @@
             document.querySelectorAll('.section-header').forEach(function(header) {
                 header.style.transition = 'background-color 0.2s ease';
             });
+
+            // Keep low-priority info collapsed when there are higher-priority findings.
+            var errorCount = parseInt('{{errorCount}}', 10) || 0;
+            var warningCount = parseInt('{{warningCount}}', 10) || 0;
+            if (errorCount > 0 || warningCount > 0) {
+                var infoHeader = document.querySelector('#section-info .section-header');
+                if (infoHeader && typeof toggleSection === 'function') {
+                    toggleSection(infoHeader);
+                }
+            }
+
             // Auto-focus search input
             var searchInput = document.getElementById('searchInput');
             if (searchInput) {
                 searchInput.focus();
             }
+
+            filterIssues();
         });
     </script>
 </body>

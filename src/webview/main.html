@@ -9,9 +9,10 @@
 </head>
 <body data-init="{{{initData}}}" data-view-mode="{{{viewMode}}}">
     <div class="toolbar">
-        <button id="exportYaml" class="toolbar-btn" title="Export rendered YAML">📄 Export YAML</button>
-        <button id="exportJson" class="toolbar-btn" title="Export as JSON">📋 Export JSON</button>
-        <input type="search" id="searchBox" placeholder="Search resources..." class="search-box">
+        <div class="toolbar-actions" role="group" aria-label="Export actions">
+            <button id="exportYaml" class="toolbar-btn" title="Export rendered YAML">📄 Export YAML</button>
+            <button id="exportJson" class="toolbar-btn" title="Export as JSON">📋 Export JSON</button>
+        </div>
     </div>
 
     <div class="tabs" role="tablist">

@@ -1,12 +1,9 @@
-import * as cp from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { promisify } from "node:util";
 import * as yaml from "js-yaml";
 import { mergeValues } from "../processing/valuesMerger";
 import { BUFFER_SIZE, TIMEOUT } from "../utils/constants";
-
-const exec = promisify(cp.exec);
+import { runHelm } from "../utils/cliRunner";
 
 // Template variable patterns for substitution
 const TEMPLATE_PATTERNS = {
@@ -47,28 +44,29 @@ export async function renderHelmTemplate(
 		return getPlaceholderResources(chartPath, environment);
 	}
 
-	// Declare command outside try block so it's accessible in catch
-	let command = "";
+	// Keep a printable command preview for diagnostics
+	let commandPreview = "";
 
 	try {
-		// Build helm template command
+		// Build helm template args
 		// helm template [RELEASE_NAME] [CHART] -f values.yaml -f values-<env>.yaml
 		const baseValuesPath = path.join(chartPath, "values.yaml");
 		const envValuesPath = path.join(chartPath, `values-${environment}.yaml`);
-
-		command = `helm template ${releaseName} "${chartPath}"`;
+		const args: string[] = ["template", releaseName, chartPath];
 
 		if (fs.existsSync(baseValuesPath)) {
-			command += ` -f "${baseValuesPath}"`;
+			args.push("-f", baseValuesPath);
 		}
 
 		if (fs.existsSync(envValuesPath)) {
-			command += ` -f "${envValuesPath}"`;
+			args.push("-f", envValuesPath);
 		}
 
-		console.log(`Executing: ${command}`);
+		commandPreview = ["helm", ...args.map((a) => JSON.stringify(a))].join(" ");
 
-		const { stdout, stderr } = await exec(command, {
+		console.log(`Executing: ${commandPreview}`);
+
+		const { stdout, stderr } = await runHelm(args, {
 			maxBuffer: BUFFER_SIZE.HELM_OUTPUT, // 10MB buffer
 			timeout: TIMEOUT.HELM_TEMPLATE, // 30 second timeout
 		});
@@ -118,7 +116,7 @@ export async function renderHelmTemplate(
 			`# Environment: ${environment}`,
 			"",
 			"# Command Attempted:",
-			`# ${command}`,
+			`# ${commandPreview}`,
 			"",
 			"# Error Message:",
 			...errorMessage.split("\n").map((line: string) => `# ${line}`),
@@ -235,7 +233,7 @@ function parseHelmOutput(output: string, chartPath: string): RenderedResource[] 
  */
 export async function isHelmAvailable(): Promise<boolean> {
 	try {
-		await exec("helm version --short");
+		await runHelm(["version", "--short"]);
 		return true;
 	} catch {
 		return false;

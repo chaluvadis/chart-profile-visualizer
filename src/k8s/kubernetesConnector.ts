@@ -1,9 +1,7 @@
-import * as cp from "node:child_process";
-import { promisify } from "node:util";
 import * as yaml from "js-yaml";
 import { TIMEOUT } from "../utils/constants";
-
-const exec = promisify(cp.exec);
+import { validateCliIdentifier } from "../utils/cliValidation";
+import { runCommand, type CliCommandOptions } from "../utils/cliRunner";
 
 /**
  * Represents the runtime state of a Kubernetes resource
@@ -140,7 +138,7 @@ export class KubernetesConnector {
 	 */
 	async isKubectlAvailable(): Promise<boolean> {
 		try {
-			await exec("kubectl version --client --short");
+			await this.runKubectl(["version", "--client", "--short"]);
 			return true;
 		} catch {
 			return false;
@@ -152,13 +150,19 @@ export class KubernetesConnector {
 	 */
 	async getClusterInfo(): Promise<ClusterInfo> {
 		try {
-			const { stdout } = await exec("kubectl cluster-info --request-timeout=5s");
-			const versionResult = await exec("kubectl version --short");
+			const { stdout } = await this.runKubectl(["cluster-info", "--request-timeout=5s"]);
+			const versionResult = await this.runKubectl(["version", "--short"]);
 
 			// Parse server URL
 			const serverMatch = stdout.match(/is running at (https?:\/\/[^\s]+)/);
-			const contextResult = await exec("kubectl config current-context");
-			const nsResult = await exec("kubectl config view --minify --output 'jsonpath={..namespace}'");
+			const contextResult = await this.runKubectl(["config", "current-context"]);
+			const nsResult = await this.runKubectl([
+				"config",
+				"view",
+				"--minify",
+				"--output",
+				"jsonpath={..namespace}",
+			]);
 
 			return {
 				connected: true,
@@ -176,27 +180,34 @@ export class KubernetesConnector {
 	}
 
 	/**
-	 * Escape shell argument to prevent command injection
+	 * Build kubectl args with optional kubeconfig/context/namespace flags
 	 */
-	private shellEscape(value: string): string {
-		return `'${value.replace(/'/g, "'\\''")}'`;
-	}
-
-	/**
-	 * Build kubectl command with optional kubeconfig and context
-	 */
-	private buildCommand(baseCommand: string, namespace?: string): string {
-		let cmd = "kubectl";
+	private buildKubectlArgs(baseArgs: string[], namespace?: string): string[] {
+		const args: string[] = [];
 		if (this.kubeconfig) {
-			cmd += ` --kubeconfig=${this.shellEscape(this.kubeconfig)}`;
+			args.push("--kubeconfig", this.kubeconfig);
 		}
 		if (this.context) {
-			cmd += ` --context=${this.shellEscape(this.context)}`;
+			args.push("--context", this.context);
 		}
 		if (namespace) {
-			cmd += ` -n ${this.shellEscape(namespace)}`;
+			args.push("-n", namespace);
 		}
-		return `${cmd} ${baseCommand}`;
+		args.push(...baseArgs);
+		return args;
+	}
+
+	private async runKubectl(
+		baseArgs: string[],
+		namespace?: string,
+		options?: CliCommandOptions
+	): Promise<{ stdout: string; stderr: string }> {
+		const args = this.buildKubectlArgs(baseArgs, namespace);
+		return runCommand("kubectl", args, options);
+	}
+
+	private async runHelm(args: string[], options?: CliCommandOptions): Promise<{ stdout: string; stderr: string }> {
+		return runCommand("helm", args, options);
 	}
 
 	/**
@@ -214,8 +225,11 @@ export class KubernetesConnector {
 
 		try {
 			// Get resource
-			const cmd = this.buildCommand(`get ${kind} ${name} -o yaml`, ns);
-			const { stdout } = await exec(cmd, { timeout: TIMEOUT.DEFAULT });
+			const safeKind = validateCliIdentifier(kind, "resource kind");
+			const safeName = validateCliIdentifier(name, "resource name");
+			const { stdout } = await this.runKubectl(["get", safeKind, safeName, "-o", "yaml"], ns, {
+				timeout: TIMEOUT.DEFAULT,
+			});
 			const resource = yaml.load(stdout) as any;
 
 			state.exists = true;
@@ -337,8 +351,10 @@ export class KubernetesConnector {
 	 */
 	private async parseServiceStatus(name: string, namespace: string, state: ResourceRuntimeState): Promise<void> {
 		try {
-			const cmd = this.buildCommand(`get endpoints ${name} -o yaml`, namespace);
-			const { stdout } = await exec(cmd, { timeout: 5000 });
+			const safeName = validateCliIdentifier(name, "service name");
+			const { stdout } = await this.runKubectl(["get", "endpoints", safeName, "-o", "yaml"], namespace, {
+				timeout: 5000,
+			});
 			const endpoints = yaml.load(stdout) as any;
 
 			const subsets = endpoints.subsets || [];
@@ -480,11 +496,14 @@ export class KubernetesConnector {
 	 */
 	private async getResourceEvents(kind: string, name: string, namespace: string): Promise<KubernetesEvent[]> {
 		try {
-			const cmd = this.buildCommand(
-				`get events --field-selector involvedObject.kind=${kind},involvedObject.name=${name} -o json`,
-				namespace
+			const safeKind = validateCliIdentifier(kind, "resource kind");
+			const safeName = validateCliIdentifier(name, "resource name");
+			const fieldSelector = `involvedObject.kind=${safeKind},involvedObject.name=${safeName}`;
+			const { stdout } = await this.runKubectl(
+				["get", "events", "--field-selector", fieldSelector, "-o", "json"],
+				namespace,
+				{ timeout: 5000 }
 			);
-			const { stdout } = await exec(cmd, { timeout: 5000 });
 			const result = JSON.parse(stdout);
 
 			return (result.items || []).map((item: any) => ({
@@ -507,21 +526,28 @@ export class KubernetesConnector {
 		const ns = namespace || this.namespace;
 
 		try {
+			const safeKind = validateCliIdentifier(kind, "workload kind");
+			const safeName = validateCliIdentifier(name, "workload name");
+
 			// Get label selector for the workload
-			const selectorCmd = this.buildCommand(`get ${kind} ${name} -o jsonpath='{.spec.selector.matchLabels}'`, ns);
-			const { stdout: selectorJson } = await exec(selectorCmd, {
+			const { stdout: workloadJson } = await this.runKubectl(["get", safeKind, safeName, "-o", "json"], ns, {
 				timeout: 5000,
 			});
+			const workload = JSON.parse(workloadJson);
 
 			// Parse selector and build label selector string
-			const selector = JSON.parse(selectorJson.replace(/'/g, '"'));
+			const selector = workload?.spec?.selector?.matchLabels;
+			if (!selector || typeof selector !== "object") {
+				return [];
+			}
 			const labelSelector = Object.entries(selector)
 				.map(([k, v]) => `${k}=${v}`)
 				.join(",");
 
 			// Get pods matching selector
-			const podsCmd = this.buildCommand(`get pods -l ${labelSelector} -o json`, ns);
-			const { stdout: podsJson } = await exec(podsCmd, { timeout: 10000 });
+			const { stdout: podsJson } = await this.runKubectl(["get", "pods", "-l", labelSelector, "-o", "json"], ns, {
+				timeout: 10000,
+			});
 			const podsResult = JSON.parse(podsJson);
 
 			return (podsResult.items || []).map((pod: any) => {
@@ -555,7 +581,8 @@ export class KubernetesConnector {
 		const ns = namespace || this.namespace;
 
 		try {
-			const { stdout } = await exec(`helm list -n "${ns}" -o json`, {
+			const safeNs = validateCliIdentifier(ns, "namespace");
+			const { stdout } = await this.runHelm(["list", "-n", safeNs, "-o", "json"], {
 				timeout: 10000,
 			});
 			const releases = JSON.parse(stdout);
@@ -581,7 +608,11 @@ export class KubernetesConnector {
 		const ns = namespace || this.namespace;
 
 		try {
-			const { stdout } = await exec(`helm history "${releaseName}" -n "${ns}" -o json`, { timeout: 10000 });
+			const safeNs = validateCliIdentifier(ns, "namespace");
+			const safeReleaseName = validateCliIdentifier(releaseName, "release name");
+			const { stdout } = await this.runHelm(["history", safeReleaseName, "-n", safeNs, "-o", "json"], {
+				timeout: 10000,
+			});
 			const history = JSON.parse(stdout);
 
 			return history.map((h: any) => ({
@@ -605,7 +636,11 @@ export class KubernetesConnector {
 		const ns = namespace || this.namespace;
 
 		try {
-			const { stdout } = await exec(`helm get values "${releaseName}" -n "${ns}" -o yaml`, { timeout: 10000 });
+			const safeNs = validateCliIdentifier(ns, "namespace");
+			const safeReleaseName = validateCliIdentifier(releaseName, "release name");
+			const { stdout } = await this.runHelm(["get", "values", safeReleaseName, "-n", safeNs, "-o", "yaml"], {
+				timeout: 10000,
+			});
 			return yaml.load(stdout) || {};
 		} catch {
 			return {};
@@ -619,7 +654,11 @@ export class KubernetesConnector {
 		const ns = namespace || this.namespace;
 
 		try {
-			const { stdout } = await exec(`helm get manifest "${releaseName}" -n "${ns}"`, { timeout: 10000 });
+			const safeNs = validateCliIdentifier(ns, "namespace");
+			const safeReleaseName = validateCliIdentifier(releaseName, "release name");
+			const { stdout } = await this.runHelm(["get", "manifest", safeReleaseName, "-n", safeNs], {
+				timeout: 10000,
+			});
 			return stdout;
 		} catch {
 			return "";
@@ -700,19 +739,15 @@ export class KubernetesConnector {
 			await fs.writeFile(tmpFile, resourceYaml);
 
 			try {
-				const cmd = this.buildCommand(
-					`apply --dry-run=client --validate=true -f ${this.shellEscape(tmpFile)}`,
-					ns
-				);
-				await exec(cmd, { timeout: 10000 });
+				await this.runKubectl(["apply", "--dry-run=client", "--validate=true", "-f", tmpFile], ns, {
+					timeout: 10000,
+				});
 
 				// Also try server-side validation if connected
 				try {
-					const serverCmd = this.buildCommand(
-						`apply --dry-run=server --validate=true -f ${this.shellEscape(tmpFile)}`,
-						ns
-					);
-					await exec(serverCmd, { timeout: 15000 });
+					await this.runKubectl(["apply", "--dry-run=server", "--validate=true", "-f", tmpFile], ns, {
+						timeout: 15000,
+					});
 				} catch (serverError: any) {
 					// Server validation failed - this is a warning, not an error
 					warnings.push(`Server validation: ${serverError.message}`);
