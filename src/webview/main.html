@@ -7,7 +7,9 @@
     <title>Chart Visualization</title>
     <link rel="stylesheet" href="{{{stylesUri}}}" nonce="{{{nonce}}}">
 </head>
-<body data-init="{{{initData}}}" data-view-mode="{{{viewMode}}}">
+<body data-view-mode="{{{viewMode}}}">
+    <!-- Init data embedded as JSON in a script element (avoids HTML entity encoding issues) -->
+    <script type="application/json" id="init-data" nonce="{{{nonce}}}">{{{initData}}}</script>
     <div class="toolbar">
         <div class="toolbar-actions" role="group" aria-label="Export actions">
             <button id="exportYaml" class="toolbar-btn" title="Export rendered YAML">📄 Export YAML</button>
@@ -41,17 +43,14 @@
     <script src="{{{topologyJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>
     <script nonce="{{{nonce}}}">
-        // Initialize webview with data - decode HTML entities first
+        // Initialize webview with data - read from JSON script element (avoids HTML entity issues)
         (function() {
-            var initDataStr = document.body.getAttribute('data-init');
-            if (initDataStr) {
-                // First replace HTML entities
-                initDataStr = initDataStr.replace(/"/g, '"').replace(/</g, '<').replace(/>/g, '>').replace(/&/g, '&');
+            var initDataEl = document.getElementById('init-data');
+            if (initDataEl) {
                 try {
-                    window.initializeWebview(JSON.parse(initDataStr));
+                    window.initializeWebview(JSON.parse(initDataEl.textContent || '{}'));
                 } catch (e) {
                     console.error('Failed to parse init data:', e);
-                    console.error('Raw init data:', initDataStr);
                 }
             }
 

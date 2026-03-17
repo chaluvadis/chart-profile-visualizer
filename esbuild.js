@@ -1,11 +1,8 @@
-import { context, build as _build } from "esbuild";
-import { existsSync, copyFileSync, mkdirSync, readdirSync } from "fs";
-import { join, basename as _basename, dirname } from "path";
-import { fileURLToPath } from "url";
+const { context, build: _build } = require("esbuild");
+const { existsSync, copyFileSync, mkdirSync, readdirSync } = require("fs");
+const { join, basename: _basename, dirname } = require("path");
 
-// Get __dirname equivalent for ESM compatibility
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// __dirname is available natively in CommonJS
 
 const production = process.argv.includes("--production");
 const watch = process.argv.includes("--watch");
@@ -57,21 +54,21 @@ async function main() {
     await ctx.dispose();
   }
 
-  // Copy CSS file to out/webview directory
-  const srcCssPath = join(__dirname, "src", "webview", "styles.css");
-  const outCssPath = join(__dirname, "out", "webview", "styles.css");
-  if (existsSync(srcCssPath)) {
-    copyFileSync(srcCssPath, outCssPath);
-    console.log("Copied styles.css to out/webview directory");
-  }
-
-  // Copy HTML files to out directory
+  // Setup paths for copying HTML and CSS files to out/webview
   const webviewDir = join(__dirname, "src", "webview");
   const outWebviewDir = join(__dirname, "out", "webview");
 
   // Create out/webview directory if it doesn't exist
   if (!existsSync(outWebviewDir)) {
     mkdirSync(outWebviewDir, { recursive: true });
+  }
+
+  // Copy CSS file to out/webview directory
+  const srcCssPath = join(__dirname, "src", "webview", "styles.css");
+  const outCssPath = join(__dirname, "out", "webview", "styles.css");
+  if (existsSync(srcCssPath)) {
+    copyFileSync(srcCssPath, outCssPath);
+    console.log("Copied styles.css to out/webview directory");
   }
 
   // Copy HTML files from src/webview to out/webview

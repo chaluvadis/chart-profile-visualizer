@@ -152,7 +152,7 @@ async function updateValidationPanel(result: ValidationResult): Promise<void> {
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		const extUri = validationContext?.extensionUri;
-		panel.webview.html = generateErrorHtml(errorMessage, extUri);
+		panel.webview.html = await generateErrorHtml(errorMessage, extUri);
 	}
 }
 
@@ -494,11 +494,11 @@ function generateSectionHtml(
 /**
  * Generate error HTML
  */
-function generateErrorHtml(errorMessage: string, extensionUri?: vscode.Uri): string {
+async function generateErrorHtml(errorMessage: string, extensionUri?: vscode.Uri): Promise<string> {
 	if (extensionUri) {
-		return loadTemplate(getTemplatePath("error", extensionUri), {
+		return await loadTemplate(getTemplatePath("error", extensionUri), {
 			errorMessage: `Failed to load validation results: ${errorMessage}`,
-		}).toString();
+		});
 	}
 
 	const escapedMessage = escapeHtml(errorMessage);

@@ -515,8 +515,7 @@ function generateInitializationData(data: any): string {
 	};
 
 	// Safely serialize to JSON, escaping < characters for security
-	// Also escape quotes for safe use in HTML attributes
-	return JSON.stringify(initData).replace(/</g, "\\u003c").replace(/"/g, "&quot;");
+	return JSON.stringify(initData).replace(/</g, "\\u003c");
 }
 
 function generateTopologyTab(): string {

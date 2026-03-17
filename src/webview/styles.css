@@ -2601,3 +2601,142 @@ body[data-view-mode="compare"] .compare-content,
 /* Utility classes for validation JS */
 .validation-visible { display: block !important; }
 .validation-hidden { display: none !important; }
+
+/* ============================================
+   COMPARE - Environment comparison styles
+   ============================================ */
+.comparison-selector {
+    padding: 16px;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 8px;
+    margin-bottom: 14px;
+}
+
+.selector-header {
+    margin-bottom: 12px;
+}
+
+.selector-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: var(--vscode-foreground);
+}
+
+.selector-hint {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    margin: 0;
+}
+
+.selector-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.form-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex: 1;
+}
+
+.env-select-group {
+    flex: 1;
+    min-width: 220px;
+}
+
+.env-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.env-select {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: var(--vscode-font-family);
+    background-color: var(--vscode-dropdown-background, var(--vscode-input-background, #3c3c3c));
+    color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground, #cccccc));
+    border: 1px solid var(--vscode-dropdown-border, var(--vscode-input-border, #3c3c3c));
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23cccccc' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+}
+
+.env-select:focus {
+    border-color: var(--vscode-focusBorder, #007acc);
+    box-shadow: 0 0 0 1px var(--vscode-focusBorder, #007acc);
+}
+
+.env-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.env-select option {
+    background-color: var(--vscode-dropdown-background, #252526);
+    color: var(--vscode-dropdown-foreground, #cccccc);
+    padding: 8px;
+}
+
+.vs {
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
+    font-weight: 500;
+    padding-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.run-comparison-btn {
+    padding: 8px 16px;
+    min-width: 110px;
+    font-size: 12px;
+    font-weight: 600;
+    background-color: var(--vscode-button-background, #0e639c);
+    color: var(--vscode-button-foreground, #ffffff);
+    border: 1px solid var(--vscode-button-background, #0e639c);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.run-comparison-btn:hover:not(:disabled) {
+    background-color: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.run-comparison-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.comparison-results {
+    padding: 0;
+}
+
+@media (max-width: 980px) {
+    .selector-form {
+        grid-template-columns: 1fr;
+    }
+    .form-row {
+        flex-wrap: wrap;
+    }
+    .run-comparison-btn {
+        width: 100%;
+    }
+}
