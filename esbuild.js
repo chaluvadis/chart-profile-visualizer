@@ -1,6 +1,6 @@
 const { context, build: _build } = require("esbuild");
 const { existsSync, copyFileSync, mkdirSync, readdirSync } = require("fs");
-const { join, basename: _basename, dirname } = require("path");
+const { join, basename: _basename } = require("path");
 
 // __dirname is available natively in CommonJS
 
