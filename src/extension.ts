@@ -79,7 +79,12 @@ export function activate(context: vscode.ExtensionContext) {
 	const viewMergedValuesCommand = vscode.commands.registerCommand(
 		"chartProfiles.viewMergedValues",
 		async (item: unknown) => {
-			await showRenderedYaml(item as Parameters<typeof showRenderedYaml>[0]);
+			const typedItem = item as { chart?: unknown; environment?: unknown } | undefined;
+			if (!typedItem?.chart || !typedItem?.environment) {
+				vscode.window.showErrorMessage("No chart environment selected");
+				return;
+			}
+			await showRenderedYaml(typedItem as Parameters<typeof showRenderedYaml>[0]);
 		}
 	);
 

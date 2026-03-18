@@ -6,7 +6,7 @@ import {
 	type HelmRelease,
 } from "../k8s/kubernetesConnector";
 import { renderHelmTemplate } from "../k8s/helmRenderer";
-import { CACHE_TTL, REFRESH_INTERVAL } from "../utils/constants";
+import { CACHE_TTL, REFRESH_INTERVAL, TIMEOUT } from "../utils/constants";
 import { validateCliIdentifier } from "../utils/cliValidation";
 import { runKubectl as runKubectlCommand } from "../utils/cliRunner";
 
@@ -50,7 +50,7 @@ export class RuntimeStateManager {
 	}
 
 	private async runKubectl(args: string[]): Promise<{ stdout: string; stderr: string }> {
-		return runKubectlCommand(args, { timeout: 10000 });
+		return runKubectlCommand(args, { timeout: TIMEOUT.DEFAULT });
 	}
 
 	/**

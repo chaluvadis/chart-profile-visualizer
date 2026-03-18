@@ -231,10 +231,38 @@ async function updateRuntimeStatePanel(input: RuntimeStateViewInput): Promise<vo
 		...prepareTemplateData(input),
 		nonce,
 	};
-	runtimeStatePanel.webview.html = await loadTemplate(
-		getTemplatePath("runtime-state", runtimeStateContext.extensionUri),
-		templateData
-	);
+	try {
+		runtimeStatePanel.webview.html = await loadTemplate(
+			getTemplatePath("runtime-state", runtimeStateContext.extensionUri),
+			templateData
+		);
+	} catch (error) {
+		const rawMessage = error instanceof Error ? error.message : String(error);
+		const safeMessage = rawMessage
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;");
+		runtimeStatePanel.webview.html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+    <title>Error</title>
+    <style>
+        body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); padding: 20px; }
+        .error { color: #f85149; border: 1px solid #f85149; padding: 12px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="error" role="alert">
+        <p><strong>Failed to load runtime state view</strong></p>
+        <p>${safeMessage}</p>
+    </div>
+</body>
+</html>`;
+	}
 }
 
 async function handleRuntimeStateMessage(message: RuntimeStateWebviewMessage): Promise<void> {
