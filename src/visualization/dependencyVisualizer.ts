@@ -175,7 +175,7 @@ export function buildDependencyTree(chartPath: string, values?: Record<string, u
 }
 
 /**
- * Build dependency nodes recursively
+ * Build dependency nodes for a flat list of chart dependencies (single-level, no subchart traversal)
  */
 function buildDependencyNodes(
 	dependencies: ChartDependency[],

@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{{cspSource}}} data:; script-src 'nonce-{{{nonce}}}'; style-src 'nonce-{{{nonce}}}'; connect-src {{{cspSource}}};">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{{cspSource}}} data:; script-src 'nonce-{{{nonce}}}'; style-src {{{cspSource}}} 'nonce-{{{nonce}}}'; connect-src {{{cspSource}}};">
     <title>Chart Visualization</title>
-    <link rel="stylesheet" href="{{{stylesUri}}}" nonce="{{{nonce}}}">
+    <link rel="stylesheet" href="{{{stylesUri}}}">
 </head>
 <body data-view-mode="{{{viewMode}}}">
     <!-- Init data embedded as JSON in a script element (avoids HTML entity encoding issues) -->

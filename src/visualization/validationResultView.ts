@@ -317,14 +317,10 @@ function generateInlineValidationHtml(data: Record<string, unknown>): string {
             display: flex;
             align-items: center;
             gap: 8px;
-            cursor: pointer;
             padding: 8px 12px;
             background-color: var(--vscode-editor-lineHighlightBackground);
             border-radius: 4px;
             margin-bottom: 8px;
-        }
-        .section-header:hover {
-            background-color: var(--vscode-editor-selectionBackground);
         }
         .section-title {
             font-weight: 600;
@@ -392,12 +388,7 @@ function generateInlineValidationHtml(data: Record<string, unknown>): string {
             border-top: 1px solid var(--vscode-editor-lineHighlightBackground);
         }
         .collapsible-content {
-            max-height: 1000px;
             overflow: hidden;
-            transition: max-height 0.3s ease-out;
-        }
-        .collapsible-content.collapsed {
-            max-height: 0;
         }
     </style>
 </head>
@@ -478,11 +469,10 @@ function generateSectionHtml(
 
 	return `
     <div class="section">
-        <div class="section-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+        <div class="section-header">
             <span>${icon}</span>
             <span class="section-title">${title}</span>
             <span class="section-count">${count}</span>
-            <span style="margin-left: auto;">▼</span>
         </div>
         <div class="collapsible-content">
             ${itemsHtml}
