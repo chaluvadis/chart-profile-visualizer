@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'nonce-{{nonce}}';">
+    <title>Runtime State</title>
+    <style>
+        :root {
+            --critical: #f85149;
+            --critical-bg: rgba(248, 81, 73, 0.14);
+            --warning: #d29922;
+            --warning-bg: rgba(210, 153, 34, 0.16);
+            --healthy: #3fb950;
+            --healthy-bg: rgba(63, 185, 80, 0.14);
+            --neutral: #58a6ff;
+            --neutral-bg: rgba(88, 166, 255, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 14px;
+            color: var(--vscode-foreground);
+            background: var(--vscode-editor-background);
+            font-family: var(--vscode-font-family);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 14px;
+            background: var(--vscode-editor-lineHighlightBackground);
+            border-radius: 8px;
+            border: 1px solid var(--vscode-panel-border);
+            margin-bottom: 12px;
+        }
+        .title-wrap { display: flex; align-items: center; gap: 10px; }
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .toolbar-btn {
+            border: 1px solid var(--vscode-button-background);
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .toolbar-btn:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+        .status-dot {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            border: 1px solid transparent;
+        }
+        .status-dot.healthy { background: var(--healthy-bg); color: var(--healthy); border-color: var(--healthy); }
+        .status-dot.warning { background: var(--warning-bg); color: var(--warning); border-color: var(--warning); }
+        .status-dot.critical { background: var(--critical-bg); color: var(--critical); border-color: var(--critical); }
+        .title { margin: 0; font-size: 16px; font-weight: 600; }
+        .subtitle { margin: 2px 0 0; font-size: 12px; color: var(--vscode-descriptionForeground); }
+
+        .chips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
+        .chip {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: var(--vscode-editor-lineHighlightBackground);
+            border: 1px solid var(--vscode-panel-border);
+            color: var(--vscode-descriptionForeground);
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(90px, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .summary-item {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--vscode-panel-border);
+            background: var(--vscode-editor-lineHighlightBackground);
+        }
+        .summary-value { font-size: 18px; font-weight: 700; line-height: 1.1; }
+        .summary-label { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 4px; }
+        .summary-item.critical .summary-value { color: var(--critical); }
+        .summary-item.warning .summary-value { color: var(--warning); }
+        .summary-item.healthy .summary-value { color: var(--healthy); }
+        .summary-item.neutral .summary-value { color: var(--neutral); }
+
+        .section {
+            margin-bottom: 10px;
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 7px;
+            overflow: hidden;
+        }
+        .section-header {
+            padding: 9px 11px;
+            font-size: 12px;
+            font-weight: 600;
+            background: var(--vscode-editor-lineHighlightBackground);
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+        .section-header.critical { color: var(--critical); }
+        .section-header.warning { color: var(--warning); }
+        .section-header.healthy { color: var(--healthy); }
+        .section-body { padding: 8px 10px; }
+
+        .issue {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--vscode-panel-border);
+            margin-bottom: 7px;
+            background: var(--vscode-editor-background);
+        }
+        .issue:last-child { margin-bottom: 0; }
+        .issue-id { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+        .issue-message { font-size: 12px; line-height: 1.35; }
+        .issue-details { margin-top: 4px; font-size: 11px; color: var(--vscode-descriptionForeground); }
+        .issue-actions {
+            margin-top: 6px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .issue-btn {
+            border: 1px solid var(--vscode-panel-border);
+            background: var(--vscode-editor-lineHighlightBackground);
+            color: var(--vscode-foreground);
+            border-radius: 4px;
+            padding: 3px 7px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .issue-btn:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        .notice-list { margin: 0; padding: 0 0 0 16px; }
+        .notice-list li { margin-bottom: 4px; font-size: 12px; }
+
+        .release-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .release-table th,
+        .release-table td {
+            padding: 8px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            text-align: left;
+            vertical-align: top;
+        }
+        .release-table th {
+            color: var(--vscode-descriptionForeground);
+            background: var(--vscode-editor-lineHighlightBackground);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title-wrap">
+            <span class="status-dot {{statusClass}}">{{statusIcon}}</span>
+            <div>
+                <h1 class="title">{{statusTitle}}</h1>
+                <p class="subtitle">{{statusSubtitle}}</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="toolbar-btn" id="refreshBtn">↻ Refresh</button>
+        </div>
+    </div>
+
+    <div class="chips">
+        <span class="chip">Chart: {{chartName}}</span>
+        <span class="chip">Environment: {{environment}}</span>
+        <span class="chip">Connection: {{connectedText}}</span>
+        <span class="chip">Context: {{clusterContext}}</span>
+        <span class="chip">Namespace: {{clusterNamespace}}</span>
+        <span class="chip">Updated: {{timestamp}}</span>
+    </div>
+
+    <div class="summary">
+        <div class="summary-item neutral"><div class="summary-value">{{totalResources}}</div><div class="summary-label">Resources</div></div>
+        <div class="summary-item healthy"><div class="summary-value">{{healthyCount}}</div><div class="summary-label">Healthy</div></div>
+        <div class="summary-item warning"><div class="summary-value">{{warningCount}}</div><div class="summary-label">Warnings</div></div>
+        <div class="summary-item critical"><div class="summary-value">{{criticalCount}}</div><div class="summary-label">Critical</div></div>
+        <div class="summary-item neutral"><div class="summary-value">{{notFoundCount}}</div><div class="summary-label">Not Found</div></div>
+        <div class="summary-item neutral"><div class="summary-value">{{unknownCount}}</div><div class="summary-label">Unknown</div></div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">All Resources</div>
+        <div class="section-body">
+            {{#each allResources}}
+            <div class="issue">
+                <div class="issue-id">{{id}}</div>
+                <div class="issue-message">{{status}}: {{message}}</div>
+                {{#if details}}<div class="issue-details">{{details}}</div>{{/if}}
+                <div class="issue-actions">
+                    <button class="issue-btn view-yaml-btn" data-kind="{{kind}}" data-name="{{name}}" data-namespace="{{namespace}}">View YAML</button>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+    </div>
+
+    {{#if hasErrors}}
+    <div class="section">
+        <div class="section-header critical">Errors</div>
+        <div class="section-body">
+            <ul class="notice-list">
+                {{#each errors}}<li>{{this}}</li>{{/each}}
+            </ul>
+        </div>
+    </div>
+    {{/if}}
+
+    {{#if hasWarnings}}
+    <div class="section">
+        <div class="section-header warning">Warnings</div>
+        <div class="section-body">
+            <ul class="notice-list">
+                {{#each warnings}}<li>{{this}}</li>{{/each}}
+            </ul>
+        </div>
+    </div>
+    {{/if}}
+
+    {{#if hasCriticalItems}}
+    <div class="section">
+        <div class="section-header critical">Critical Resources</div>
+        <div class="section-body">
+            {{#each criticalItems}}
+            <div class="issue">
+                <div class="issue-id">{{id}}</div>
+                <div class="issue-message">{{message}}</div>
+                {{#if details}}<div class="issue-details">{{details}}</div>{{/if}}
+            </div>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    {{#if hasWarningItems}}
+    <div class="section">
+        <div class="section-header warning">Warning Resources</div>
+        <div class="section-body">
+            {{#each warningItems}}
+            <div class="issue">
+                <div class="issue-id">{{id}}</div>
+                <div class="issue-message">{{message}}</div>
+                {{#if details}}<div class="issue-details">{{details}}</div>{{/if}}
+            </div>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    {{#if hasNotFoundItems}}
+    <div class="section">
+        <div class="section-header">Not Deployed</div>
+        <div class="section-body">
+            {{#each notFoundItems}}
+            <div class="issue">
+                <div class="issue-id">{{id}}</div>
+                <div class="issue-message">{{message}}</div>
+            </div>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    {{#if hasUnknownItems}}
+    <div class="section">
+        <div class="section-header">Unknown State</div>
+        <div class="section-body">
+            {{#each unknownItems}}
+            <div class="issue">
+                <div class="issue-id">{{id}}</div>
+                <div class="issue-message">{{message}}</div>
+                {{#if details}}<div class="issue-details">{{details}}</div>{{/if}}
+            </div>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    {{#if hasReleases}}
+    <div class="section">
+        <div class="section-header healthy">Helm Releases ({{helmReleaseCount}})</div>
+        <div class="section-body">
+            <table class="release-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Namespace</th>
+                        <th>Status</th>
+                        <th>Chart</th>
+                        <th>Revision</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each releases}}
+                    <tr>
+                        <td>{{name}}</td>
+                        <td>{{namespace}}</td>
+                        <td>{{status}}</td>
+                        <td>{{chart}}</td>
+                        <td>{{revision}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{/if}}
+
+    <script nonce="{{nonce}}">
+        var vscodeApi = (typeof acquireVsCodeApi === 'function') ? acquireVsCodeApi() : null;
+
+        function postRuntimeMessage(payload) {
+            if (!vscodeApi || !payload || typeof payload.command !== 'string') {
+                return;
+            }
+            vscodeApi.postMessage(payload);
+        }
+
+        // Bind refresh button
+        var refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                postRuntimeMessage({ command: 'refresh' });
+            });
+        }
+
+        // Delegate "View YAML" button clicks via event delegation
+        document.addEventListener('click', function(e) {
+            var btn = e.target;
+            if (btn && btn.classList && btn.classList.contains('view-yaml-btn')) {
+                postRuntimeMessage({
+                    command: 'viewResourceYaml',
+                    kind: btn.getAttribute('data-kind') || '',
+                    name: btn.getAttribute('data-name') || '',
+                    namespace: btn.getAttribute('data-namespace') || 'default'
+                });
+            }
+        });
+    </script>
+</body>
+</html>

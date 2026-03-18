@@ -1,114 +1,139 @@
 # Helm Chart Visualizer
 
-A VS Code extension for visualizing Helm charts across multiple environments with value merging and interactive chart visualization.
+Visualize, validate, compare, and monitor Helm chart environments directly inside VS Code.
+
+This extension is designed for teams managing multiple environment overlays (`values-dev.yaml`, `values-qa.yaml`, `values-prod.yaml`, etc.) and wanting a fast, consistent desktop workflow for release confidence.
 
 ![Build & Release VS Code Extension](https://github.com/chaluvadis/chart-profile-visualizer/actions/workflows/workflow.yml/badge.svg)
 
-## Demo
+## What You Can Do
 
-![Extension Demo](./images/screen_record.gif)
+- Visualize a chart environment with architecture and resource insights
+- Validate chart quality and best-practice issues in an actionable UI
+- Compare two environments with field-level change details
+- Check runtime state against the cluster in a dedicated runtime dashboard
+- Export rendered manifests as YAML or JSON
 
-## Features
+## Tree View Experience
 
-- 📊 **Interactive Chart Visualization** - View value overrides, chart statistics, and resource distribution
-- 🏗️ **Resource Architecture Diagram** - Interactive tier-based visualization with relationship arrows
-- 🎯 **Resource Explorer** - Browse all Kubernetes resources with full configuration details
-- 🔗 **Relationship Detection** - Automatically detect connections between resources
-- 🔀 **Environment Comparison** - Compare resources between two environments
-- 🔐 **Runtime State Management** - Check health status of deployed resources
-- 📋 **Helm Release Management** - Plan upgrades and assess rollbacks
-- 🎨 **Kubernetes Icons** - Official-style icons for all resource types
+In Explorer, open **Chart Profiles** and expand:
 
-## Installation
+- `Chart`
+  - `Compare Environments`
+  - `Environment (dev/qa/staging/prod...)`
+    - `Visualize Chart`
+    - `Validate Chart`
+    - `Check Runtime State`
 
-### From VSIX File
+The tree is environment-aware and supports multi-root workspaces.
 
-1. Download the `.vsix` file from the releases page
-2. Open VS Code → Extensions (Ctrl+Shift+X)
-3. Click "..." → "Install from VSIX..."
-4. Select the downloaded file
+## Core Workflows
 
-### From Source
+## 1) Visualize Chart
 
-```bash
-git clone https://github.com/chaluvadis/chart-profile-visualizer.git
-cd chart-profile-visualizer
-pnpm install
-pnpm run compile
-pnpm run package
-```
+`Visualize Chart` opens a desktop-first webview with:
 
-## Usage
+- **Overview tab**
+  - Resource architecture graph/topology
+  - Values and override summary cards
+  - Chart-level metrics
+- **Resources tab**
+  - Grouped resources by Kubernetes kind
+  - Expandable resource cards with YAML
+  - Copy resource YAML action
+- **Toolbar actions**
+  - Export YAML
+  - Export JSON
 
-The extension activates automatically when you open a workspace containing Helm charts (directories with `Chart.yaml`).
+## 2) Validate Chart
 
-### Viewing Charts
+`Validate Chart` opens a dedicated validation view with:
 
-1. Open the **Explorer** sidebar
-2. Find the **Chart Profiles** view
-3. Expand to see charts and their environments
+- Status header aligned to result severity
+- Error/Warning/Info summaries
+- Search and severity filtering
+- Cards view and table view
+- Grouping, sorting, and actionable filtering
+- Quick actions:
+  - Copy issue text
+  - Jump to file/line when location is available
 
-### Available Actions
+## 3) Compare Environments
 
-- **Visualize Chart** - Open interactive dashboard with architecture diagram and resource explorer
-- **View Merged Values** - See final merged values with override annotations
-- **View Rendered YAML** - View fully rendered Helm templates
-- **Validate Chart** - Check chart configuration and best practices
-- **Check Runtime State** - View health status of deployed resources
-- **View Dependencies** - See chart dependencies and security issues
+`Compare Environments` provides:
 
-### Commands
+- Side-by-side environment comparison
+- Added/Removed/Modified resource categorization
+- Field-level value differences
+- Change filters and grouped summaries
 
-Access via Command Palette (Ctrl+Shift+P):
+## 4) Check Runtime State
 
-- **Compare Environments** - Compare two environments side-by-side
-- **Check Cluster Status** - View Kubernetes cluster connection
-- **Refresh Charts** - Reload all charts from workspace
+`Check Runtime State` opens a runtime dashboard (not raw markdown):
+
+- Cluster context and connection state
+- Healthy/Warning/Critical/NotFound/Unknown summaries
+- Structured resource status sections
+- All resources list with quick actions:
+  - **View YAML**
+- Helm release summary table
 
 ## Requirements
 
-- **VS Code**: 1.109.0 or higher
-- **Helm CLI** (optional): For template rendering
-- **kubectl** (optional): For runtime state features
+- VS Code `^1.110.0`
+- Helm CLI (`helm`) for rendering/validation flows
+- Kubernetes CLI (`kubectl`) for runtime state flows
 
-## Supported Helm Chart Structure
+## Example Chart Layout
 
-```
-my-chart/
-├── Chart.yaml
-├── values.yaml              # Base values
-├── values-dev.yaml          # Dev environment
-├── values-staging.yaml      # Staging environment
-├── values-prod.yaml         # Production environment
-└── templates/
-```
-
-Any file matching `values-*.yaml` or `values-*.yml` is detected as an environment.
-
-## Supported Kubernetes Resources
-
-| Category      | Resources                                                          |
-| ------------- | ------------------------------------------------------------------ |
-| Workloads     | Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob, Pod  |
-| Networking    | Service, Ingress, NetworkPolicy                                    |
-| Configuration | ConfigMap, Secret                                                  |
-| Storage       | PersistentVolumeClaim, PersistentVolume                            |
-| RBAC          | Role, RoleBinding, ClusterRole, ClusterRoleBinding, ServiceAccount |
-| Scaling       | HorizontalPodAutoscaler                                            |
-
-## Configuration
-
-```json
-{
-  "chartProfiles.ignoredDirectories": ["vendor", "tmp"]
-}
+```text
+sample-app/
+  Chart.yaml
+  values.yaml
+  values-dev.yaml
+  values-qa.yaml
+  values-staging.yaml
+  values-prod.yaml
+  templates/
 ```
 
-## Troubleshooting
+## Installation
 
-- **Environments not appearing**: Ensure files follow `values-*.yaml` pattern
-- **Template rendering fails**: Install Helm CLI and verify with `helm version`
-- **Runtime state not showing**: Install kubectl and check cluster connection
+Install from VS Code Marketplace (publisher: `nomad-in-code`) or package locally.
+
+## Development
+
+```bash
+pnpm install
+pnpm run compile
+```
+
+Useful scripts:
+
+- `pnpm run compile` - build extension + webview assets
+- `pnpm run lint` - lint with Biome
+- `pnpm run format` - format with Biome
+- `pnpm run package` - compile and produce `.vsix`
+
+## Security and Privacy Notes
+
+- Local-first processing: chart rendering and analysis happen on your machine
+- Runtime queries are executed through local CLIs (`kubectl`, `helm`)
+- HTML output uses escaping and constrained templating paths
+- Sensitive manifest content handling includes redaction safeguards in resource flows
+
+## Known Scope
+
+- Optimized for desktop VS Code experience
+- Assumes Helm chart conventions (`Chart.yaml`, `values*.yaml`)
+
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for module-level design and data flow.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
@@ -116,4 +141,6 @@ MIT
 
 ## Support
 
-For issues and feature requests, use [GitHub Issues](https://github.com/chaluvadis/chart-profile-visualizer/issues).
+Issues and feature requests:
+
+- https://github.com/chaluvadis/chart-profile-visualizer/issues

@@ -1,0 +1,37 @@
+<div id="results-content" class="results-content">
+    <div id="comparison-selector" class="comparison-selector">
+        <div class="selector-header">
+            <h3 class="selector-title">Compare Environments</h3>
+            <p class="selector-hint">Select two environments to compare their configurations</p>
+        </div>
+        <div class="selector-form">
+            <div class="form-row">
+                <div class="env-select-group">
+                    <label for="env1-select" class="env-label">Base Environment</label>
+                    <select id="env1-select" class="env-select">
+                        <option value="">Select base environment</option>
+                        {{#each availableEnvs}}
+                        <option value="{{this}}">{{this}}</option>
+                        {{/each}}
+                    </select>
+                </div>
+                <span class="vs">vs</span>
+                <div class="env-select-group">
+                    <label for="env2-select" class="env-label">Compare Environment</label>
+                    <select id="env2-select" class="env-select">
+                        <option value="">Select compare environment</option>
+                        {{#each availableEnvs}}
+                        <option value="{{this}}">{{this}}</option>
+                        {{/each}}
+                    </select>
+                </div>
+            </div>
+            <button id="run-comparison" class="run-comparison-btn" disabled>Compare</button>
+        </div>
+    </div>
+    <div id="comparison-results" class="comparison-results hidden">
+        <!-- Comparison results will be rendered here -->
+    </div>
+</div>
+
+
