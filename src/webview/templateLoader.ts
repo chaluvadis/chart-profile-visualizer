@@ -108,7 +108,7 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 								const value = item[condition];
 								const selected = value ? ifContent : elseContent;
 								hasChanges = true;
-								return selected.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
+								return selected.replace(/\{\{(@index|[\w.]+)\}\}/g, (m: string, k: string): string => {
 									if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
 									if (k === "@index") return String(index);
 									const propValue = k.split(".").reduce((obj: any, key: string) => obj?.[key], item);
@@ -125,7 +125,7 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 								if (!value) return "";
 								hasChanges = true;
 								// Process simple {{variable}} placeholders within the if-block content
-								return ifContent.replace(/\{\{([\w.]+)\}\}/g, (m: string, k: string): string => {
+								return ifContent.replace(/\{\{(@index|[\w.]+)\}\}/g, (m: string, k: string): string => {
 									if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
 									if (k === "@index") return String(index);
 									// Handle nested property access like "item.nested.key"
@@ -145,7 +145,7 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 
 				// Replace {{key}} and {{nested.key}} patterns with item values (with HTML escaping)
 				// Also handle {{this}} as a special keyword for the current item
-				itemResult = itemResult.replace(/\{\{([\w.]+|this)\}\}/g, (m: string, k: string): string => {
+				itemResult = itemResult.replace(/\{\{(@index|[\w.]+|this)\}\}/g, (m: string, k: string): string => {
 					if (k === "@index") return String(index);
 					if (k === "this") return item !== undefined ? escapeHtml(String(item)) : m;
 					// Handle nested property access like "item.nested.key"

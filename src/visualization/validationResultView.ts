@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ValidationResult, ValidationIssue } from "../processing/chartValidator";
-import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
+import { loadTemplate, getTemplatePath, escapeHtml } from "../webview/templateLoader";
 
 // Module-level state (singleton pattern for VSCode extension)
 let validationPanel: vscode.WebviewPanel | undefined;
@@ -17,15 +17,6 @@ interface ValidationWebviewMessage {
 	file?: string;
 	line?: number;
 	text?: string;
-}
-
-function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/\"/g, "&quot;")
-		.replace(/'/g, "&#039;");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
