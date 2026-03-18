@@ -177,7 +177,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <button class="toolbar-btn" onclick="refreshRuntimeState()">↻ Refresh</button>
+            <button class="toolbar-btn" id="refreshBtn">↻ Refresh</button>
         </div>
     </div>
 
@@ -208,7 +208,7 @@
                 <div class="issue-message">{{status}}: {{message}}</div>
                 {{#if details}}<div class="issue-details">{{details}}</div>{{/if}}
                 <div class="issue-actions">
-                    <button class="issue-btn" data-kind="{{kind}}" data-name="{{name}}" data-namespace="{{namespace}}" onclick="viewResourceYaml(this)">View YAML</button>
+                    <button class="issue-btn view-yaml-btn" data-kind="{{kind}}" data-name="{{name}}" data-namespace="{{namespace}}">View YAML</button>
                 </div>
             </div>
             {{/each}}
@@ -336,18 +336,26 @@
             vscodeApi.postMessage(payload);
         }
 
-        function refreshRuntimeState() {
-            postRuntimeMessage({ command: 'refresh' });
-        }
-
-        function viewResourceYaml(btn) {
-            postRuntimeMessage({
-                command: 'viewResourceYaml',
-                kind: btn.getAttribute('data-kind') || '',
-                name: btn.getAttribute('data-name') || '',
-                namespace: btn.getAttribute('data-namespace') || 'default'
+        // Bind refresh button
+        var refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                postRuntimeMessage({ command: 'refresh' });
             });
         }
+
+        // Delegate "View YAML" button clicks via event delegation
+        document.addEventListener('click', function(e) {
+            var btn = e.target;
+            if (btn && btn.classList && btn.classList.contains('view-yaml-btn')) {
+                postRuntimeMessage({
+                    command: 'viewResourceYaml',
+                    kind: btn.getAttribute('data-kind') || '',
+                    name: btn.getAttribute('data-name') || '',
+                    namespace: btn.getAttribute('data-namespace') || 'default'
+                });
+            }
+        });
     </script>
 </body>
 </html>
