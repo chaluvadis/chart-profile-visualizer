@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{{cspSource}}} data:; script-src 'nonce-{{{nonce}}}'; style-src {{{cspSource}}} 'nonce-{{{nonce}}}'; connect-src {{{cspSource}}};">
+    <title>Chart Visualization</title>
+    <link rel="stylesheet" href="{{{stylesUri}}}">
+</head>
+<body data-view-mode="{{{viewMode}}}">
+    <!-- Init data embedded as JSON in a script element (avoids HTML entity encoding issues) -->
+    <script type="application/json" id="init-data" nonce="{{{nonce}}}">{{{initData}}}</script>
+    <div class="toolbar">
+        <div class="toolbar-actions" role="group" aria-label="Export actions">
+            <button id="exportYaml" class="toolbar-btn" title="Export rendered YAML">📄 Export YAML</button>
+            <button id="exportJson" class="toolbar-btn" title="Export as JSON">📋 Export JSON</button>
+        </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+        <!-- Visualize view tabs -->
+        <button class="tab-btn visualize-tab active" data-tab="overview" role="tab" aria-selected="true">📈 Overview</button>
+        <button class="tab-btn visualize-tab" data-tab="resources" role="tab" aria-selected="false">📋 Resources</button>
+        <!-- Compare view tabs -->
+        <button class="tab-btn compare-tab" data-tab="compare" role="tab" aria-selected="false">⚖️ Compare Environments</button>
+    </div>
+
+    <!-- Visualize view content -->
+    <div id="overview" class="tab-content visualize-content active" role="tabpanel">
+        {{{overviewContent}}}
+    </div>
+
+    <div id="resources" class="tab-content visualize-content" role="tabpanel">
+        {{{resourcesContent}}}
+    </div>
+
+    <!-- Compare view content -->
+    <div id="compare" class="tab-content compare-content" role="tabpanel">
+        {{{resultsContent}}}
+    </div>
+
+    <script src="{{{chartJsUri}}}" nonce="{{{nonce}}}"></script>
+    <script src="{{{topologyJsUri}}}" nonce="{{{nonce}}}"></script>
+    <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>
+    <script nonce="{{{nonce}}}">
+        // Initialize webview with data - read from JSON script element (avoids HTML entity issues)
+        (function() {
+            var initDataEl = document.getElementById('init-data');
+            if (initDataEl) {
+                try {
+                    window.initializeWebview(JSON.parse(initDataEl.textContent || '{}'));
+                } catch (e) {
+                    console.error('Failed to parse init data:', e);
+                }
+            }
+
+            // Check view mode - 'visualize' or 'compare'
+            var viewMode = document.body.getAttribute('data-view-mode') || 'visualize';
+
+            if (viewMode === 'compare') {
+                // Hide visualize tabs and content
+                document.querySelectorAll('.visualize-tab').forEach(function(tab) {
+                    tab.classList.add('hidden');
+                    tab.setAttribute('aria-selected', 'false');
+                });
+                document.querySelectorAll('.visualize-content').forEach(function(content) {
+                    content.classList.remove('active');
+                });
+
+                // Show compare tab and content
+                document.querySelectorAll('.compare-tab').forEach(function(tab) {
+                    tab.classList.remove('hidden');
+                    tab.classList.add('active');
+                    tab.setAttribute('aria-selected', 'true');
+                });
+                document.querySelectorAll('.compare-content').forEach(function(content) {
+                    content.classList.add('active');
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

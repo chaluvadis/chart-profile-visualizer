@@ -1,80 +1,139 @@
-# Chart Profile Visualizer
+# Helm Chart Visualizer
 
-Visualize and compare Helm chart configurations across environments (dev/stage/prod) to detect risky drift before deployment.
+Visualize, validate, compare, and monitor Helm chart environments directly inside VS Code.
 
-> Best for platform engineers, SREs, and teams managing multi-environment Kubernetes releases.
+This extension is designed for teams managing multiple environment overlays (`values-dev.yaml`, `values-qa.yaml`, `values-prod.yaml`, etc.) and wanting a fast, consistent desktop workflow for release confidence.
 
 ![Build & Release VS Code Extension](https://github.com/chaluvadis/chart-profile-visualizer/actions/workflows/workflow.yml/badge.svg)
 
-## Why this extension
+## What You Can Do
 
-Chart Profile Visualizer helps you:
+- Visualize a chart environment with architecture and resource insights
+- Validate chart quality and best-practice issues in an actionable UI
+- Compare two environments with field-level change details
+- Check runtime state against the cluster in a dedicated runtime dashboard
+- Export rendered manifests as YAML or JSON
 
-- **Detect config drift early** across environments
-- **Reduce deployment risk** by highlighting high-impact differences
-- **Speed up reviews** with visual and structured comparisons
-- **Improve release confidence** before promotion to production
+## Tree View Experience
 
-## Quick Start (2 minutes)
+In Explorer, open **Chart Profiles** and expand:
 
-![Extension Demo](./images/screen_record.gif)
+- `Chart`
+  - `Compare Environments`
+  - `Environment (dev/qa/staging/prod...)`
+    - `Visualize Chart`
+    - `Validate Chart`
+    - `Check Runtime State`
 
-✅ Expected outcome: You see a structured comparison of chart values and identified drift.
+The tree is environment-aware and supports multi-root workspaces.
 
-## Example workflow
+## Core Workflows
 
-Use sample files in `examples/`:
+## 1) Visualize Chart
 
-- `examples/values-dev.yaml`
-- `examples/values-qa.yaml`
-- `examples/values-staging.yaml`
-- `examples/values-prod.yaml`
+`Visualize Chart` opens a desktop-first webview with:
 
-## Core features
+- **Overview tab**
+  - Resource architecture graph/topology
+  - Values and override summary cards
+  - Chart-level metrics
+- **Resources tab**
+  - Grouped resources by Kubernetes kind
+  - Expandable resource cards with YAML
+  - Copy resource YAML action
+- **Toolbar actions**
+  - Export YAML
+  - Export JSON
 
-- Environment profile comparison
-- Visual diff for Helm values
-- Drift categorization (config groups)
-- Fast local analysis in VS Code
+## 2) Validate Chart
 
-## Recommended next features (roadmap)
+`Validate Chart` opens a dedicated validation view with:
 
-- Severity scoring: `Info / Warning / Critical`
-- Risk-focused presets (security/network/resources)
-- Export comparison report (Markdown/JSON)
-- PR comment integration for release checks
+- Status header aligned to result severity
+- Error/Warning/Info summaries
+- Search and severity filtering
+- Cards view and table view
+- Grouping, sorting, and actionable filtering
+- Quick actions:
+  - Copy issue text
+  - Jump to file/line when location is available
 
-## Compatibility
+## 3) Compare Environments
 
-- VS Code: `<min-version>`
-- Helm values format: YAML
-- OS: macOS / Linux / Windows
+`Compare Environments` provides:
 
-## Data handling & privacy
+- Side-by-side environment comparison
+- Added/Removed/Modified resource categorization
+- Field-level value differences
+- Change filters and grouped summaries
 
-- Processing is performed locally in VS Code.
-- No chart values are transmitted externally unless explicitly configured by user.
-- Telemetry (if enabled) is anonymized and excludes secrets/chart payloads.
+## 4) Check Runtime State
 
-## Troubleshooting
+`Check Runtime State` opens a runtime dashboard (not raw markdown):
 
-### “VS Code API has already been acquired” error
-- Ensure webview API is acquired only once per webview lifecycle.
-- Reload window and retry command.
-- Update to latest extension version.
+- Cluster context and connection state
+- Healthy/Warning/Critical/NotFound/Unknown summaries
+- Structured resource status sections
+- All resources list with quick actions:
+  - **View YAML**
+- Helm release summary table
 
-### No comparison output
-- Confirm selected files are valid YAML.
-- Verify file paths and environment mapping.
-- Check output panel logs.
+## Requirements
+
+- VS Code `^1.110.0`
+- Helm CLI (`helm`) for rendering/validation flows
+- Kubernetes CLI (`kubectl`) for runtime state flows
+
+## Example Chart Layout
+
+```text
+sample-app/
+  Chart.yaml
+  values.yaml
+  values-dev.yaml
+  values-qa.yaml
+  values-staging.yaml
+  values-prod.yaml
+  templates/
+```
+
+## Installation
+
+Install from VS Code Marketplace (publisher: `nomad-in-code`) or package locally.
+
+## Development
+
+```bash
+pnpm install
+pnpm run compile
+```
+
+Useful scripts:
+
+- `pnpm run compile` - build extension + webview assets
+- `pnpm run lint` - lint with Biome
+- `pnpm run format` - format with Biome
+- `pnpm run package` - compile and produce `.vsix`
+
+## Security and Privacy Notes
+
+- Local-first processing: chart rendering and analysis happen on your machine
+- Runtime queries are executed through local CLIs (`kubectl`, `helm`)
+- HTML output uses escaping and constrained templating paths
+- Sensitive manifest content handling includes redaction safeguards in resource flows
+
+## Known Scope
+
+- Optimized for desktop VS Code experience
+- Assumes Helm chart conventions (`Chart.yaml`, `values*.yaml`)
+
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for module-level design and data flow.
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Architecture
-
-See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## License
 
@@ -82,4 +141,6 @@ MIT
 
 ## Support
 
-For issues and feature requests, use [GitHub Issues](https://github.com/chaluvadis/chart-profile-visualizer/issues).
+Issues and feature requests:
+
+- https://github.com/chaluvadis/chart-profile-visualizer/issues
