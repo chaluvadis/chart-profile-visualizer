@@ -9,6 +9,7 @@
 	"include": [
 		"src/diff/environmentDiff.ts",
 		"src/k8s/helmRenderer.ts",
-		"src/k8s/kubernetesConnector.ts"
+		"src/k8s/kubernetesConnector.ts",
+		"src/core/walkthroughSettings.ts"
 	]
 }

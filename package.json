@@ -78,8 +78,23 @@
         "command": "chartProfiles.exportComparisonReport",
         "title": "Export Comparison Report",
         "icon": "$(export)"
+      },
+      {
+        "command": "chartProfiles.startWalkthrough",
+        "title": "Helm Chart Visualizer: Getting Started",
+        "icon": "$(rocket)"
       }
     ],
+    "configuration": {
+      "title": "Helm Chart Visualizer",
+      "properties": {
+        "chartProfiles.showWalkthroughOnFirstRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the guided getting-started walkthrough the first time Helm Chart Visualizer activates. Disable to suppress the prompt."
+        }
+      }
+    },
     "menus": {
       "view/title": [
         {
@@ -130,7 +145,7 @@
     "lint:fix": "biome lint --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js && node test/kubectlDetection.test.js"
+    "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js && node test/kubectlDetection.test.js && node test/firstRunWalkthrough.test.js"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
