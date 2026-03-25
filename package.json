@@ -73,6 +73,11 @@
       {
         "command": "chartProfiles.viewMergedValues",
         "title": "View Merged Values"
+      },
+      {
+        "command": "chartProfiles.exportComparisonReport",
+        "title": "Export Comparison Report",
+        "icon": "$(export)"
       }
     ],
     "menus": {

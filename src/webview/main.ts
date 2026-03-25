@@ -305,6 +305,9 @@ function renderComparisonResults(): void {
                     <span class="env-vs">vs</span>
                     <span class="env-tag env-compare">${escapeHtml(header.rightEnv)}</span>
                 </div>
+            </div>
+            <div class="compare-header-actions">
+                <button id="exportComparison" class="toolbar-btn export-comparison-btn" title="Export comparison report as Markdown or JSON">📤 Export Report</button>
             </div>`;
 
 	// Add summary stats only for non-zero values (exclude unchanged)
@@ -427,6 +430,15 @@ function renderComparisonResults(): void {
 	// Render into comparison-results div and show it
 	comparisonResults.innerHTML = html;
 	attachComparisonFilterHandlers(comparisonResults);
+
+	// Wire up the export comparison button
+	const exportBtn = comparisonResults.querySelector<HTMLButtonElement>("#exportComparison");
+	if (exportBtn) {
+		exportBtn.addEventListener("click", () => {
+			vscode.postMessage({ type: "exportComparison" });
+		});
+	}
+
 	comparisonResults.classList.remove("hidden");
 	comparisonResults.style.display = "block";
 }

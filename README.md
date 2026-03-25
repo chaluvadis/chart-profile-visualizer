@@ -11,6 +11,7 @@ This extension is designed for teams managing multiple environment overlays (`va
 - Visualize a chart environment with architecture and resource insights
 - Validate chart quality and best-practice issues in an actionable UI
 - Compare two environments with field-level change details
+- Export comparison results as Markdown (for humans) or JSON (for automation)
 - Check runtime state against the cluster in a dedicated runtime dashboard
 - Export rendered manifests as YAML or JSON
 
@@ -66,6 +67,57 @@ The tree is environment-aware and supports multi-root workspaces.
 - Added/Removed/Modified resource categorization
 - Field-level value differences
 - Change filters and grouped summaries
+- **Export Comparison Report** — export as Markdown or JSON
+
+### Export Comparison Report
+
+After running a comparison, click **📤 Export Report** in the comparison view header, or run **Export Comparison Report** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+
+You will be prompted to choose a save location and file format:
+
+- **Markdown (`.md`)** — Human-readable report for PR reviews and change approvals
+- **JSON (`.json`)** — Machine-readable output for automation pipelines
+
+#### Example Markdown Output
+
+```markdown
+# Comparison Report: dev vs prod
+**Chart:** sample-app
+**Generated:** 2026-03-25T16:00:00.000Z
+
+## Summary
+
+### Change Counts
+| Category  | Count |
+|-----------|-------|
+| Added     | 1     |
+| Removed   | 0     |
+| Modified  | 2     |
+| Unchanged | 5     |
+| **Total** | **8** |
+| Change %  | 37.5% |
+
+### Severity Counts
+| Severity    | Count |
+|-------------|-------|
+| 🔴 Critical | 1     |
+| 🟡 Warning  | 3     |
+| 🔵 Info     | 2     |
+
+## Drift List
+
+### Deployment/sample-app
+**Status:** modified — **Critical**
+
+| Field | dev | prod | Severity |
+|-------|-----|------|----------|
+| `spec.replicas` | `1` | `3` | critical |
+| `spec.template.spec.containers[0].resources.limits.memory` | `"256Mi"` | `"512Mi"` | warning |
+```
+
+#### Example JSON Output
+
+The JSON export contains the full structured comparison data, including header, summary, resource list, field diffs, and kind groups — suitable for CI/CD pipelines and automated drift analysis.
 
 ## 4) Check Runtime State
 
