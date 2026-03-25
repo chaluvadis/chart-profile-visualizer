@@ -1,0 +1,9 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "out/test-modules",
+		"rootDir": "src",
+		"declaration": false
+	},
+	"include": ["src/diff/environmentDiff.ts", "src/k8s/helmRenderer.ts"]
+}

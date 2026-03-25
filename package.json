@@ -124,7 +124,8 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "check": "biome check .",
-    "check:fix": "biome check --write ."
+    "check:fix": "biome check --write .",
+    "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.7",
