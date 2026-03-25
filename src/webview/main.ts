@@ -63,6 +63,9 @@ interface ComparisonData {
 		unchanged: number;
 		total: number;
 		changePercentage: number;
+		critical: number;
+		warning: number;
+		info: number;
 	};
 	resources: ComparisonResource[];
 	kindGroups?: KindGroup[];
@@ -73,6 +76,7 @@ interface ComparisonResource {
 	name: string;
 	namespace?: string;
 	diffType: string;
+	maxSeverity?: string;
 	fields?: FieldDiff[];
 }
 
@@ -80,6 +84,7 @@ interface FieldDiff {
 	path: string;
 	leftValue: unknown;
 	rightValue: unknown;
+	severity?: string;
 }
 
 interface KindGroup {
@@ -285,6 +290,12 @@ function renderComparisonResults(): void {
 	const hasChanges = summary.added > 0 || summary.removed > 0 || summary.modified > 0;
 	const activeCategories = [summary.added, summary.removed, summary.modified].filter((c) => c > 0).length;
 
+	// Severity totals from backend
+	const criticalCount = summary.critical ?? 0;
+	const warningCount = summary.warning ?? 0;
+	const infoCount = summary.info ?? 0;
+	const hasSeverityData = criticalCount > 0 || warningCount > 0 || infoCount > 0;
+
 	let html = `<div class="compare-container">
         <div class="compare-header-section">
             <div class="compare-info">
@@ -306,22 +317,44 @@ function renderComparisonResults(): void {
 		if (summary.modified > 0)
 			html += `<div class="summary-item stat-modified"><span class="summary-count">${escapeHtml(String(summary.modified))}</span><span class="summary-label">Modified</span></div>`;
 		html += `</div>`;
+
+		// Severity summary badges
+		if (hasSeverityData) {
+			html += `<div class="severity-summary">`;
+			if (criticalCount > 0)
+				html += `<span class="severity-badge severity-critical">${escapeHtml(String(criticalCount))} Critical</span>`;
+			if (warningCount > 0)
+				html += `<span class="severity-badge severity-warning">${escapeHtml(String(warningCount))} Warning</span>`;
+			if (infoCount > 0)
+				html += `<span class="severity-badge severity-info">${escapeHtml(String(infoCount))} Info</span>`;
+			html += `</div>`;
+		}
 	} else {
 		html += `<div class="compare-no-changes">No changes detected</div>`;
 	}
 
 	html += `</div>`;
 
-	// Only show filter buttons if there are multiple categories with changes
-	if (hasChanges && activeCategories > 1) {
+	// Build filter bar: diff-type filters + severity filters
+	const hasSeverityFilters = criticalCount > 0 || warningCount > 0;
+	if (hasChanges) {
 		html += `<div class="compare-filters">`;
-		html += `<button class="filter-btn active" data-filter="all">All</button>`;
-		if (summary.added > 0)
-			html += `<button class="filter-btn filter-added" data-filter="added">Added (${escapeHtml(String(summary.added))})</button>`;
-		if (summary.removed > 0)
-			html += `<button class="filter-btn filter-removed" data-filter="removed">Removed (${escapeHtml(String(summary.removed))})</button>`;
-		if (summary.modified > 0)
-			html += `<button class="filter-btn filter-modified" data-filter="modified">Modified (${escapeHtml(String(summary.modified))})</button>`;
+		html += `<button class="filter-btn active" data-filter="all" data-filter-type="diff">All</button>`;
+		if (activeCategories > 1) {
+			if (summary.added > 0)
+				html += `<button class="filter-btn filter-added" data-filter="added" data-filter-type="diff">Added (${escapeHtml(String(summary.added))})</button>`;
+			if (summary.removed > 0)
+				html += `<button class="filter-btn filter-removed" data-filter="removed" data-filter-type="diff">Removed (${escapeHtml(String(summary.removed))})</button>`;
+			if (summary.modified > 0)
+				html += `<button class="filter-btn filter-modified" data-filter="modified" data-filter-type="diff">Modified (${escapeHtml(String(summary.modified))})</button>`;
+		}
+		if (hasSeverityFilters) {
+			html += `<span class="filter-separator">|</span>`;
+			if (criticalCount > 0)
+				html += `<button class="filter-btn filter-severity-critical" data-filter="critical" data-filter-type="severity">🔴 Critical (${escapeHtml(String(criticalCount))})</button>`;
+			if (warningCount > 0)
+				html += `<button class="filter-btn filter-severity-warning" data-filter="warning" data-filter-type="severity">🟡 Warning (${escapeHtml(String(warningCount))})</button>`;
+		}
 		html += `</div>`;
 	}
 
@@ -334,15 +367,17 @@ function renderComparisonResults(): void {
 			const diffClass = resource.diffType.toLowerCase();
 			const hasFields = resource.fields && resource.fields.length > 0;
 			const fieldCount = hasFields ? resource.fields!.length : 0;
+			const resourceSeverity = (resource.maxSeverity || "info").toLowerCase();
 
 			// Only show field diffs expanded for modified resources
 			const showFieldsExpanded = diffClass === "modified";
 
-			html += `<div class="compare-resource-card ${escapeHtml(diffClass)}" data-diff-type="${escapeHtml(diffClass)}" ${hasFields ? `data-field-count="${fieldCount}"` : ""}>
+			html += `<div class="compare-resource-card ${escapeHtml(diffClass)}" data-diff-type="${escapeHtml(diffClass)}" data-max-severity="${escapeHtml(resourceSeverity)}" ${hasFields ? `data-field-count="${fieldCount}"` : ""}>
         <div class="resource-summary">
           <span class="resource-kind">${escapeHtml(resource.kind)}</span>
           <span class="resource-name">${escapeHtml(resource.name)}</span>
           ${resource.namespace ? `<span class="resource-namespace">${escapeHtml(resource.namespace)}</span>` : ""}
+          ${diffClass === "modified" && resource.maxSeverity ? `<span class="severity-badge severity-${escapeHtml(resourceSeverity)}">${escapeHtml(resource.maxSeverity)}</span>` : ""}
           ${hasFields ? `<span class="field-count-badge">${fieldCount} field${fieldCount > 1 ? "s" : ""} changed</span>` : ""}
         </div>`;
 
@@ -360,9 +395,11 @@ function renderComparisonResults(): void {
 						typeof field.rightValue === "object"
 							? JSON.stringify(field.rightValue, null, 2)
 							: String(field.rightValue ?? "");
-					html += `<div class="field-diff">`;
+					const fieldSeverity = (field.severity || "info").toLowerCase();
+					html += `<div class="field-diff" data-severity="${escapeHtml(fieldSeverity)}">`;
 					html += `<div class="field-path-row">`;
 					html += `<span class="field-path">${escapeHtml(field.path)}</span>`;
+					html += `<span class="severity-badge severity-${escapeHtml(fieldSeverity)}">${escapeHtml(field.severity || "Info")}</span>`;
 					html += `</div>`;
 					html += `<div class="field-values-row">`;
 					html += `<div class="field-left">`;
@@ -410,15 +447,21 @@ function attachComparisonFilterHandlers(container: HTMLElement): void {
 			btn.classList.add("active");
 
 			const filter = btn.getAttribute("data-filter");
+			const filterType = btn.getAttribute("data-filter-type");
 
 			for (const card of resourceCards) {
 				const diffType = card.getAttribute("data-diff-type");
+				const maxSeverity = card.getAttribute("data-max-severity");
 				const fieldDiffs = card.querySelector<HTMLElement>(".field-diffs");
 				const leftValues = card.querySelectorAll<HTMLElement>(".field-left");
 				const rightValues = card.querySelectorAll<HTMLElement>(".field-right");
 
 				if (filter === "all") {
 					card.classList.remove("resource-card-hidden");
+					// Show all field diffs when "All" is active
+					for (const fd of card.querySelectorAll<HTMLElement>(".field-diff")) {
+						fd.classList.remove("resource-card-hidden");
+					}
 					if (diffType === "modified" && fieldDiffs) {
 						fieldDiffs.classList.add("field-diffs-visible");
 					}
@@ -427,19 +470,42 @@ function attachComparisonFilterHandlers(container: HTMLElement): void {
 					continue;
 				}
 
-				if (diffType === filter) {
-					card.classList.remove("resource-card-hidden");
-					if (filter === "modified" && fieldDiffs) {
-						fieldDiffs.classList.add("field-diffs-visible");
-					}
-					for (const el of leftValues) {
-						el.classList.toggle("highlighted", filter === "modified");
-					}
-					for (const el of rightValues) {
-						el.classList.toggle("highlighted", filter === "modified");
+				if (filterType === "severity") {
+					// Severity filter: show cards that have at least one field with matching severity
+					const matchingFields = card.querySelectorAll<HTMLElement>(`.field-diff[data-severity="${filter}"]`);
+					if (matchingFields.length > 0) {
+						card.classList.remove("resource-card-hidden");
+						// Show only fields matching the severity
+						for (const fd of card.querySelectorAll<HTMLElement>(".field-diff")) {
+							const fdSeverity = fd.getAttribute("data-severity");
+							fd.classList.toggle("resource-card-hidden", fdSeverity !== filter);
+						}
+						if (fieldDiffs) {
+							fieldDiffs.classList.add("field-diffs-visible");
+						}
+					} else {
+						card.classList.add("resource-card-hidden");
 					}
 				} else {
-					card.classList.add("resource-card-hidden");
+					// Diff-type filter
+					// Restore all field-diff rows visibility first
+					for (const fd of card.querySelectorAll<HTMLElement>(".field-diff")) {
+						fd.classList.remove("resource-card-hidden");
+					}
+					if (diffType === filter) {
+						card.classList.remove("resource-card-hidden");
+						if (filter === "modified" && fieldDiffs) {
+							fieldDiffs.classList.add("field-diffs-visible");
+						}
+						for (const el of leftValues) {
+							el.classList.toggle("highlighted", filter === "modified");
+						}
+						for (const el of rightValues) {
+							el.classList.toggle("highlighted", filter === "modified");
+						}
+					} else {
+						card.classList.add("resource-card-hidden");
+					}
 				}
 			}
 		});
