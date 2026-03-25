@@ -134,14 +134,18 @@ export class KubernetesConnector {
 	}
 
 	/**
-	 * Check if kubectl is available
+	 * Check if kubectl is available.
+	 * Returns false only when the kubectl binary cannot be found (ENOENT / not-in-PATH).
+	 * Any other error (e.g. flag not supported, transient cluster error) is treated as
+	 * "kubectl is present" to avoid false-negative warnings.
 	 */
 	async isKubectlAvailable(): Promise<boolean> {
 		try {
-			await this.runKubectl(["version", "--client", "--short"]);
+			await this.runKubectl(["version", "--client", "-o", "json"]);
 			return true;
-		} catch {
-			return false;
+		} catch (error: unknown) {
+			// Only treat kubectl as unavailable when the binary itself is missing
+			return !isKubectlNotFound(error);
 		}
 	}
 
@@ -151,7 +155,18 @@ export class KubernetesConnector {
 	async getClusterInfo(): Promise<ClusterInfo> {
 		try {
 			const { stdout } = await this.runKubectl(["cluster-info", "--request-timeout=5s"]);
-			const versionResult = await this.runKubectl(["version", "--short"]);
+			const versionResult = await this.runKubectl(["version", "-o", "json"]);
+
+			// Parse client version from JSON output (reliable across kubectl versions)
+			let version: string | undefined;
+			try {
+				const versionJson = JSON.parse(versionResult.stdout) as {
+					clientVersion?: { gitVersion?: string };
+				};
+				version = versionJson?.clientVersion?.gitVersion;
+			} catch {
+				// version will remain undefined — not a hard failure
+			}
 
 			// Parse server URL
 			const serverMatch = stdout.match(/is running at (https?:\/\/[^\s]+)/);
@@ -169,7 +184,7 @@ export class KubernetesConnector {
 				server: serverMatch ? serverMatch[1] : undefined,
 				context: contextResult.stdout.trim() || undefined,
 				namespace: nsResult.stdout.trim() || "default",
-				version: versionResult.stdout.split("\n")[0]?.replace("Client Version: ", "") || undefined,
+				version,
 			};
 		} catch (error: any) {
 			return {
@@ -758,13 +773,22 @@ export class KubernetesConnector {
 
 			return { valid: errors.length === 0, errors, warnings };
 		} catch (error: any) {
-			const errorMessage = error.message || String(error);
+			// execFileAsync attaches stdout/stderr to the thrown error on non-zero exit
+			const stderr: string = error.stderr || "";
+			const stdout: string = error.stdout || "";
+			const errorMessage: string = error.message || String(error);
 
-			// Parse kubectl error messages
-			const lines = errorMessage.split("\n");
+			// Prefer stderr for Kubernetes error messages; fall back to stdout then the
+			// general error message so no context is lost.
+			const combinedOutput = [stderr, stdout, errorMessage].join("\n");
+			const lines = combinedOutput.split("\n");
 			for (const line of lines) {
-				if (line.includes("Error from server") || line.includes("error:")) {
-					errors.push(line.trim());
+				const trimmed = line.trim();
+				const lower = trimmed.toLowerCase();
+				if (trimmed && (lower.includes("error from server") || lower.startsWith("error:"))) {
+					if (!errors.includes(trimmed)) {
+						errors.push(trimmed);
+					}
 				}
 			}
 
@@ -868,15 +892,36 @@ export class KubernetesConnector {
 // Singleton instance
 let connectorInstance: KubernetesConnector | null = null;
 
+/**
+ * Returns true when an error indicates that the kubectl binary could not be
+ * found on the system.  Covers ENOENT, Windows "is not recognized", and the
+ * common Unix shell "command not found" / "not found" variants.
+ * The check is intentionally case-insensitive and cross-platform.
+ */
+export function isKubectlNotFound(error: unknown): boolean {
+	const code = (error as { code?: string })?.code;
+	const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+	return (
+		code === "ENOENT" ||
+		message.includes("enoent") ||
+		message.includes("not found") ||
+		message.includes("is not recognized") ||
+		message.includes("command not found") ||
+		message.includes("no such file or directory")
+	);
+}
+
 export function getKubernetesConnector(options?: {
 	kubeconfig?: string;
 	context?: string;
 	namespace?: string;
 }): KubernetesConnector {
-	// Always create a new instance if options are provided to avoid stale configuration
+	// Return a fresh instance when custom options are provided so that different
+	// callers cannot accidentally share or overwrite each other's configuration.
 	if (options) {
-		connectorInstance = new KubernetesConnector(options);
-	} else if (!connectorInstance) {
+		return new KubernetesConnector(options);
+	}
+	if (!connectorInstance) {
 		connectorInstance = new KubernetesConnector();
 	}
 	return connectorInstance;
