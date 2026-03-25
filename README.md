@@ -96,11 +96,6 @@ sample-app/
   values-prod.yaml
   templates/
 ```
-
-## Installation
-
-Install from VS Code Marketplace (publisher: `nomad-in-code`) or package locally.
-
 ## Development
 
 ```bash
@@ -121,11 +116,6 @@ Useful scripts:
 - Runtime queries are executed through local CLIs (`kubectl`, `helm`)
 - HTML output uses escaping and constrained templating paths
 - Sensitive manifest content handling includes redaction safeguards in resource flows
-
-## Known Scope
-
-- Optimized for desktop VS Code experience
-- Assumes Helm chart conventions (`Chart.yaml`, `values*.yaml`)
 
 ## Architecture
 

@@ -2,7 +2,7 @@
   "name": "chart-profile-visualizer",
   "displayName": "Helm Chart Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "nomad-in-code",
   "repository": {
     "type": "git",
@@ -128,13 +128,13 @@
     "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.7",
+    "@biomejs/biome": "^2.4.9",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.5.0",
     "@types/vscode": "^1.110.0",
     "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.4",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
