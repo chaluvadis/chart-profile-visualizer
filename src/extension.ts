@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { ChartProfilesProvider, ChartTreeItem } from "./core/chartProfilesProvider";
 import type { HelmChart } from "./k8s/helmChart";
-import { show as showChartVisualization, showCompare } from "./visualization/chartVisualizationView";
+import { show as showChartVisualization, showCompare, exportComparisonReport } from "./visualization/chartVisualizationView";
 import { showValidationResults } from "./visualization/validationResultView";
 import { showRuntimeStateResults } from "./visualization/runtimeStateView";
 import { isHelmAvailable } from "./k8s/helmRenderer";
@@ -247,6 +247,14 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	// Register export comparison report command
+	const exportComparisonReportCommand = vscode.commands.registerCommand(
+		"chartProfiles.exportComparisonReport",
+		async () => {
+			await exportComparisonReport();
+		}
+	);
+
 	context.subscriptions.push(
 		treeView,
 		expandAllCommand,
@@ -257,7 +265,8 @@ export function activate(context: vscode.ExtensionContext) {
 		validateChartCommand,
 		checkClusterStatusCommand,
 		checkRuntimeStateCommand,
-		compareEnvironmentsCommand
+		compareEnvironmentsCommand,
+		exportComparisonReportCommand
 	);
 
 	// Auto-refresh when workspace files change
