@@ -9,7 +9,7 @@
 "use strict";
 
 const assert = require("assert");
-const { classifyFieldSeverity, DriftSeverity } = require("../out/test-modules/environmentDiff");
+const { classifyFieldSeverity, DriftSeverity } = require("../out/test-modules/diff/environmentDiff");
 
 let passed = 0;
 let failed = 0;

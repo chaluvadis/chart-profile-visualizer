@@ -284,8 +284,8 @@ function getPlaceholderResources(chartPath: string, environment: string): Render
 		// Read all template files
 		const templateFiles = fs
 			.readdirSync(templatesDir)
-			.filter((file) => file.endsWith(".yaml") || file.endsWith(".yml"))
-			.filter((file) => !file.startsWith("_")); // Skip helper files
+			.filter((file: string) => file.endsWith(".yaml") || file.endsWith(".yml"))
+			.filter((file: string) => !file.startsWith("_")); // Skip helper files
 
 		for (const templateFile of templateFiles) {
 			const templatePath = path.join(templatesDir, templateFile);

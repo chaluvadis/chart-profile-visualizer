@@ -161,7 +161,7 @@ export class ChartValidator {
 				issues.push({
 					severity: "warning",
 					code: "KCTL001",
-					message: "kubectl not available - cannot validate against Kubernetes schema",
+					message: "kubectl not found - cannot validate against Kubernetes schema",
 					remediation: "Install kubectl from https://kubernetes.io/docs/tasks/tools/",
 				});
 				return issues;
