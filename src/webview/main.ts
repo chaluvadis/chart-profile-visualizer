@@ -307,8 +307,9 @@ function renderComparisonResults(): void {
                 </div>
             </div>
             <div class="compare-header-actions">
-                <button id="exportComparison" class="toolbar-btn export-comparison-btn" title="Export comparison report as Markdown or JSON">📤 Export Report</button>
-            </div>`;
+                <button id="exportComparison" class="export-comparison-btn" title="Export comparison report">📥 Export Report</button>
+            </div>
+            `;
 
 	// Add summary stats only for non-zero values (exclude unchanged)
 	if (hasChanges) {

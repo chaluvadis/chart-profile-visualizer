@@ -495,6 +495,31 @@ body {
     flex-wrap: wrap;
 }
 
+.compare-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.export-comparison-btn {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.export-comparison-btn:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
 .compare-info {
     display: flex;
     flex-direction: column;
