@@ -1,0 +1,15 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "out/test-modules",
+		"rootDir": "src",
+		"declaration": false,
+		"types": ["node"]
+	},
+	"include": [
+		"src/diff/environmentDiff.ts",
+		"src/k8s/helmRenderer.ts",
+		"src/k8s/kubernetesConnector.ts",
+		"src/core/walkthroughSettings.ts"
+	]
+}

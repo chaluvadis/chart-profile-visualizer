@@ -12,6 +12,58 @@ export enum DiffType {
 }
 
 /**
+ * Severity levels for drift classification
+ */
+export enum DriftSeverity {
+	Info = "Info",
+	Warning = "Warning",
+	Critical = "Critical",
+}
+
+/**
+ * Field path patterns that map to severity levels.
+ * Patterns are matched against the full dot-notation field path (case-insensitive).
+ */
+const CRITICAL_PATTERNS: RegExp[] = [
+	/\bimage\b/i,
+	/\bresources\b/i,
+	/\bsecurityContext\b/i,
+	/\breplicas\b/i,
+];
+
+const WARNING_PATTERNS: RegExp[] = [
+	/\bingress\b/i,
+	/\benv\b/i,
+	/\bvolumes?\b/i,
+	/\bvolumeMounts?\b/i,
+	/\bserviceAccountName\b/i,
+	/\blivenessProbe\b/i,
+	/\breadinessProbe\b/i,
+	/\bstartupProbe\b/i,
+	/\bports?\b/i,
+	/\bhostname\b/i,
+	/\baffinity\b/i,
+	/\btolerations?\b/i,
+];
+
+/**
+ * Classify the severity of a drift change based on the field path.
+ */
+export function classifyFieldSeverity(fieldPath: string): DriftSeverity {
+	for (const pattern of CRITICAL_PATTERNS) {
+		if (pattern.test(fieldPath)) {
+			return DriftSeverity.Critical;
+		}
+	}
+	for (const pattern of WARNING_PATTERNS) {
+		if (pattern.test(fieldPath)) {
+			return DriftSeverity.Warning;
+		}
+	}
+	return DriftSeverity.Info;
+}
+
+/**
  * Diff result for a single resource
  */
 export interface ResourceDiff {
@@ -32,6 +84,7 @@ export interface FieldDiff {
 	leftValue: any;
 	rightValue: any;
 	diffType: DiffType;
+	severity: DriftSeverity;
 }
 
 /**
@@ -205,6 +258,7 @@ function compareObjects(basePath: string, left: any, right: any, diffs: FieldDif
 				leftValue: left,
 				rightValue: right,
 				diffType: DiffType.Added,
+				severity: classifyFieldSeverity(basePath),
 			});
 		}
 		return;
@@ -216,6 +270,7 @@ function compareObjects(basePath: string, left: any, right: any, diffs: FieldDif
 			leftValue: left,
 			rightValue: right,
 			diffType: DiffType.Removed,
+			severity: classifyFieldSeverity(basePath),
 		});
 		return;
 	}
@@ -228,6 +283,7 @@ function compareObjects(basePath: string, left: any, right: any, diffs: FieldDif
 				leftValue: left,
 				rightValue: right,
 				diffType: DiffType.Modified,
+				severity: classifyFieldSeverity(basePath),
 			});
 		}
 		return;
@@ -241,6 +297,7 @@ function compareObjects(basePath: string, left: any, right: any, diffs: FieldDif
 				leftValue: left,
 				rightValue: right,
 				diffType: DiffType.Modified,
+				severity: classifyFieldSeverity(basePath),
 			});
 		}
 		return;
@@ -262,6 +319,7 @@ function compareObjects(basePath: string, left: any, right: any, diffs: FieldDif
 				leftValue: undefined,
 				rightValue: right[key],
 				diffType: DiffType.Added,
+				severity: classifyFieldSeverity(path),
 			});
 		} else if (!rightKeys.has(key)) {
 			diffs.push({
@@ -269,6 +327,7 @@ function compareObjects(basePath: string, left: any, right: any, diffs: FieldDif
 				leftValue: left[key],
 				rightValue: undefined,
 				diffType: DiffType.Removed,
+				severity: classifyFieldSeverity(path),
 			});
 		} else {
 			// Both have the key - recurse
@@ -293,6 +352,9 @@ export interface ComparisonWebviewData {
 		unchanged: number;
 		total: number;
 		changePercentage: number;
+		critical: number;
+		warning: number;
+		info: number;
 	};
 	resources: Array<{
 		id: string;
@@ -301,11 +363,13 @@ export interface ComparisonWebviewData {
 		namespace?: string;
 		diffType: string;
 		changeCount: number;
+		maxSeverity: string;
 		fields: Array<{
 			path: string;
 			leftValue: unknown;
 			rightValue: unknown;
 			diffType: string;
+			severity: string;
 		}>;
 		leftYaml: string;
 		rightYaml: string;
@@ -317,6 +381,18 @@ export interface ComparisonWebviewData {
 		removed: number;
 		modified: number;
 	}>;
+}
+
+/**
+ * Determine the highest severity among a list of field diffs.
+ */
+function maxSeverityOf(fields: FieldDiff[]): DriftSeverity {
+	let result = DriftSeverity.Info;
+	for (const f of fields) {
+		if (f.severity === DriftSeverity.Critical) return DriftSeverity.Critical;
+		if (f.severity === DriftSeverity.Warning) result = DriftSeverity.Warning;
+	}
+	return result;
 }
 
 export function formatComparisonForWebview(comparison: EnvironmentComparison): ComparisonWebviewData {
@@ -344,22 +420,41 @@ export function formatComparisonForWebview(comparison: EnvironmentComparison): C
 	// Build resources list for webview
 	const resources = comparison.diffs
 		.filter((d) => d.diffType !== DiffType.Unchanged)
-		.map((diff) => ({
-			id: `${diff.kind}-${diff.name}-${diff.namespace || "default"}`,
-			kind: diff.kind,
-			name: diff.name,
-			namespace: diff.namespace,
-			diffType: diff.diffType,
-			changeCount: diff.fieldDiffs?.length || 0,
-			fields: (diff.fieldDiffs || []).map((f) => ({
-				path: f.path,
-				leftValue: f.leftValue,
-				rightValue: f.rightValue,
-				diffType: f.diffType,
-			})),
-			leftYaml: diff.leftYaml || "",
-			rightYaml: diff.rightYaml || "",
-		}));
+		.map((diff) => {
+			const fieldDiffs = diff.fieldDiffs || [];
+			const resourceMaxSeverity =
+				diff.diffType === DiffType.Modified ? maxSeverityOf(fieldDiffs) : DriftSeverity.Info;
+			return {
+				id: `${diff.kind}-${diff.name}-${diff.namespace || "default"}`,
+				kind: diff.kind,
+				name: diff.name,
+				namespace: diff.namespace,
+				diffType: diff.diffType,
+				changeCount: fieldDiffs.length,
+				maxSeverity: resourceMaxSeverity,
+				fields: fieldDiffs.map((f) => ({
+					path: f.path,
+					leftValue: f.leftValue,
+					rightValue: f.rightValue,
+					diffType: f.diffType,
+					severity: f.severity,
+				})),
+				leftYaml: diff.leftYaml || "",
+				rightYaml: diff.rightYaml || "",
+			};
+		});
+
+	// Compute severity totals across all field diffs
+	let critical = 0;
+	let warning = 0;
+	let info = 0;
+	for (const resource of resources) {
+		for (const field of resource.fields) {
+			if (field.severity === DriftSeverity.Critical) critical++;
+			else if (field.severity === DriftSeverity.Warning) warning++;
+			else info++;
+		}
+	}
 
 	return {
 		header: {
@@ -370,6 +465,9 @@ export function formatComparisonForWebview(comparison: EnvironmentComparison): C
 		summary: {
 			...comparison.summary,
 			changePercentage,
+			critical,
+			warning,
+			info,
 		},
 		resources,
 		kindGroups: Array.from(kindMap.values()).sort((a, b) => b.count - a.count),

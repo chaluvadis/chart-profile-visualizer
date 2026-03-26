@@ -754,6 +754,13 @@ async function exportResources(format: "yaml" | "json") {
 }
 
 /**
+ * Export comparison results to a file (callable from extension commands)
+ */
+export async function exportComparisonReport(): Promise<void> {
+	return exportComparisonResults();
+}
+
+/**
  * Export comparison results to a file
  */
 async function exportComparisonResults() {
@@ -763,10 +770,15 @@ async function exportComparisonResults() {
 		return;
 	}
 
+	const defaultFileName = `comparison-${data.header.leftEnv}-vs-${data.header.rightEnv}.md`;
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+	const defaultUri = workspaceFolder ? vscode.Uri.joinPath(workspaceFolder, defaultFileName) : undefined;
+
 	const uri = await vscode.window.showSaveDialog({
+		defaultUri,
 		filters: {
-			JSON: ["json"],
 			Markdown: ["md"],
+			JSON: ["json"],
 		},
 	});
 
@@ -798,22 +810,71 @@ async function exportComparisonResults() {
  */
 function generateComparisonMarkdown(data: ComparisonWebviewData): string {
 	const lines: string[] = [];
-	lines.push(`# Comparison: ${data.header.leftEnv} vs ${data.header.rightEnv}`);
-	lines.push(`## Chart: ${data.header.chartName}`);
-	lines.push("");
-	lines.push("## Summary");
-	lines.push(`- Added: ${data.summary.added}`);
-	lines.push(`- Removed: ${data.summary.removed}`);
-	lines.push(`- Modified: ${data.summary.modified}`);
-	lines.push(`- Unchanged: ${data.summary.unchanged}`);
+	const timestamp = new Date().toISOString();
+
+	lines.push(`# Comparison Report: ${data.header.leftEnv} vs ${data.header.rightEnv}`);
+	lines.push(`**Chart:** ${data.header.chartName}`);
+	lines.push(`**Generated:** ${timestamp}`);
 	lines.push("");
 
-	for (const resource of data.resources) {
-		lines.push(`### ${resource.kind}/${resource.name}`);
-		lines.push(`Status: ${resource.diffType}`);
-		if (resource.namespace) {
-			lines.push(`Namespace: ${resource.namespace}`);
+	// Summary section
+	lines.push("## Summary");
+	lines.push("");
+	lines.push("### Change Counts");
+	lines.push(`| Category | Count |`);
+	lines.push(`|----------|-------|`);
+	lines.push(`| Added    | ${data.summary.added} |`);
+	lines.push(`| Removed  | ${data.summary.removed} |`);
+	lines.push(`| Modified | ${data.summary.modified} |`);
+	lines.push(`| Unchanged | ${data.summary.unchanged} |`);
+	lines.push(`| **Total** | **${data.summary.total}** |`);
+	if (data.summary.changePercentage !== undefined) {
+		lines.push(`| Change % | ${data.summary.changePercentage.toFixed(1)}% |`);
+	}
+	lines.push("");
+
+	// Severity counts
+	const hasSeverity = data.summary.critical > 0 || data.summary.warning > 0 || data.summary.info > 0;
+	if (hasSeverity) {
+		lines.push("### Severity Counts");
+		lines.push("");
+		lines.push(`| Severity | Count |`);
+		lines.push(`|----------|-------|`);
+		if (data.summary.critical > 0) lines.push(`| 🔴 Critical | ${data.summary.critical} |`);
+		if (data.summary.warning > 0) lines.push(`| 🟡 Warning  | ${data.summary.warning} |`);
+		if (data.summary.info > 0) lines.push(`| 🔵 Info     | ${data.summary.info} |`);
+		lines.push("");
+	}
+
+	// Drift list
+	const changedResources = data.resources.filter((r) => r.diffType.toLowerCase() !== "unchanged");
+	if (changedResources.length > 0) {
+		lines.push("## Drift List");
+		lines.push("");
+
+		for (const resource of changedResources) {
+			const ns = resource.namespace ? ` (${resource.namespace})` : "";
+			const severity = resource.maxSeverity ? ` — **${resource.maxSeverity}**` : "";
+			lines.push(`### ${resource.kind}/${resource.name}${ns}`);
+			lines.push(`**Status:** ${resource.diffType}${severity}`);
+
+			if (resource.fields && resource.fields.length > 0) {
+				lines.push("");
+				lines.push(`| Field | ${data.header.leftEnv} | ${data.header.rightEnv} | Severity |`);
+				lines.push(`|-------|${"-".repeat(data.header.leftEnv.length + 2)}|${"-".repeat(data.header.rightEnv.length + 2)}|----------|`);
+				for (const field of resource.fields) {
+					const leftVal = field.leftValue === undefined ? "*(absent)*" : `\`${JSON.stringify(field.leftValue)}\``;
+					const rightVal = field.rightValue === undefined ? "*(absent)*" : `\`${JSON.stringify(field.rightValue)}\``;
+					const fieldSev = field.severity ?? "info";
+					lines.push(`| \`${field.path}\` | ${leftVal} | ${rightVal} | ${fieldSev} |`);
+				}
+			}
+			lines.push("");
 		}
+	} else {
+		lines.push("## Drift List");
+		lines.push("");
+		lines.push("No differences found between environments.");
 		lines.push("");
 	}
 

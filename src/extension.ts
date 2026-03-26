@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { ChartProfilesProvider, ChartTreeItem } from "./core/chartProfilesProvider";
 import type { HelmChart } from "./k8s/helmChart";
-import { show as showChartVisualization, showCompare } from "./visualization/chartVisualizationView";
+import { show as showChartVisualization, showCompare, exportComparisonReport } from "./visualization/chartVisualizationView";
 import { showValidationResults } from "./visualization/validationResultView";
 import { showRuntimeStateResults } from "./visualization/runtimeStateView";
 import { isHelmAvailable } from "./k8s/helmRenderer";
@@ -9,6 +9,7 @@ import { showRenderedYaml } from "./utils/renderedYamlView";
 import { createChartValidator } from "./processing/chartValidator";
 import { getKubernetesConnector } from "./k8s/kubernetesConnector";
 import { getRuntimeStateManager } from "./state/runtimeStateManager";
+import { showFirstRunWalkthrough } from "./core/firstRunWalkthrough";
 
 import { initializeIconManager, preloadIcons } from "./k8s/iconManager";
 
@@ -247,6 +248,22 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	// Register export comparison report command
+	const exportComparisonReportCommand = vscode.commands.registerCommand(
+		"chartProfiles.exportComparisonReport",
+		async () => {
+			await exportComparisonReport();
+		}
+	);
+
+	// Register getting-started walkthrough command (can be triggered manually from the Command Palette)
+	const startWalkthroughCommand = vscode.commands.registerCommand(
+		"chartProfiles.startWalkthrough",
+		async () => {
+			await showFirstRunWalkthrough(context, /* forceShow */ true);
+		}
+	);
+
 	context.subscriptions.push(
 		treeView,
 		expandAllCommand,
@@ -257,7 +274,9 @@ export function activate(context: vscode.ExtensionContext) {
 		validateChartCommand,
 		checkClusterStatusCommand,
 		checkRuntimeStateCommand,
-		compareEnvironmentsCommand
+		compareEnvironmentsCommand,
+		exportComparisonReportCommand,
+		startWalkthroughCommand
 	);
 
 	// Auto-refresh when workspace files change
@@ -277,6 +296,11 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Start runtime state auto-refresh (every 30 seconds)
 	runtimeStateManager.startAutoRefresh(30000);
+
+	// Show first-run walkthrough for new users (no-op when already seen or disabled)
+	showFirstRunWalkthrough(context).catch((err) => {
+		console.error("First-run walkthrough error:", err);
+	});
 }
 
 export function deactivate() {
