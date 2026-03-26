@@ -524,13 +524,15 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex: 1;
 }
 
-.compare-chart-name {
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: var(--vscode-foreground);
+.compare-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 .compare-envs {
@@ -538,6 +540,19 @@ body {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.compare-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.compare-chart-name {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--vscode-foreground);
 }
 
 .env-tag {
