@@ -300,14 +300,16 @@ function renderComparisonResults(): void {
         <div class="compare-header-section">
             <div class="compare-info">
                 <h2 class="compare-chart-name">${escapeHtml(header.chartName)}</h2>
-                <div class="compare-envs">
-                    <span class="env-tag env-base">${escapeHtml(header.leftEnv)}</span>
-                    <span class="env-vs">vs</span>
-                    <span class="env-tag env-compare">${escapeHtml(header.rightEnv)}</span>
+                <div class="compare-info-row">
+                    <div class="compare-envs">
+                        <span class="env-tag env-base">${escapeHtml(header.leftEnv)}</span>
+                        <span class="env-vs">vs</span>
+                        <span class="env-tag env-compare">${escapeHtml(header.rightEnv)}</span>
+                    </div>
+                    <div class="compare-header-actions">
+                        <button id="exportComparison" class="export-comparison-btn" title="Export comparison report">📥 Export Report</button>
+                    </div>
                 </div>
-            </div>
-            <div class="compare-header-actions">
-                <button id="exportComparison" class="export-comparison-btn" title="Export comparison report">📥 Export Report</button>
             </div>
             `;
 
