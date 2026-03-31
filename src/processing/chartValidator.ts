@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
-import { renderHelmTemplate, isHelmAvailable } from "../k8s/helmRenderer";
+import { isHelmAvailable, renderHelmTemplate } from "../k8s/helmRenderer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { runHelm } from "../utils/cliRunner";
 
@@ -52,7 +52,11 @@ export class ChartValidator {
 	async validateAll(environment: string): Promise<ValidationResult> {
 		const issues: ValidationIssue[] = [];
 
-		// Run validations in parallel
+		// Validate Chart.yaml metadata first, before other validations
+		const metadataIssues = await this.validateChartMetadata();
+		issues.push(...metadataIssues);
+
+		// Run remaining validations in parallel
 		const [lintIssues, schemaIssues, templateIssues, securityIssues] = await Promise.all([
 			this.runHelmLint(),
 			this.validateSchemas(environment),
@@ -141,6 +145,233 @@ export class ChartValidator {
 				message: `Helm lint failed: ${errorMessage}`,
 				remediation: "Check chart structure and fix syntax errors",
 			});
+		}
+
+		return issues;
+	}
+
+	/**
+	 * Validate Chart.yaml metadata against Helm chart schema
+	 */
+	async validateChartMetadata(): Promise<ValidationIssue[]> {
+		const issues: ValidationIssue[] = [];
+		const chartYamlPath = path.join(this.chartPath, "Chart.yaml");
+
+		// Check Chart.yaml exists
+		if (!fs.existsSync(chartYamlPath)) {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_MISSING",
+				message: "Chart.yaml not found",
+				file: chartYamlPath,
+				remediation: "Create a Chart.yaml file in the chart root directory",
+			});
+			return issues;
+		}
+
+		// Parse Chart.yaml
+		let chartData: Record<string, unknown>;
+		try {
+			const rawContent = fs.readFileSync(chartYamlPath, "utf8");
+			const parsed = yaml.load(rawContent);
+			if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+				issues.push({
+					severity: "error",
+					code: "CHART_METADATA_PARSE_ERROR",
+					message: "Chart.yaml is not a valid YAML mapping",
+					file: chartYamlPath,
+					remediation: "Ensure Chart.yaml contains a valid YAML object with key-value pairs",
+				});
+				return issues;
+			}
+			chartData = parsed as Record<string, unknown>;
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_PARSE_ERROR",
+				message: `Chart.yaml is not valid YAML: ${errorMessage}`,
+				file: chartYamlPath,
+				remediation: "Fix YAML syntax errors in Chart.yaml",
+			});
+			return issues;
+		}
+
+		// Required field: apiVersion (must be v1 or v2)
+		if (!chartData.apiVersion) {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_APIVERSION_MISSING",
+				message: "Chart.yaml is missing required field 'apiVersion'",
+				file: chartYamlPath,
+				remediation: "Add 'apiVersion: v2' to Chart.yaml (v2 is recommended for Helm 3)",
+			});
+		} else if (typeof chartData.apiVersion !== "string" || !["v1", "v2"].includes(chartData.apiVersion)) {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_APIVERSION_INVALID",
+				message: `Invalid apiVersion "${chartData.apiVersion}" — must be "v1" or "v2"`,
+				file: chartYamlPath,
+				remediation: "Set apiVersion to 'v2' for Helm 3 charts or 'v1' for legacy Helm 2 charts",
+			});
+		}
+
+		// Required field: name (must match Helm chart name rules)
+		const chartNameRegex = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+		if (!chartData.name) {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_NAME_MISSING",
+				message: "Chart.yaml is missing required field 'name'",
+				file: chartYamlPath,
+				remediation: "Add a 'name' field to Chart.yaml using lowercase letters, numbers, and hyphens",
+			});
+		} else if (typeof chartData.name !== "string") {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_NAME_INVALID",
+				message: "Chart name must be a string",
+				file: chartYamlPath,
+				remediation: "Set 'name' to a non-empty string value",
+			});
+		} else if (!chartNameRegex.test(chartData.name)) {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_NAME_INVALID",
+				message: `Invalid chart name "${chartData.name}" — must match DNS label rules: lowercase alphanumeric and hyphens, starting and ending with alphanumeric`,
+				file: chartYamlPath,
+				remediation: "Rename the chart to match ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ (e.g., 'my-chart')",
+			});
+		}
+
+		// Required field: version (valid semver)
+		const semverRegex = /^\d+\.\d+\.\d+/;
+		if (!chartData.version) {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_VERSION_MISSING",
+				message: "Chart.yaml is missing required field 'version'",
+				file: chartYamlPath,
+				remediation: "Add a 'version' field with a valid semver value (e.g., '1.0.0')",
+			});
+		} else if (typeof chartData.version !== "string") {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_VERSION_INVALID",
+				message: "Chart version must be a string",
+				file: chartYamlPath,
+				remediation: "Set 'version' to a valid semver string (e.g., '1.0.0')",
+			});
+		} else if (!semverRegex.test(chartData.version)) {
+			issues.push({
+				severity: "error",
+				code: "CHART_METADATA_VERSION_INVALID",
+				message: `Invalid version "${chartData.version}" — must be valid semver (e.g., '1.0.0')`,
+				file: chartYamlPath,
+				remediation: "Use semantic versioning format: MAJOR.MINOR.PATCH (e.g., '1.0.0')",
+			});
+		}
+
+		// Recommended field: description
+		if (chartData.description === undefined || chartData.description === null) {
+			issues.push({
+				severity: "warning",
+				code: "CHART_METADATA_DESCRIPTION_MISSING",
+				message: "Chart.yaml is missing recommended field 'description'",
+				file: chartYamlPath,
+				remediation: "Add a 'description' field summarizing what this chart does",
+			});
+		} else if (typeof chartData.description !== "string") {
+			issues.push({
+				severity: "warning",
+				code: "CHART_METADATA_DESCRIPTION_INVALID",
+				message: "Chart description must be a string",
+				file: chartYamlPath,
+				remediation: "Set 'description' to a string value",
+			});
+		}
+
+		// Recommended field: maintainers
+		if (chartData.maintainers === undefined || chartData.maintainers === null) {
+			issues.push({
+				severity: "warning",
+				code: "CHART_METADATA_MAINTAINERS_MISSING",
+				message: "Chart.yaml is missing recommended field 'maintainers'",
+				file: chartYamlPath,
+				remediation: "Add a 'maintainers' list with name and email entries",
+			});
+		}
+
+		// Optional validated field: type (application or library)
+		if (chartData.type !== undefined && chartData.type !== null) {
+			if (typeof chartData.type !== "string" || !["application", "library"].includes(chartData.type)) {
+				issues.push({
+					severity: "error",
+					code: "CHART_METADATA_TYPE_INVALID",
+					message: `Invalid chart type "${chartData.type}" — must be "application" or "library"`,
+					file: chartYamlPath,
+					remediation: "Set 'type' to either 'application' or 'library'",
+				});
+			}
+		}
+
+		// Optional validated field: dependencies
+		if (chartData.dependencies !== undefined && chartData.dependencies !== null) {
+			if (!Array.isArray(chartData.dependencies)) {
+				issues.push({
+					severity: "error",
+					code: "CHART_METADATA_DEPENDENCIES_INVALID",
+					message: "Chart dependencies must be an array",
+					file: chartYamlPath,
+					remediation: "Set 'dependencies' to an array of dependency objects",
+				});
+			} else {
+				for (let i = 0; i < chartData.dependencies.length; i++) {
+					const dep = chartData.dependencies[i];
+					if (!dep || typeof dep !== "object" || Array.isArray(dep)) {
+						issues.push({
+							severity: "error",
+							code: "CHART_METADATA_DEPENDENCY_INVALID",
+							message: `Dependency at index ${i} is not a valid object`,
+							file: chartYamlPath,
+							remediation: "Each dependency must be a mapping with name, version, and repository fields",
+						});
+						continue;
+					}
+
+					const depObj = dep as Record<string, unknown>;
+
+					if (!depObj.name || typeof depObj.name !== "string") {
+						issues.push({
+							severity: "error",
+							code: "CHART_METADATA_DEPENDENCY_NAME_MISSING",
+							message: `Dependency at index ${i} is missing required field 'name'`,
+							file: chartYamlPath,
+							remediation: "Add a 'name' field to the dependency",
+						});
+					}
+
+					if (!depObj.version || typeof depObj.version !== "string") {
+						issues.push({
+							severity: "error",
+							code: "CHART_METADATA_DEPENDENCY_VERSION_MISSING",
+							message: `Dependency "${(depObj.name as string) || i}" is missing required field 'version'`,
+							file: chartYamlPath,
+							remediation: "Add a 'version' field with a valid version constraint (e.g., '^1.0.0')",
+						});
+					}
+
+					if (!depObj.repository || typeof depObj.repository !== "string") {
+						issues.push({
+							severity: "error",
+							code: "CHART_METADATA_DEPENDENCY_REPOSITORY_MISSING",
+							message: `Dependency "${(depObj.name as string) || i}" is missing required field 'repository'`,
+							file: chartYamlPath,
+							remediation: "Add a 'repository' field with the chart repository URL",
+						});
+					}
+				}
+			}
 		}
 
 		return issues;
