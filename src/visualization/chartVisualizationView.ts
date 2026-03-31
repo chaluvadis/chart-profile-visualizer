@@ -4,21 +4,22 @@ import * as path from "node:path";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ChartTreeItem } from "../core/chartProfilesProvider";
+import type { ComparisonWebviewData } from "../diff/environmentDiff";
 import { type RenderedResource, renderHelmTemplate } from "../k8s/helmRenderer";
+import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import {
 	type ArchitectureNode,
 	buildArchitectureNodes,
 	detectRelationships,
 	type ResourceRelationship,
 } from "../processing/relationshipDetector";
-import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
 import { mergeValues } from "../processing/valuesMerger";
-import { generateEnhancedHtml } from "./webviewHtmlGenerator";
-import { generateDependencyVisualizationData } from "./dependencyVisualizer";
-import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { getRuntimeStateManager } from "../state/runtimeStateManager";
-import type { ComparisonWebviewData } from "../diff/environmentDiff";
-import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
+import { validateCliIdentifier } from "../utils/cliValidation";
+import { getTemplatePath, loadTemplate } from "../webview/templateLoader";
+import { generateDependencyVisualizationData } from "./dependencyVisualizer";
+import { parseResources, type ResourceHierarchy } from "./resourceVisualizer";
+import { generateEnhancedHtml } from "./webviewHtmlGenerator";
 
 // Re-export for backward compatibility
 export type { ComparisonWebviewData };
@@ -496,7 +497,11 @@ async function handleMessage(message: WebviewMessage) {
 			break;
 		case "revealSecret":
 			if (message.secretName) {
-				await revealSecret(message.secretName, message.namespace);
+				const safeSecretName = validateCliIdentifier(message.secretName, "secret name");
+				const safeNamespace = message.namespace
+					? validateCliIdentifier(message.namespace, "namespace")
+					: undefined;
+				await revealSecret(safeSecretName, safeNamespace);
 			}
 			break;
 		case "showError":
@@ -590,6 +595,17 @@ async function revealSecret(secretName: string, namespace?: string): Promise<voi
 		return;
 	}
 
+	// Warn user before revealing secret data
+	const confirm = await vscode.window.showWarningMessage(
+		"This will display decoded secret values in an editor tab. Secret data may persist in editor history. Continue?",
+		{ modal: false },
+		"Reveal",
+		"Cancel"
+	);
+	if (confirm !== "Reveal") {
+		return;
+	}
+
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
@@ -630,6 +646,7 @@ async function revealSecret(secretName: string, namespace?: string): Promise<voi
 
 				// Build the revealed secret document
 				const lines: string[] = [];
+				lines.push("# ⚠️ SENSITIVE: Secret data — close this tab when done");
 				lines.push("# ═══════════════════════════════════════════════════════════════");
 				lines.push("# ⚠️  REVEALED SECRET DATA - HANDLE WITH CARE");
 				lines.push("# ═══════════════════════════════════════════════════════════════");
@@ -861,10 +878,14 @@ function generateComparisonMarkdown(data: ComparisonWebviewData): string {
 			if (resource.fields && resource.fields.length > 0) {
 				lines.push("");
 				lines.push(`| Field | ${data.header.leftEnv} | ${data.header.rightEnv} | Severity |`);
-				lines.push(`|-------|${"-".repeat(data.header.leftEnv.length + 2)}|${"-".repeat(data.header.rightEnv.length + 2)}|----------|`);
+				lines.push(
+					`|-------|${"-".repeat(data.header.leftEnv.length + 2)}|${"-".repeat(data.header.rightEnv.length + 2)}|----------|`
+				);
 				for (const field of resource.fields) {
-					const leftVal = field.leftValue === undefined ? "*(absent)*" : `\`${JSON.stringify(field.leftValue)}\``;
-					const rightVal = field.rightValue === undefined ? "*(absent)*" : `\`${JSON.stringify(field.rightValue)}\``;
+					const leftVal =
+						field.leftValue === undefined ? "*(absent)*" : `\`${JSON.stringify(field.leftValue)}\``;
+					const rightVal =
+						field.rightValue === undefined ? "*(absent)*" : `\`${JSON.stringify(field.rightValue)}\``;
 					const fieldSev = field.severity ?? "info";
 					lines.push(`| \`${field.path}\` | ${leftVal} | ${rightVal} | ${fieldSev} |`);
 				}
