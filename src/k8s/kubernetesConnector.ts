@@ -1,7 +1,7 @@
 import * as yaml from "js-yaml";
-import { TIMEOUT } from "../utils/constants";
+import { type CliCommandOptions, runCommand } from "../utils/cliRunner";
 import { validateCliIdentifier } from "../utils/cliValidation";
-import { runCommand, type CliCommandOptions } from "../utils/cliRunner";
+import { BUFFER_SIZE, TIMEOUT } from "../utils/constants";
 
 /**
  * Represents the runtime state of a Kubernetes resource
@@ -677,6 +677,22 @@ export class KubernetesConnector {
 			return stdout;
 		} catch {
 			return "";
+		}
+	}
+
+	/**
+	 * Update chart dependencies via helm dependency update
+	 */
+	async updateDependencies(chartPath: string): Promise<{ success: boolean; output: string }> {
+		const safePath = validateCliIdentifier(chartPath, "chart path");
+		try {
+			const { stdout, stderr } = await this.runHelm(["dependency", "update", safePath], {
+				timeout: TIMEOUT.HELM_TEMPLATE,
+				maxBuffer: BUFFER_SIZE.HELM_OUTPUT,
+			});
+			return { success: true, output: stdout || stderr };
+		} catch (error: any) {
+			return { success: false, output: error.message || String(error) };
 		}
 	}
 
