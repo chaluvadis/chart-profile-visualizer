@@ -1,17 +1,20 @@
 import * as vscode from "vscode";
 import { ChartProfilesProvider, ChartTreeItem } from "./core/chartProfilesProvider";
-import type { HelmChart } from "./k8s/helmChart";
-import { show as showChartVisualization, showCompare, exportComparisonReport } from "./visualization/chartVisualizationView";
-import { showValidationResults } from "./visualization/validationResultView";
-import { showRuntimeStateResults } from "./visualization/runtimeStateView";
-import { isHelmAvailable } from "./k8s/helmRenderer";
-import { showRenderedYaml } from "./utils/renderedYamlView";
-import { createChartValidator } from "./processing/chartValidator";
-import { getKubernetesConnector } from "./k8s/kubernetesConnector";
-import { getRuntimeStateManager } from "./state/runtimeStateManager";
 import { showFirstRunWalkthrough } from "./core/firstRunWalkthrough";
-
+import type { HelmChart } from "./k8s/helmChart";
+import { isHelmAvailable } from "./k8s/helmRenderer";
 import { initializeIconManager, preloadIcons } from "./k8s/iconManager";
+import { getKubernetesConnector } from "./k8s/kubernetesConnector";
+import { createChartValidator } from "./processing/chartValidator";
+import { getRuntimeStateManager } from "./state/runtimeStateManager";
+import { showRenderedYaml } from "./utils/renderedYamlView";
+import {
+	exportComparisonReport,
+	show as showChartVisualization,
+	showCompare,
+} from "./visualization/chartVisualizationView";
+import { showRuntimeStateResults } from "./visualization/runtimeStateView";
+import { showValidationResults } from "./visualization/validationResultView";
 
 export function activate(context: vscode.ExtensionContext) {
 	// Initialize icon manager and preload icons
@@ -257,10 +260,36 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	// Register getting-started walkthrough command (can be triggered manually from the Command Palette)
-	const startWalkthroughCommand = vscode.commands.registerCommand(
-		"chartProfiles.startWalkthrough",
-		async () => {
-			await showFirstRunWalkthrough(context, /* forceShow */ true);
+	const startWalkthroughCommand = vscode.commands.registerCommand("chartProfiles.startWalkthrough", async () => {
+		await showFirstRunWalkthrough(context, /* forceShow */ true);
+	});
+
+	// Register update dependencies command
+	const updateDependenciesCommand = vscode.commands.registerCommand(
+		"chartProfiles.updateDependencies",
+		async (item: unknown) => {
+			const typedItem = item as { chartPath?: string };
+			if (!typedItem?.chartPath) {
+				vscode.window.showErrorMessage("No chart selected");
+				return;
+			}
+			await vscode.window.withProgress(
+				{
+					location: vscode.ProgressLocation.Notification,
+					title: "Updating chart dependencies...",
+					cancellable: false,
+				},
+				async () => {
+					const connector = getKubernetesConnector();
+					const result = await connector.updateDependencies(typedItem.chartPath!);
+					if (result.success) {
+						vscode.window.showInformationMessage("Chart dependencies updated successfully");
+						chartProfilesProvider.refresh();
+					} else {
+						vscode.window.showErrorMessage(`Failed to update dependencies: ${result.output}`);
+					}
+				}
+			);
 		}
 	);
 
@@ -276,7 +305,8 @@ export function activate(context: vscode.ExtensionContext) {
 		checkRuntimeStateCommand,
 		compareEnvironmentsCommand,
 		exportComparisonReportCommand,
-		startWalkthroughCommand
+		startWalkthroughCommand,
+		updateDependenciesCommand
 	);
 
 	// Auto-refresh when workspace files change
