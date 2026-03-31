@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; script-src 'nonce-{{{nonce}}}'; style-src 'self' 'unsafe-inline';">
     <title>Validation Results</title>
     <style>
         :root {
@@ -539,7 +539,7 @@
 
     <div id="copyToast" class="copy-toast" role="status" aria-live="polite">Copied</div>
 
-    <script>
+    <script nonce="{{{nonce}}}">
         function toggleSection(header) {
             var content = header.nextElementSibling;
             var chevron = header.querySelector('.chevron');
