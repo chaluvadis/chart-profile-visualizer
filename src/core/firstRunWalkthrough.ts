@@ -1,20 +1,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import {
-	FIRST_RUN_STATE_KEY,
-	QUICK_START_URL,
-	shouldShowWalkthrough,
-} from "./walkthroughSettings";
+import { FIRST_RUN_STATE_KEY, QUICK_START_URL, shouldShowWalkthrough } from "./walkthroughSettings";
 
 /**
  * Returns true when the first-run walkthrough should be shown to the user.
  */
 export function isFirstRun(context: vscode.ExtensionContext): boolean {
 	const hasCompletedBefore = context.globalState.get<boolean>(FIRST_RUN_STATE_KEY, false);
-	const configEnabled = vscode.workspace
-		.getConfiguration("chartProfiles")
-		.get<boolean>("showWalkthroughOnFirstRun");
+	const configEnabled = vscode.workspace.getConfiguration("chartProfiles").get<boolean>("showWalkthroughOnFirstRun");
 	return shouldShowWalkthrough(hasCompletedBefore, configEnabled);
 }
 
@@ -33,10 +27,7 @@ export async function markFirstRunComplete(context: vscode.ExtensionContext): Pr
  * @param forceShow - When true, bypasses the "already seen" and "disabled" checks.
  *                    Used when the user manually triggers the walkthrough.
  */
-export async function showFirstRunWalkthrough(
-	context: vscode.ExtensionContext,
-	forceShow = false,
-): Promise<void> {
+export async function showFirstRunWalkthrough(context: vscode.ExtensionContext, forceShow = false): Promise<void> {
 	if (!forceShow && !isFirstRun(context)) {
 		return;
 	}
@@ -46,7 +37,7 @@ export async function showFirstRunWalkthrough(
 			"Would you like to explore with sample files or read the quick-start guide?",
 		"Use Sample Files",
 		"Open Quick Start",
-		"Don't Show Again",
+		"Don't Show Again"
 	);
 
 	// User dismissed the dialog without making a choice — leave the flag unset so
@@ -96,7 +87,7 @@ async function copySampleFilesToWorkspace(context: vscode.ExtensionContext): Pro
 		const result = await vscode.window.showErrorMessage(
 			"Sample files not found in this installation. " +
 				"Please visit the quick-start guide for manual setup instructions.",
-			"Open Quick Start",
+			"Open Quick Start"
 		);
 		if (result === "Open Quick Start") {
 			vscode.env.openExternal(vscode.Uri.parse(QUICK_START_URL));
@@ -113,7 +104,7 @@ async function copySampleFilesToWorkspace(context: vscode.ExtensionContext): Pro
 		const result = await vscode.window.showErrorMessage(
 			`Failed to copy sample files: ${message}. ` +
 				"Try manually copying the examples/ directory, or open the quick-start guide.",
-			"Open Quick Start",
+			"Open Quick Start"
 		);
 		if (result === "Open Quick Start") {
 			vscode.env.openExternal(vscode.Uri.parse(QUICK_START_URL));
@@ -124,7 +115,7 @@ async function copySampleFilesToWorkspace(context: vscode.ExtensionContext): Pro
 	const openChoice = await vscode.window.showInformationMessage(
 		`Sample chart copied to ${destPath}. Open it now to start comparing environments?`,
 		"Open Folder",
-		"Add to Workspace",
+		"Add to Workspace"
 	);
 
 	if (openChoice === "Open Folder") {
@@ -134,7 +125,7 @@ async function copySampleFilesToWorkspace(context: vscode.ExtensionContext): Pro
 			uri: vscode.Uri.file(destPath),
 		});
 		vscode.window.showInformationMessage(
-			`sample-app added to workspace. Expand it in the Chart Profiles panel to start exploring.`,
+			`sample-app added to workspace. Expand it in the Chart Profiles panel to start exploring.`
 		);
 	}
 }
@@ -152,6 +143,9 @@ function copyDirectorySync(src: string, dest: string): void {
 		const srcPath = path.join(src, entry.name);
 		const destPath = path.join(dest, entry.name);
 
+		if (entry.isSymbolicLink()) {
+			continue;
+		}
 		if (entry.isDirectory()) {
 			copyDirectorySync(srcPath, destPath);
 		} else {

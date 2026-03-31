@@ -1,7 +1,16 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
-import type { ValidationResult, ValidationIssue } from "../processing/chartValidator";
-import { loadTemplate, getTemplatePath, escapeHtml } from "../webview/templateLoader";
+import type { ValidationIssue, ValidationResult } from "../processing/chartValidator";
+import { escapeHtml, getTemplatePath, loadTemplate } from "../webview/templateLoader";
+
+function createNonce(): string {
+	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	let nonce = "";
+	for (let i = 0; i < 32; i++) {
+		nonce += chars.charAt(Math.floor(Math.random() * chars.length));
+	}
+	return nonce;
+}
 
 // Module-level state (singleton pattern for VSCode extension)
 let validationPanel: vscode.WebviewPanel | undefined;
@@ -203,6 +212,7 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		errorCount: errors.length,
 		warningCount: warnings.length,
 		infoCount: infos.length,
+		nonce: createNonce(),
 	};
 }
 
@@ -227,7 +237,7 @@ function formatIssues(issues: ValidationIssue[]): Record<string, unknown>[] {
  * Generate inline HTML for validation results (fallback)
  */
 function generateInlineValidationHtml(data: Record<string, unknown>): string {
-	const { valid, summary, errors, warnings, info, chartName, environment, timestamp } = data as {
+	const { valid, summary, errors, warnings, info, chartName, environment, timestamp, nonce } = data as {
 		valid: boolean;
 		summary: { errors: number; warnings: number; info: number };
 		errors: Record<string, unknown>[];
@@ -236,6 +246,7 @@ function generateInlineValidationHtml(data: Record<string, unknown>): string {
 		chartName: string;
 		environment: string;
 		timestamp: string;
+		nonce: string;
 	};
 
 	const statusClass = valid ? "status-valid" : "status-invalid";
@@ -246,7 +257,7 @@ function generateInlineValidationHtml(data: Record<string, unknown>): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; script-src 'nonce-${escapeHtml(nonce)}'; style-src 'self' 'unsafe-inline';">
     <title>Validation Results</title>
     <style>
         body {
@@ -409,9 +420,9 @@ function generateInlineValidationHtml(data: Record<string, unknown>): string {
     ${generateSectionHtml("Info", info, "info", info.length > 0)}
 
     <div class="chart-info">
-        <strong>Chart:</strong> ${chartName}<br>
-        <strong>Environment:</strong> ${environment}<br>
-        <strong>Timestamp:</strong> ${timestamp}
+        <strong>Chart:</strong> ${escapeHtml(chartName)}<br>
+        <strong>Environment:</strong> ${escapeHtml(environment)}<br>
+        <strong>Timestamp:</strong> ${escapeHtml(timestamp)}
     </div>
 </body>
 </html>`;
@@ -439,9 +450,9 @@ function generateSectionHtml(
 			const detailsHtml = hasDetails
 				? `
             <div class="issue-details">
-                ${issue.resource ? `<div class="issue-resource">📦 Resource: ${issue.resource}</div>` : ""}
-                ${issue.file ? `<div>📄 File: ${issue.file}${issue.line ? `:${issue.line}` : ""}</div>` : ""}
-                ${issue.remediation ? `<div class="issue-remediation">💡 Fix: ${issue.remediation}</div>` : ""}
+                ${issue.resource ? `<div class="issue-resource">📦 Resource: ${escapeHtml(String(issue.resource))}</div>` : ""}
+                ${issue.file ? `<div>📄 File: ${escapeHtml(String(issue.file))}${issue.line ? `:${escapeHtml(String(issue.line))}` : ""}</div>` : ""}
+                ${issue.remediation ? `<div class="issue-remediation">💡 Fix: ${escapeHtml(String(issue.remediation))}</div>` : ""}
             </div>
         `
 				: "";
@@ -449,9 +460,9 @@ function generateSectionHtml(
 			return `
         <div class="issue-card issue-${severity}">
             <div class="issue-header">
-                <span class="issue-code">${issue.code}</span>
+                <span class="issue-code">${escapeHtml(String(issue.code))}</span>
             </div>
-            <div class="issue-message">${issue.message}</div>
+            <div class="issue-message">${escapeHtml(String(issue.message))}</div>
             ${detailsHtml}
         </div>
     `;
