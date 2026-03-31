@@ -15,6 +15,13 @@ interface TemplateContext {
 }
 
 /**
+ * Resolve a dot-notation path (e.g. "foo.bar") against an object
+ */
+function resolvePath(obj: any, path: string): any {
+	return path.split(".").reduce((current, key) => current?.[key], obj);
+}
+
+/**
  * Escape HTML special characters to prevent XSS attacks
  */
 export function escapeHtml(text: string): string {
@@ -103,9 +110,9 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 						// Process {{#if condition}}...{{else}}...{{/if}} blocks first
 						// so generic {{#if ...}}{{/if}} does not consume them partially.
 						const withElseProcessed = processed.replace(
-							/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
+							/\{\{#if\s+([\w.]+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
 							(ifMatch: string, condition: string, ifContent: string, elseContent: string): string => {
-								const value = item[condition];
+								const value = resolvePath(item, condition);
 								const selected = value ? ifContent : elseContent;
 								hasChanges = true;
 								return selected.replace(/\{\{(@index|[\w.]+)\}\}/g, (m: string, k: string): string => {
@@ -119,9 +126,9 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 
 						// Process {{#if condition}}...{{/if}} blocks
 						const newProcessed = withElseProcessed.replace(
-							/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+							/\{\{#if\s+([\w.]+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
 							(ifMatch: string, condition: string, ifContent: string): string => {
-								const value = item[condition];
+								const value = resolvePath(item, condition);
 								if (!value) return "";
 								hasChanges = true;
 								// Process simple {{variable}} placeholders within the if-block content
@@ -159,9 +166,9 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 
 	// Handle {{#if condition}}...{{else}}...{{/if}} blocks
 	result = result.replace(
-		/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
+		/\{\{#if\s+([\w.]+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g,
 		(match: string, condition: string, ifContent: string, elseContent: string): string => {
-			const selectedContent = context[condition] ? ifContent : elseContent;
+			const selectedContent = resolvePath(context, condition) ? ifContent : elseContent;
 			// Process simple {{variable}} placeholders within the selected content
 			return selectedContent.replace(/\{\{(\w+)\}\}/g, (m: string, key: string): string => {
 				return context[key] !== undefined ? escapeHtml(String(context[key])) : m;
@@ -171,9 +178,9 @@ export function renderTemplate(template: string, context: TemplateContext): stri
 
 	// Replace {{#if condition}}...{{/if}} blocks after if/else blocks.
 	result = result.replace(
-		/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+		/\{\{#if\s+([\w.]+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
 		(match: string, condition: string, content: string): string => {
-			if (!context[condition]) {
+			if (!resolvePath(context, condition)) {
 				return "";
 			}
 			return content.replace(/\{\{(\w+)\}\}/g, (m: string, key: string): string => {
