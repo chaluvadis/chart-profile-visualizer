@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { SKIP_DIRECTORIES } from "../utils/constants";
-import { parseYaml, type ChartYaml } from "../utils/yaml";
+import { type ChartYaml, parseYaml } from "../utils/yaml";
 
 export interface HelmChart {
 	name: string;
@@ -45,7 +45,17 @@ async function findChartsRecursive(dirPath: string, charts: HelmChart[]): Promis
 					if (chart) {
 						charts.push(chart);
 					}
-					// Don't recurse into chart directories
+					// Recurse into subdirectories to find sub-charts, but skip templates/
+					const subEntries = fs.readdirSync(fullPath, { withFileTypes: true });
+					for (const subEntry of subEntries) {
+						if (
+							subEntry.isDirectory() &&
+							subEntry.name !== "templates" &&
+							!shouldSkipDirectory(subEntry.name)
+						) {
+							await findChartsRecursive(path.join(fullPath, subEntry.name), charts);
+						}
+					}
 					continue;
 				}
 
