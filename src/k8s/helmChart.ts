@@ -31,7 +31,7 @@ export async function findHelmCharts(workspaceRoots: string[]): Promise<HelmChar
 
 async function findChartsRecursive(dirPath: string, charts: HelmChart[]): Promise<void> {
 	try {
-		const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+		const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
 		for (const entry of entries) {
 			const fullPath = path.join(dirPath, entry.name);
@@ -40,7 +40,15 @@ async function findChartsRecursive(dirPath: string, charts: HelmChart[]): Promis
 			if (entry.isDirectory() && !shouldSkipDirectory(entry.name)) {
 				// Check if this directory contains a Chart.yaml
 				const chartYamlPath = path.join(fullPath, "Chart.yaml");
-				if (fs.existsSync(chartYamlPath)) {
+				let chartYamlExists = false;
+				try {
+					await fs.promises.access(chartYamlPath);
+					chartYamlExists = true;
+				} catch {
+					// Chart.yaml does not exist
+				}
+
+				if (chartYamlExists) {
 					const chart = await parseChartYaml(chartYamlPath, fullPath);
 					if (chart) {
 						charts.push(chart);
@@ -71,7 +79,7 @@ async function findChartsRecursive(dirPath: string, charts: HelmChart[]): Promis
 
 async function parseChartYaml(chartYamlPath: string, chartPath: string): Promise<HelmChart | null> {
 	try {
-		const content = fs.readFileSync(chartYamlPath, "utf8");
+		const content = await fs.promises.readFile(chartYamlPath, "utf8");
 		const chartData = parseYaml<ChartYaml>(content);
 
 		if (!chartData) {

@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
 import { mergeValues } from "../processing/valuesMerger";
-import { BUFFER_SIZE, TIMEOUT } from "../utils/constants";
 import { runHelm } from "../utils/cliRunner";
+import { BUFFER_SIZE, TIMEOUT } from "../utils/constants";
 
 // Template variable patterns for substitution
 const TEMPLATE_PATTERNS = {
@@ -41,7 +41,7 @@ export async function renderHelmTemplate(
 
 	if (!helmAvailable) {
 		console.warn("Helm CLI not found. Using placeholder rendering.");
-		return getPlaceholderResources(chartPath, environment);
+		return await getPlaceholderResources(chartPath, environment);
 	}
 
 	// Keep a printable command preview for diagnostics
@@ -243,13 +243,15 @@ export async function isHelmAvailable(): Promise<boolean> {
 /**
  * Returns fallback resources when Helm is not available by reading and partially rendering template files
  */
-function getPlaceholderResources(chartPath: string, environment: string): RenderedResource[] {
+async function getPlaceholderResources(chartPath: string, environment: string): Promise<RenderedResource[]> {
 	const chartName = path.basename(chartPath);
 	const templatesDir = path.join(chartPath, "templates");
 	const resources: RenderedResource[] = [];
 
 	// Check if templates directory exists
-	if (!fs.existsSync(templatesDir)) {
+	try {
+		await fs.promises.access(templatesDir);
+	} catch {
 		return [
 			{
 				kind: "Notice",
@@ -271,25 +273,31 @@ function getPlaceholderResources(chartPath: string, environment: string): Render
 		let chartVersion = DEFAULT_CHART_VERSION;
 		try {
 			const chartYamlPath = path.join(chartPath, "Chart.yaml");
-			if (fs.existsSync(chartYamlPath)) {
-				const chartYaml = yaml.load(fs.readFileSync(chartYamlPath, "utf8")) as any;
+			try {
+				await fs.promises.access(chartYamlPath);
+				const chartYamlContent = await fs.promises.readFile(chartYamlPath, "utf8");
+				const chartYaml = yaml.load(chartYamlContent) as any;
 				if (chartYaml && chartYaml.version) {
 					chartVersion = chartYaml.version;
 				}
+			} catch {
+				// Chart.yaml does not exist, skip
 			}
 		} catch (error) {
 			console.warn("Could not read Chart.yaml version:", error);
 		}
 
 		// Read all template files
-		const templateFiles = fs
-			.readdirSync(templatesDir)
-			.filter((file: string) => file.endsWith(".yaml") || file.endsWith(".yml"))
-			.filter((file: string) => !file.startsWith("_")); // Skip helper files
+		const dirEntries = await fs.promises.readdir(templatesDir, { withFileTypes: true });
+		const templateFiles = dirEntries
+			.filter((entry: fs.Dirent) => entry.isFile())
+			.map((entry: fs.Dirent) => entry.name)
+			.filter((name: string) => name.endsWith(".yaml") || name.endsWith(".yml"))
+			.filter((name: string) => !name.startsWith("_")); // Skip helper files
 
 		for (const templateFile of templateFiles) {
 			const templatePath = path.join(templatesDir, templateFile);
-			let templateContent = fs.readFileSync(templatePath, "utf8");
+			let templateContent = await fs.promises.readFile(templatePath, "utf8");
 
 			// Perform basic Go template variable substitution
 			const releaseName = `${chartName}-${environment}`;
