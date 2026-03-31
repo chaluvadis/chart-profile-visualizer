@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
-import { renderHelmTemplate, isHelmAvailable } from "../k8s/helmRenderer";
+import { isHelmAvailable, renderHelmTemplate } from "../k8s/helmRenderer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { runHelm } from "../utils/cliRunner";
 
@@ -241,32 +241,6 @@ export class ChartValidator {
 			this.checkBestPractices(content, relativePath, issues);
 		}
 
-		// Check Chart.yaml
-		const chartYamlPath = path.join(this.chartPath, "Chart.yaml");
-		if (!fs.existsSync(chartYamlPath)) {
-			issues.push({
-				severity: "error",
-				code: "CHART001",
-				message: "Chart.yaml not found",
-				file: this.chartPath,
-				remediation: "Create a valid Chart.yaml file",
-			});
-		} else {
-			try {
-				const chartYaml = yaml.load(fs.readFileSync(chartYamlPath, "utf8")) as Record<string, unknown>;
-				this.validateChartYaml(chartYaml, issues);
-			} catch (error: unknown) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				issues.push({
-					severity: "error",
-					code: "CHART002",
-					message: `Invalid Chart.yaml: ${errorMessage}`,
-					file: "Chart.yaml",
-					remediation: "Fix YAML syntax in Chart.yaml",
-				});
-			}
-		}
-
 		// Check values.yaml
 		const valuesYamlPath = path.join(this.chartPath, "values.yaml");
 		if (!fs.existsSync(valuesYamlPath)) {
@@ -425,51 +399,6 @@ export class ChartValidator {
 					remediation: "Define resource requests and limits for containers",
 				});
 			}
-		}
-	}
-
-	/**
-	 * Validate Chart.yaml structure
-	 */
-	private validateChartYaml(chartYaml: Record<string, unknown>, issues: ValidationIssue[]): void {
-		if (!chartYaml.name) {
-			issues.push({
-				severity: "error",
-				code: "CHART003",
-				message: "Chart name is required in Chart.yaml",
-				file: "Chart.yaml",
-			});
-		}
-
-		if (!chartYaml.version) {
-			issues.push({
-				severity: "error",
-				code: "CHART004",
-				message: "Chart version is required in Chart.yaml",
-				file: "Chart.yaml",
-			});
-		} else {
-			// Validate semver format
-			const semverRegex = /^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$/;
-			if (typeof chartYaml.version === "string" && !semverRegex.test(chartYaml.version)) {
-				issues.push({
-					severity: "warning",
-					code: "CHART005",
-					message: `Version "${chartYaml.version}" is not valid semver`,
-					file: "Chart.yaml",
-					remediation: "Use semantic versioning (e.g., 1.0.0)",
-				});
-			}
-		}
-
-		// Check for deprecated apiVersion
-		if (chartYaml.apiVersion === "v1") {
-			issues.push({
-				severity: "info",
-				code: "CHART006",
-				message: "Using deprecated apiVersion v1, consider using v2",
-				file: "Chart.yaml",
-			});
 		}
 	}
 
