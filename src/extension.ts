@@ -309,11 +309,27 @@ export function activate(context: vscode.ExtensionContext) {
 		updateDependenciesCommand
 	);
 
-	// Auto-refresh when workspace files change
+	// Auto-refresh when workspace files change (debounced to batch rapid saves)
+	function debounce(fn: () => void, delay: number): () => void {
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+		return () => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+			timeoutId = setTimeout(fn, delay);
+		};
+	}
+
+	const debouncedRefresh = debounce(() => {
+		chartProfilesProvider.refresh();
+		chartProfilesProvider.clearCache();
+		runtimeStateManager.clearCache();
+	}, 500);
+
 	const fileWatcher = vscode.workspace.createFileSystemWatcher("**/{Chart.yaml,values*.yaml}");
-	fileWatcher.onDidCreate(() => chartProfilesProvider.refresh());
-	fileWatcher.onDidChange(() => chartProfilesProvider.refresh());
-	fileWatcher.onDidDelete(() => chartProfilesProvider.refresh());
+	fileWatcher.onDidCreate(debouncedRefresh);
+	fileWatcher.onDidChange(debouncedRefresh);
+	fileWatcher.onDidDelete(debouncedRefresh);
 	context.subscriptions.push(fileWatcher);
 
 	// Auto-refresh when workspace folders change (multi-root support)
