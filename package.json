@@ -71,6 +71,12 @@
         "icon": "$(type-hierarchy)"
       },
       {
+        "command": "chartProfiles.updateDependencies",
+        "title": "Update Dependencies",
+        "icon": "$(cloud-download)",
+        "category": "Chart Profiles"
+      },
+      {
         "command": "chartProfiles.viewMergedValues",
         "title": "View Merged Values"
       },
@@ -104,6 +110,11 @@
         },
         {
           "command": "chartProfiles.checkClusterStatus",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        },
+        {
+          "command": "chartProfiles.updateDependencies",
           "when": "view == chartProfiles",
           "group": "navigation"
         }
