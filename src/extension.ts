@@ -264,6 +264,35 @@ export function activate(context: vscode.ExtensionContext) {
 		await showFirstRunWalkthrough(context, /* forceShow */ true);
 	});
 
+	// Register update dependencies command
+	const updateDependenciesCommand = vscode.commands.registerCommand(
+		"chartProfiles.updateDependencies",
+		async (item: unknown) => {
+			const typedItem = item as { chartPath?: string };
+			if (!typedItem?.chartPath) {
+				vscode.window.showErrorMessage("No chart selected");
+				return;
+			}
+			await vscode.window.withProgress(
+				{
+					location: vscode.ProgressLocation.Notification,
+					title: "Updating chart dependencies...",
+					cancellable: false,
+				},
+				async () => {
+					const connector = getKubernetesConnector();
+					const result = await connector.updateDependencies(typedItem.chartPath!);
+					if (result.success) {
+						vscode.window.showInformationMessage("Chart dependencies updated successfully");
+						chartProfilesProvider.refresh();
+					} else {
+						vscode.window.showErrorMessage(`Failed to update dependencies: ${result.output}`);
+					}
+				}
+			);
+		}
+	);
+
 	context.subscriptions.push(
 		treeView,
 		expandAllCommand,
@@ -276,7 +305,8 @@ export function activate(context: vscode.ExtensionContext) {
 		checkRuntimeStateCommand,
 		compareEnvironmentsCommand,
 		exportComparisonReportCommand,
-		startWalkthroughCommand
+		startWalkthroughCommand,
+		updateDependenciesCommand
 	);
 
 	// Auto-refresh when workspace files change (debounced to batch rapid saves)
