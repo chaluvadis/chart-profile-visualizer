@@ -188,12 +188,12 @@
     "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js && node test/kubectlDetection.test.js && node test/firstRunWalkthrough.test.js"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
+    "@biomejs/biome": "^2.4.10",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.5.2",
     "@types/vscode": "^1.110.0",
     "@vscode/vsce": "^3.7.1",
-    "esbuild": "^0.27.4",
+    "esbuild": "^0.28.0",
     "typescript": "^6.0.2"
   },
   "dependencies": {

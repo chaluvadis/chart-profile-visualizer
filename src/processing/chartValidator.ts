@@ -161,7 +161,14 @@ export class ChartValidator {
 				}
 
 				const result = await connector.validateResource(resource.yaml);
-				const filePath = resource.template ? path.join(this.chartPath, resource.template) : this.chartPath;
+				let filePath = this.chartPath;
+				if (resource.template) {
+					const chartName = path.basename(this.chartPath);
+					const templatePath = resource.template.startsWith(`${chartName}/`)
+						? resource.template.substring(chartName.length + 1)
+						: resource.template;
+					filePath = path.join(this.chartPath, templatePath);
+				}
 
 				if (!result.valid) {
 					for (const error of result.errors) {

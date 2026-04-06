@@ -54,7 +54,15 @@ function parseValidationMessage(raw: unknown): ValidationWebviewMessage | null {
 function isAllowedJumpPath(filePath: string): boolean {
 	const normalized = path.resolve(filePath);
 	const roots = vscode.workspace.workspaceFolders?.map((w) => path.resolve(w.uri.fsPath)) || [];
-	return roots.some((root) => normalized === root || normalized.startsWith(`${root}${path.sep}`));
+
+	if (roots.length === 0) {
+		return false;
+	}
+
+	return roots.some((root) => {
+		const relative = path.relative(root, normalized);
+		return !relative.startsWith("..") && relative !== "";
+	});
 }
 
 /**
@@ -554,22 +562,27 @@ async function handleValidationMessage(
 		case "jumpToFile":
 			if (message.file) {
 				console.log("[Validation] Jump request for file:", message.file);
-				if (!isAllowedJumpPath(message.file)) {
-					console.log("[Validation] File rejected - not in workspace:", message.file);
+
+				let resolvedPath = message.file;
+				if (!path.isAbsolute(message.file) && currentValidationParams) {
+					resolvedPath = path.resolve(currentValidationParams.chartPath, message.file);
+					console.log("[Validation] Resolved relative path:", resolvedPath);
+				}
+
+				if (!isAllowedJumpPath(resolvedPath)) {
+					console.log("[Validation] File rejected - not in workspace:", resolvedPath);
 					vscode.window.showErrorMessage("Refused to open file outside workspace");
 					return;
 				}
 				try {
-					console.log("[Validation] Attempting to open:", message.file);
-					// Convert file path to VS Code URI
-					const fileUri = vscode.Uri.file(message.file);
+					console.log("[Validation] Attempting to open:", resolvedPath);
+					const fileUri = vscode.Uri.file(resolvedPath);
 					const document = await vscode.workspace.openTextDocument(fileUri);
 					console.log("[Validation] Document opened, showing editor");
 					const editor = await vscode.window.showTextDocument(document, {
 						viewColumn: vscode.ViewColumn.One,
 						preserveFocus: false,
 					});
-					// Go to line if specified
 					if (message.line && message.line > 0) {
 						const position = new vscode.Position(message.line - 1, 0);
 						editor.selection = new vscode.Selection(position, position);
@@ -577,7 +590,7 @@ async function handleValidationMessage(
 					}
 				} catch (error) {
 					console.log("[Validation] Error opening file:", error);
-					vscode.window.showErrorMessage(`Failed to open file: ${message.file}`);
+					vscode.window.showErrorMessage(`Failed to open file: ${resolvedPath}`);
 				}
 			}
 			break;
