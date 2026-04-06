@@ -53,13 +53,47 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage("Charts refreshed");
 	});
 
-	// Register view rendered YAML command
+	// Register view YAML command (unified - handles both rendered and merged)
+	const viewYamlCommand = vscode.commands.registerCommand("chartProfiles.viewYaml", async (item: unknown) => {
+		const typedItem = item as { action?: string; chart?: unknown; environment?: string } | undefined;
+
+		// Handle rendered YAML view (action === "rendered")
+		if (typedItem?.action === "rendered") {
+			const helmAvailable = await isHelmAvailable();
+			if (!helmAvailable) {
+				const result = await vscode.window.showWarningMessage(
+					"Helm CLI is not installed or not in PATH. Rendered YAML will show placeholder content.",
+					"Continue Anyway",
+					"Learn More"
+				);
+
+				if (result === "Learn More") {
+					vscode.env.openExternal(vscode.Uri.parse("https://helm.sh/docs/intro/install/"));
+					return;
+				} else if (result !== "Continue Anyway") {
+					return;
+				}
+			}
+			await showRenderedYaml(item as Parameters<typeof showRenderedYaml>[0]);
+			return;
+		}
+
+		// Handle merged values view (chart + environment)
+		const chart = typedItem?.chart as { path?: string; name?: string } | undefined;
+		const environment = typedItem?.environment;
+		if (!chart?.path || !environment) {
+			vscode.window.showErrorMessage("No chart environment selected");
+			return;
+		}
+		await showRenderedYaml(item as Parameters<typeof showRenderedYaml>[0]);
+	});
+
+	// Legacy aliases for backward compatibility (these call the handler directly)
 	const viewRenderedCommand = vscode.commands.registerCommand(
 		"chartProfiles.viewRenderedYaml",
 		async (item: unknown) => {
-			// Check Helm availability before attempting to render
-			const helmAvailable = await isHelmAvailable();
 			const typedItem = item as { action?: string };
+			const helmAvailable = await isHelmAvailable();
 			if (!helmAvailable && typedItem?.action === "rendered") {
 				const result = await vscode.window.showWarningMessage(
 					"Helm CLI is not installed or not in PATH. Rendered YAML will show placeholder content.",
@@ -74,12 +108,10 @@ export function activate(context: vscode.ExtensionContext) {
 					return;
 				}
 			}
-
 			await showRenderedYaml(item as Parameters<typeof showRenderedYaml>[0]);
 		}
 	);
 
-	// Register view merged values command
 	const viewMergedValuesCommand = vscode.commands.registerCommand(
 		"chartProfiles.viewMergedValues",
 		async (item: unknown) => {
@@ -88,7 +120,7 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.window.showErrorMessage("No chart environment selected");
 				return;
 			}
-			await showRenderedYaml(typedItem as Parameters<typeof showRenderedYaml>[0]);
+			await showRenderedYaml(item as Parameters<typeof showRenderedYaml>[0]);
 		}
 	);
 
@@ -340,8 +372,12 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(workspaceFoldersChangeListener);
 
-	// Start runtime state auto-refresh (every 30 seconds)
-	runtimeStateManager.startAutoRefresh(30000);
+	// Start runtime state auto-refresh (configurable, defaults to every 30 seconds)
+	const config = vscode.workspace.getConfiguration("chartProfiles");
+	const autoRefreshInterval = config.get<number>("autoRefreshInterval", 30000);
+	if (autoRefreshInterval > 0) {
+		runtimeStateManager.startAutoRefresh(autoRefreshInterval);
+	}
 
 	// Show first-run walkthrough for new users (no-op when already seen or disabled)
 	showFirstRunWalkthrough(context).catch((err) => {

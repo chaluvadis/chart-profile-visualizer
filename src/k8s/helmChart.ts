@@ -53,21 +53,12 @@ async function findChartsRecursive(dirPath: string, charts: HelmChart[]): Promis
 					if (chart) {
 						charts.push(chart);
 					}
-					// Recurse into subdirectories to find sub-charts, but skip templates/
-					const subEntries = fs.readdirSync(fullPath, { withFileTypes: true });
-					for (const subEntry of subEntries) {
-						if (
-							subEntry.isDirectory() &&
-							subEntry.name !== "templates" &&
-							!shouldSkipDirectory(subEntry.name)
-						) {
-							await findChartsRecursive(path.join(fullPath, subEntry.name), charts);
-						}
-					}
+					// DO NOT recurse into subdirectories - only find top-level charts
+					// Sub-charts (in charts/ subdirectory) are dependencies, not standalone charts
 					continue;
 				}
 
-				// Recurse into subdirectories
+				// Recurse into subdirectories that don't have Chart.yaml
 				await findChartsRecursive(fullPath, charts);
 			}
 		}

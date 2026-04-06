@@ -2,6 +2,17 @@
  * Application-wide constants
  */
 
+import * as vscode from "vscode";
+
+/**
+ * Get configuration value with fallback to default
+ */
+function getConfigValue<T>(key: string, defaultValue: T): T {
+	const config = vscode.workspace.getConfiguration("chartProfiles");
+	const value = config.get<T>(key);
+	return value !== undefined ? value : defaultValue;
+}
+
 // Cache TTL values (in milliseconds)
 export const CACHE_TTL = {
 	/** Runtime state cache TTL */
@@ -11,17 +22,25 @@ export const CACHE_TTL = {
 // Refresh intervals (in milliseconds)
 export const REFRESH_INTERVAL = {
 	/** Auto-refresh interval for runtime state */
-	AUTO_REFRESH: 30000,
+	get AUTO_REFRESH(): number {
+		return getConfigValue("autoRefreshInterval", 30000);
+	},
 };
 
 // Command timeouts (in milliseconds)
 export const TIMEOUT = {
 	/** Default command timeout */
-	DEFAULT: 10000,
+	get DEFAULT(): number {
+		return getConfigValue("timeouts.kubectl", 10000);
+	},
 	/** Helm template rendering timeout */
-	HELM_TEMPLATE: 30000,
+	get HELM_TEMPLATE(): number {
+		return getConfigValue("timeouts.helmTemplate", 30000);
+	},
 	/** kubectl cluster-info timeout */
-	KUBECTL_CLUSTER_INFO: 5000,
+	get KUBECTL_CLUSTER_INFO(): number {
+		return getConfigValue("timeouts.clusterInfo", 5000);
+	},
 };
 
 // Buffer sizes (in bytes)

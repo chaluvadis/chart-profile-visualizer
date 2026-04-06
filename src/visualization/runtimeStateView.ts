@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import type { ChartRuntimeState, HealthSummary } from "../state/runtimeStateManager";
 import type { ResourceRuntimeState } from "../k8s/kubernetesConnector";
+import type { ChartRuntimeState, HealthSummary } from "../state/runtimeStateManager";
 import { getRuntimeStateManager } from "../state/runtimeStateManager";
 import { validateCliIdentifier } from "../utils/cliValidation";
 import { getTemplatePath, loadTemplate } from "../webview/templateLoader";
@@ -248,7 +248,7 @@ async function updateRuntimeStatePanel(input: RuntimeStateViewInput): Promise<vo
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
     <title>Error</title>
     <style>
         body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); padding: 20px; }

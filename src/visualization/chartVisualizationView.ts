@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ChartTreeItem } from "../core/chartProfilesProvider";
-import type { ComparisonWebviewData } from "../diff/environmentDiff";
+import { type ComparisonWebviewData, compareEnvironments, formatComparisonForWebview } from "../diff/environmentDiff";
 import { type RenderedResource, renderHelmTemplate } from "../k8s/helmRenderer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import {
@@ -41,51 +41,214 @@ interface KubernetesSecret {
 	stringData?: Record<string, string>;
 }
 
-// Module-level state (singleton pattern for VSCode extension)
-let currentPanel: vscode.WebviewPanel | undefined;
-let currentContext: vscode.ExtensionContext | undefined;
+/**
+ * Panel manager to handle multiple webview panels
+ * Each chart gets its own panel to avoid race conditions
+ */
+class PanelManager implements vscode.Disposable {
+	private panels: Map<string, vscode.WebviewPanel> = new Map();
+	private panelComparisonData: Map<vscode.WebviewPanel, ComparisonWebviewData | null> = new Map();
+	private contexts: Map<vscode.WebviewPanel, vscode.ExtensionContext> = new Map();
+
+	/**
+	 * Create or get existing panel for a chart
+	 */
+	getOrCreatePanel(id: string, title: string, context: vscode.ExtensionContext): vscode.WebviewPanel {
+		const existing = this.panels.get(id);
+		if (existing) {
+			existing.reveal();
+			return existing;
+		}
+
+		const columnToShowIn = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
+
+		const panel = vscode.window.createWebviewPanel("chartVisualization", title, columnToShowIn, {
+			enableScripts: true,
+			retainContextWhenHidden: true,
+			localResourceRoots: [
+				context.extensionUri,
+				vscode.Uri.file(path.join(context.extensionPath, "images")),
+				vscode.Uri.file(path.join(context.extensionPath, "vendor")),
+			],
+		});
+
+		panel.onDidDispose(
+			() => {
+				this.panels.delete(id);
+				this.panelComparisonData.delete(panel);
+				this.contexts.delete(panel);
+			},
+			null,
+			context.subscriptions
+		);
+
+		panel.webview.onDidReceiveMessage(
+			async (rawMessage: unknown) => {
+				const message = parseWebviewMessage(rawMessage);
+				if (!message) {
+					vscode.window.showWarningMessage("Ignored invalid webview message");
+					return;
+				}
+				await this.handleMessageForPanel(panel, message);
+			},
+			undefined,
+			context.subscriptions
+		);
+
+		this.panels.set(id, panel);
+		this.panelComparisonData.set(panel, null);
+		this.contexts.set(panel, context);
+
+		return panel;
+	}
+
+	/**
+	 * Handle message for a specific panel
+	 */
+	private async handleMessageForPanel(panel: vscode.WebviewPanel, message: WebviewMessage): Promise<void> {
+		const context = this.contexts.get(panel);
+		const chartItem = this.getChartItemForPanel(panel);
+		const comparisonData = this.panelComparisonData.get(panel) ?? null;
+
+		switch (message.type) {
+			case "exportYaml":
+				await exportResourcesForPanel(panel, "yaml");
+				break;
+			case "exportJson":
+				await exportResourcesForPanel(panel, "json");
+				break;
+			case "exportComparison":
+				await exportComparisonResultsForPanel(panel);
+				break;
+			case "runComparison":
+				if (message.env1 && message.env2 && chartItem && context) {
+					await runComparisonFromWebviewForPanel(panel, chartItem, message.env1, message.env2, context);
+				} else {
+					vscode.window.showErrorMessage("Please select two environments to compare");
+				}
+				break;
+			case "refreshComparison":
+				await refreshComparisonForPanel(panel, chartItem);
+				break;
+			case "copyResource":
+				if (message.yaml) {
+					await vscode.env.clipboard.writeText(message.yaml);
+					vscode.window.showInformationMessage("Resource YAML copied to clipboard");
+				}
+				break;
+			case "revealSecret":
+				if (message.secretName && context) {
+					const safeSecretName = validateCliIdentifier(message.secretName, "secret name");
+					const safeNamespace = message.namespace
+						? validateCliIdentifier(message.namespace, "namespace")
+						: undefined;
+					await revealSecret(safeSecretName, safeNamespace);
+				}
+				break;
+			case "showError":
+				if (message.message) {
+					vscode.window.showErrorMessage(message.message.slice(0, 500));
+				}
+				break;
+		}
+	}
+
+	private chartItems: Map<vscode.WebviewPanel, ChartTreeItem> = new Map();
+
+	setChartItem(panel: vscode.WebviewPanel, item: ChartTreeItem): void {
+		this.chartItems.set(panel, item);
+	}
+
+	private getChartItemForPanel(panel: vscode.WebviewPanel): ChartTreeItem | null {
+		return this.chartItems.get(panel) ?? null;
+	}
+
+	getComparisonData(panel: vscode.WebviewPanel): ComparisonWebviewData | null {
+		return this.panelComparisonData.get(panel) ?? null;
+	}
+
+	setComparisonData(panel: vscode.WebviewPanel, data: ComparisonWebviewData | null): void {
+		this.panelComparisonData.set(panel, data);
+	}
+
+	getContext(panel: vscode.WebviewPanel): vscode.ExtensionContext | undefined {
+		return this.contexts.get(panel);
+	}
+
+	dispose(): void {
+		for (const panel of this.panels.values()) {
+			panel.dispose();
+		}
+		this.panels.clear();
+		this.panelComparisonData.clear();
+		this.contexts.clear();
+		this.chartItems.clear();
+	}
+}
+
+let panelManager: PanelManager | undefined;
+let currentChartItem: ChartTreeItem | null = null;
+let lastComparisonParams: { chartPath: string; chartName: string; leftEnv: string; rightEnv: string } | null = null;
 let renderedResources: RenderedResource[] = [];
 
-// Pending comparison data queue to handle rapid successive comparisons
-interface PendingComparison {
-	data: ComparisonWebviewData | null;
-	timestamp: number;
-}
-let pendingComparisonData: PendingComparison | null = null;
+// Legacy panel state (for backward compatibility with some code paths)
+let currentPanel: vscode.WebviewPanel | undefined;
+let currentContext: vscode.ExtensionContext | undefined;
+let pendingComparisonData: { data: ComparisonWebviewData | null; timestamp: number } | null = null;
 
-// Store comparison parameters for potential refresh
-let lastComparisonParams: {
-	chartPath: string;
-	chartName: string;
-	leftEnv: string;
-	rightEnv: string;
-} | null = null;
-
-// Store current chart item for refresh functionality
-let currentChartItem: ChartTreeItem | null = null;
-
+// Default namespace for resources
 const defaultNamespace = "default";
 
-/**
- * WeakMap to associate comparison data with webview panels
- * This allows multiple panels to each have their own comparison state
- */
-const panelComparisonData = new WeakMap<vscode.WebviewPanel, ComparisonWebviewData | null>();
-
-/**
- * Get comparison data for the current panel
- */
+// Wrapper functions for legacy code compatibility
 function getCurrentComparisonData(): ComparisonWebviewData | null {
-	return currentPanel ? (panelComparisonData.get(currentPanel) ?? null) : null;
+	if (panelManager && currentPanel) {
+		return panelManager.getComparisonData(currentPanel);
+	}
+	return pendingComparisonData?.data ?? null;
 }
 
-/**
- * Set comparison data for the current panel
- */
 function setCurrentComparisonData(data: ComparisonWebviewData | null): void {
-	if (currentPanel) {
-		panelComparisonData.set(currentPanel, data);
+	if (panelManager && currentPanel) {
+		panelManager.setComparisonData(currentPanel, data);
 	}
+	pendingComparisonData = data !== undefined ? { data, timestamp: Date.now() } : null;
+}
+
+// Panel-specific helper functions used by message handlers
+async function exportResourcesForPanel(_panel: vscode.WebviewPanel, format: "yaml" | "json"): Promise<void> {
+	await exportResources(format);
+}
+
+async function exportComparisonResultsForPanel(_panel: vscode.WebviewPanel): Promise<void> {
+	await exportComparisonResults();
+}
+
+async function runComparisonFromWebviewForPanel(
+	_panel: vscode.WebviewPanel,
+	chartItem: ChartTreeItem,
+	env1: string,
+	env2: string,
+	_context: vscode.ExtensionContext
+): Promise<void> {
+	// Store current chart item for comparison
+	currentChartItem = chartItem;
+	await runComparisonFromWebview(env1, env2);
+}
+
+async function refreshComparisonForPanel(_panel: vscode.WebviewPanel, chartItem: ChartTreeItem | null): Promise<void> {
+	if (chartItem) {
+		currentChartItem = chartItem;
+	}
+	await runComparisonFromWebviewFromParams();
+}
+
+async function runComparisonFromWebviewFromParams(): Promise<void> {
+	if (!lastComparisonParams) {
+		vscode.window.showInformationMessage("No comparison to refresh");
+		return;
+	}
+	const { chartPath, chartName, leftEnv, rightEnv } = lastComparisonParams;
+	await runComparisonFromWebview(leftEnv, rightEnv);
 }
 
 /**
@@ -446,10 +609,6 @@ async function handleMessage(message: WebviewMessage) {
 					// Re-run the comparison
 					const { chartPath, chartName, leftEnv, rightEnv } = lastComparisonParams;
 
-					// Import and run the comparison
-					const { compareEnvironments, formatComparisonForWebview } = await import("../diff/environmentDiff");
-					const { renderHelmTemplate } = await import("../k8s/helmRenderer");
-
 					vscode.window.showInformationMessage(`Re-running comparison: ${leftEnv} vs ${rightEnv}...`);
 
 					const releaseName1 = `${chartName}-${leftEnv}`;
@@ -532,9 +691,6 @@ async function runComparisonFromWebview(env1: string, env2: string): Promise<voi
 
 	try {
 		vscode.window.showInformationMessage(`Comparing ${env1} vs ${env2}...`);
-
-		const { compareEnvironments, formatComparisonForWebview } = await import("../diff/environmentDiff");
-		const { renderHelmTemplate } = await import("../k8s/helmRenderer");
 
 		const releaseName1 = `${chartName}-${env1}`;
 		const releaseName2 = `${chartName}-${env2}`;
@@ -902,35 +1058,46 @@ function generateComparisonMarkdown(data: ComparisonWebviewData): string {
 	return lines.join("\n");
 }
 
-async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
-	const chart = item.chart;
-	const environment = item.environment;
+/**
+ * Shared parameters for chart data collection
+ */
+interface CollectChartDataParams {
+	chartPath: string;
+	chartName: string;
+	environment: string;
+	includeDependencyData?: boolean;
+}
 
-	// Validate required fields
-	if (!chart?.path || !environment || !chart?.name) {
-		throw new Error("Invalid chart item: missing required fields");
-	}
+/**
+ * Common chart data collection logic
+ */
+async function collectChartDataCore(params: CollectChartDataParams): Promise<{
+	baseValues: unknown;
+	comparison: ReturnType<typeof mergeValues>;
+	overriddenValues: OverriddenValue[];
+	totalValues: number;
+	overriddenCount: number;
+	resources: RenderedResource[];
+	resourceCounts: { [key: string]: number };
+	namespaceCounts: { [namespace: string]: number };
+	templateSources: string[];
+	resourceHierarchy: ResourceHierarchy;
+	architectureNodes: ArchitectureNode[];
+	relationships: ResourceRelationship[];
+}> {
+	const { chartPath, chartName, environment, includeDependencyData = false } = params;
 
-	const chartPath = chart.path;
-	const chartName = chart.name;
-
-	// Load base values separately for comparison
+	// Load base values
 	const baseValuesPath = path.join(chartPath, "values.yaml");
 	const baseValues = loadYamlFile(baseValuesPath);
 
-	// Merge values to get configuration
+	// Merge values
 	const comparison = mergeValues(chartPath, environment);
 
-	// Extract overridden values with their source information
-	const overriddenValues: Array<{
-		key: string;
-		baseValue: any;
-		envValue: any;
-	}> = [];
-
+	// Extract overridden values
+	const overriddenValues: OverriddenValue[] = [];
 	for (const [key, detail] of comparison.details.entries()) {
 		if (detail.overridden) {
-			// Get the base value by traversing the base values object
 			const baseValue = getValueByPath(baseValues, key);
 			overriddenValues.push({
 				key,
@@ -943,7 +1110,7 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	const totalValues = comparison.details.size;
 	const overriddenCount = overriddenValues.length;
 
-	// Try to get rendered resources
+	// Get rendered resources
 	const resourceCounts: { [key: string]: number } = {};
 	const namespaceCounts: { [namespace: string]: number } = {};
 	let templateSources: string[] = [];
@@ -952,20 +1119,14 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 	try {
 		const releaseName = `${chartName}-${environment}`;
 		resources = await renderHelmTemplate(chartPath, environment, releaseName);
-
-		// Store resources for export
 		renderedResources = resources;
 
 		resources.forEach((resource) => {
-			// Count by resource kind
 			resourceCounts[resource.kind] = (resourceCounts[resource.kind] || 0) + 1;
-
-			// Count by namespace (if present)
 			const namespace = resource.namespace || defaultNamespace;
 			namespaceCounts[namespace] = (namespaceCounts[namespace] || 0) + 1;
 		});
 
-		// Get list of template files
 		const templatesDir = path.join(chartPath, "templates");
 		if (fs.existsSync(templatesDir)) {
 			const files = fs.readdirSync(templatesDir);
@@ -975,56 +1136,73 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		console.warn("Could not render templates for visualization:", error);
 	}
 
-	// Parse resources into hierarchy
 	const resourceHierarchy = parseResources(resources);
-
-	// Detect relationships and build architecture
 	const structuredResources = Array.from(resourceHierarchy.kindGroups.values()).flatMap((group) => group.resources);
 	const relationships = detectRelationships(structuredResources);
 	const architectureNodes = buildArchitectureNodes(structuredResources, relationships);
 
-	// Get available environments from the chart directory
+	return {
+		baseValues,
+		comparison,
+		overriddenValues,
+		totalValues,
+		overriddenCount,
+		resources,
+		resourceCounts,
+		namespaceCounts,
+		templateSources,
+		resourceHierarchy,
+		architectureNodes,
+		relationships,
+	};
+}
+
+async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
+	const chart = item.chart;
+	const environment = item.environment;
+
+	if (!chart?.path || !environment || !chart?.name) {
+		throw new Error("Invalid chart item: missing required fields");
+	}
+
+	const core = await collectChartDataCore({
+		chartPath: chart.path,
+		chartName: chart.name,
+		environment,
+		includeDependencyData: true,
+	});
+
+	// Get available environments
 	let availableEnvs: string[] = [];
 	try {
-		const envFiles = fs.readdirSync(chartPath).filter((f: string) => f.match(/^values-(.+)\.ya?ml$/));
+		const envFiles = fs.readdirSync(chart.path).filter((f: string) => f.match(/^values-(.+)\.ya?ml$/));
 		availableEnvs = envFiles.map((f: string) => f.match(/^values-(.+)\.ya?ml$/)![1]);
 	} catch (error) {
 		console.warn("Could not read environment files:", error);
 	}
 
 	// Get dependency visualization data
-	let dependencyData: {
-		nodes: Array<{
-			id: string;
-			label: string;
-			type: "root" | "dependency";
-			version: string;
-			enabled: boolean;
-			repository: string;
-		}>;
-		edges: Array<{ source: string; target: string; type: string }>;
-		summary: { total: number; enabled: number; disabled: number; conflicts: number };
-	};
+	let dependencyData: ChartData["dependencyData"];
 	try {
-		dependencyData = generateDependencyVisualizationData(chartPath);
+		dependencyData = generateDependencyVisualizationData(chart.path);
 	} catch (error) {
 		console.warn("Failed to generate dependency data:", error);
-		dependencyData = { nodes: [], edges: [], summary: { total: 0, enabled: 0, disabled: 0, conflicts: 0 } };
 	}
+
 	return {
-		chartName,
+		chartName: chart.name,
 		environment,
-		totalValues,
-		overriddenCount,
-		overriddenValues, // All overridden values
-		resourceCounts,
-		namespaceCounts,
-		templateSources,
-		resources,
-		resourceHierarchy,
-		architectureNodes,
-		relationships,
-		comparisonData: getCurrentComparisonData(),
+		totalValues: core.totalValues,
+		overriddenCount: core.overriddenCount,
+		overriddenValues: core.overriddenValues,
+		resourceCounts: core.resourceCounts,
+		namespaceCounts: core.namespaceCounts,
+		templateSources: core.templateSources,
+		resources: core.resources,
+		resourceHierarchy: core.resourceHierarchy,
+		architectureNodes: core.architectureNodes,
+		relationships: core.relationships,
+		comparisonData: null,
 		availableEnvs,
 		dependencyData,
 	};
@@ -1036,106 +1214,42 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 async function collectChartDataForCompare(item: ChartTreeItem): Promise<ChartData> {
 	const chart = item.chart;
 
-	// Validate required fields
 	if (!chart?.path || !chart?.name) {
 		const errorDetails = `chart=${JSON.stringify(chart)}, chartPath=${chart?.path}, chartName=${chart?.name}`;
 		throw new Error(`Invalid chart item: missing required fields. Details: ${errorDetails}`);
 	}
 
-	const chartPath = chart.path;
-	const chartName = chart.name;
-
-	// Get available environments from the chart directory
+	// Get available environments
 	let availableEnvs: string[] = [];
 	try {
-		const envFiles = fs.readdirSync(chartPath).filter((f: string) => f.match(/^values-(.+)\.ya?ml$/));
+		const envFiles = fs.readdirSync(chart.path).filter((f: string) => f.match(/^values-(.+)\.ya?ml$/));
 		availableEnvs = envFiles.map((f: string) => f.match(/^values-(.+)\.ya?ml$/)![1]);
 	} catch (error) {
 		console.warn("Could not read environment files:", error);
 	}
 
-	// Use the first available environment for data collection
-	// (or "default" if no environments found)
 	const environment = availableEnvs.length > 0 ? availableEnvs[0] : "default";
 
-	// Load base values separately for comparison
-	const baseValuesPath = path.join(chartPath, "values.yaml");
-	const baseValues = loadYamlFile(baseValuesPath);
-
-	// Merge values to get configuration
-	const comparison = mergeValues(chartPath, environment);
-
-	// Extract overridden values with their source information
-	const overriddenValues: Array<{
-		key: string;
-		baseValue: any;
-		envValue: any;
-	}> = [];
-
-	for (const [key, detail] of comparison.details.entries()) {
-		if (detail.overridden) {
-			const baseValue = getValueByPath(baseValues, key);
-			overriddenValues.push({
-				key,
-				baseValue: baseValue !== undefined ? baseValue : "(not set)",
-				envValue: detail.value,
-			});
-		}
-	}
-
-	const totalValues = comparison.details.size;
-	const overriddenCount = overriddenValues.length;
-
-	// Try to get rendered resources
-	const resourceCounts: { [key: string]: number } = {};
-	const namespaceCounts: { [namespace: string]: number } = {};
-	let templateSources: string[] = [];
-	let resources: RenderedResource[] = [];
-
-	try {
-		const releaseName = `${chartName}-${environment}`;
-		resources = await renderHelmTemplate(chartPath, environment, releaseName);
-
-		// Store resources for export
-		renderedResources = resources;
-
-		resources.forEach((resource) => {
-			resourceCounts[resource.kind] = (resourceCounts[resource.kind] || 0) + 1;
-			const namespace = resource.namespace || defaultNamespace;
-			namespaceCounts[namespace] = (namespaceCounts[namespace] || 0) + 1;
-		});
-
-		const templatesDir = path.join(chartPath, "templates");
-		if (fs.existsSync(templatesDir)) {
-			const files = fs.readdirSync(templatesDir);
-			templateSources = files.filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"));
-		}
-	} catch (error) {
-		console.warn("Could not render templates for visualization:", error);
-	}
-
-	// Parse resources into hierarchy
-	const resourceHierarchy = parseResources(resources);
-
-	// Detect relationships and build architecture
-	const structuredResources = Array.from(resourceHierarchy.kindGroups.values()).flatMap((group) => group.resources);
-	const relationships = detectRelationships(structuredResources);
-	const architectureNodes = buildArchitectureNodes(structuredResources, relationships);
+	const core = await collectChartDataCore({
+		chartPath: chart.path,
+		chartName: chart.name,
+		environment,
+	});
 
 	return {
-		chartName,
+		chartName: chart.name,
 		environment,
-		totalValues,
-		overriddenCount,
-		overriddenValues,
-		resourceCounts,
-		namespaceCounts,
-		templateSources,
-		resources,
-		resourceHierarchy,
-		architectureNodes,
-		relationships,
-		comparisonData: getCurrentComparisonData(), // Use stored comparison data if available
+		totalValues: core.totalValues,
+		overriddenCount: core.overriddenCount,
+		overriddenValues: core.overriddenValues,
+		resourceCounts: core.resourceCounts,
+		namespaceCounts: core.namespaceCounts,
+		templateSources: core.templateSources,
+		resources: core.resources,
+		resourceHierarchy: core.resourceHierarchy,
+		architectureNodes: core.architectureNodes,
+		relationships: core.relationships,
+		comparisonData: null,
 		availableEnvs,
 	};
 }
@@ -1152,7 +1266,7 @@ async function getErrorHtml(errorMessage: string, extensionUri?: vscode.Uri): Pr
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
     <title>Error</title>
     <style>
         body {
@@ -1195,11 +1309,7 @@ interface ChartData {
 	environment: string;
 	totalValues: number;
 	overriddenCount: number;
-	overriddenValues: Array<{
-		key: string;
-		baseValue: any;
-		envValue: any;
-	}>;
+	overriddenValues: OverriddenValue[];
 	resourceCounts: { [key: string]: number };
 	namespaceCounts: { [namespace: string]: number };
 	templateSources: string[];
@@ -1230,6 +1340,12 @@ interface ChartData {
 			conflicts: number;
 		};
 	};
+}
+
+interface OverriddenValue {
+	key: string;
+	baseValue: unknown;
+	envValue: unknown;
 }
 
 function escapeHtml(text: string): string {

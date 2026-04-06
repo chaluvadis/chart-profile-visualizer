@@ -2,9 +2,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { findHelmCharts, type HelmChart } from "../k8s/helmChart";
-import { getIconUris, hasIcon, getNormalizedIconName } from "../k8s/iconManager";
-import { FILE_PATTERNS } from "../utils/constants";
+import { getIconUris, getNormalizedIconName, hasIcon } from "../k8s/iconManager";
 import { createCache } from "../utils/cache";
+import { FILE_PATTERNS } from "../utils/constants";
 
 // Cache for environments per chart path
 const environmentCache = createCache<string[]>();
@@ -81,8 +81,8 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 				};
 			}
 
-			// Add environments
-			const environments = this.getEnvironments(element.chart!);
+			// Add environments (async to avoid blocking)
+			const environments = await this.getEnvironmentsAsync(element.chart!);
 			for (const env of environments) {
 				children.push(
 					new ChartTreeItem(
@@ -136,7 +136,7 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 		return [];
 	}
 
-	private getEnvironments(chart: HelmChart): string[] {
+	private async getEnvironmentsAsync(chart: HelmChart): Promise<string[]> {
 		const cacheKey = `environments:${chart.path}`;
 
 		// Check cache first
@@ -148,8 +148,8 @@ export class ChartProfilesProvider implements vscode.TreeDataProvider<ChartTreeI
 		const foundEnvs: string[] = [];
 
 		try {
-			// Dynamically discover all values-*.yaml files
-			const files = fs.readdirSync(chart.path);
+			// Use async file read instead of synchronous
+			const files = await fs.promises.readdir(chart.path);
 			const valuesPattern = FILE_PATTERNS.VALUES_ENV_REGEX;
 
 			for (const file of files) {

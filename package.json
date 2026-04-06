@@ -2,7 +2,7 @@
   "name": "chart-profile-visualizer",
   "displayName": "Helm Chart Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "nomad-in-code",
   "repository": {
     "type": "git",
@@ -43,8 +43,16 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "chartProfiles.expandAll",
+        "title": "Expand All Charts"
+      },
+      {
         "command": "chartProfiles.viewRenderedYaml",
         "title": "View Rendered YAML"
+      },
+      {
+        "command": "chartProfiles.viewYaml",
+        "title": "View YAML"
       },
       {
         "command": "chartProfiles.visualizeChart",
@@ -64,11 +72,6 @@
         "command": "chartProfiles.checkRuntimeState",
         "title": "Check Runtime State",
         "icon": "$(pulse)"
-      },
-      {
-        "command": "chartProfiles.viewDependencies",
-        "title": "View Dependencies",
-        "icon": "$(type-hierarchy)"
       },
       {
         "command": "chartProfiles.updateDependencies",
@@ -98,6 +101,36 @@
           "type": "boolean",
           "default": true,
           "description": "Show the guided getting-started walkthrough the first time Helm Chart Visualizer activates. Disable to suppress the prompt."
+        },
+        "chartProfiles.timeouts.helmTemplate": {
+          "type": "number",
+          "default": 30000,
+          "description": "Timeout in milliseconds for Helm template rendering. Increase for complex charts."
+        },
+        "chartProfiles.timeouts.kubectl": {
+          "type": "number",
+          "default": 10000,
+          "description": "Timeout in milliseconds for kubectl commands."
+        },
+        "chartProfiles.timeouts.clusterInfo": {
+          "type": "number",
+          "default": 5000,
+          "description": "Timeout in milliseconds for kubectl cluster-info command."
+        },
+        "chartProfiles.autoRefreshInterval": {
+          "type": "number",
+          "default": 30000,
+          "description": "Interval in milliseconds for automatic runtime state refresh. Set to 0 to disable."
+        },
+        "chartProfiles.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug logging in output channel."
+        },
+        "chartProfiles.showOutputChannel": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically show the output channel when extension logs messages."
         }
       }
     },
@@ -137,10 +170,6 @@
           "when": "false"
         },
         {
-          "command": "chartProfiles.viewDependencies",
-          "when": "false"
-        },
-        {
           "command": "chartProfiles.viewMergedValues",
           "when": "false"
         }
@@ -148,7 +177,7 @@
     }
   },
   "scripts": {
-    "compile": "node esbuild.js",
+    "compile": "tsc --noEmit && node esbuild.js",
     "package": "pnpm run compile && vsce package --no-dependencies",
     "format": "biome format --write .",
     "format:check": "biome format .",

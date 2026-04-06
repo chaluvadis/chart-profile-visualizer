@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
     <title>Validation Results</title>
     <style>
         :root {
@@ -540,6 +540,14 @@
     <div id="copyToast" class="copy-toast" role="status" aria-live="polite">Copied</div>
 
     <script>
+        // VS Code API is injected by VS Code - available as global function
+        
+        // Global error handler
+        window.onerror = function(msg, url, line, col, error) {
+            console.error("[Validation] Script error:", msg, "at line", line);
+            return false;
+        };
+
         function toggleSection(header) {
             var content = header.nextElementSibling;
             var chevron = header.querySelector('.chevron');
@@ -564,6 +572,7 @@
         var currentSort = { key: 'severity', dir: 'asc' };
         var onlyActionable = false;
         var currentGroupBy = 'none';
+        
         var vscodeApi = (typeof acquireVsCodeApi === 'function') ? acquireVsCodeApi() : null;
 
         function postVsCodeMessage(payload) {
