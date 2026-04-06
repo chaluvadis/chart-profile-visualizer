@@ -1,11 +1,32 @@
 import * as yaml from "js-yaml";
 
 /**
+ * Generic type for unknown object structures (replaces unsafe `any`)
+ */
+export type UnknownRecord = Record<string, unknown>;
+
+/**
  * Generic YAML parsing with type safety
  */
 export function parseYaml<T>(content: string): T | null {
 	try {
 		return yaml.load(content) as T;
+	} catch (error) {
+		console.error("Error parsing YAML:", error);
+		return null;
+	}
+}
+
+/**
+ * Parse YAML and return as UnknownRecord (safe alternative to `as any`)
+ */
+export function parseYamlAsUnknown(content: string): UnknownRecord | null {
+	try {
+		const result = yaml.load(content);
+		if (result && typeof result === "object") {
+			return result as UnknownRecord;
+		}
+		return null;
 	} catch (error) {
 		console.error("Error parsing YAML:", error);
 		return null;

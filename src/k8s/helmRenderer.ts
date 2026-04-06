@@ -4,6 +4,7 @@ import * as yaml from "js-yaml";
 import { mergeValues } from "../processing/valuesMerger";
 import { runHelm } from "../utils/cliRunner";
 import { BUFFER_SIZE, TIMEOUT } from "../utils/constants";
+import { parseYamlAsUnknown } from "../utils/yaml";
 
 // Template variable patterns for substitution
 const TEMPLATE_PATTERNS = {
@@ -179,7 +180,7 @@ function parseHelmOutput(output: string, chartPath: string): RenderedResource[] 
 			try {
 				// Remove comments before parsing
 				const yamlContent = doc.replace(/^#.*$/gm, "").trim();
-				parsedYaml = yaml.load(yamlContent) as any;
+				parsedYaml = parseYamlAsUnknown(yamlContent);
 
 				if (parsedYaml && typeof parsedYaml === "object") {
 					kind = parsedYaml.kind || "Unknown";
@@ -276,8 +277,8 @@ async function getPlaceholderResources(chartPath: string, environment: string): 
 			try {
 				await fs.promises.access(chartYamlPath);
 				const chartYamlContent = await fs.promises.readFile(chartYamlPath, "utf8");
-				const chartYaml = yaml.load(chartYamlContent) as any;
-				if (chartYaml && chartYaml.version) {
+				const chartYaml = parseYamlAsUnknown(chartYamlContent);
+				if (chartYaml && typeof chartYaml.version === "string") {
 					chartVersion = chartYaml.version;
 				}
 			} catch {

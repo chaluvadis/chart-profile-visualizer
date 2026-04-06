@@ -3,6 +3,8 @@
  * Handles SVG-based resource architecture rendering with relationships
  */
 
+import type { WebviewData } from "./main";
+
 // Topology state
 let topologyZoom = 1;
 let topologyPanX = 0;
@@ -69,20 +71,9 @@ const TIERS: Record<string, Tier> = {
 
 const TIER_ORDER = ["Workload", "Networking", "Storage", "Configuration", "RBAC", "Scaling", "Other"];
 
-// Declare global window interface
 declare global {
 	interface Window {
-		webviewData: {
-			architectureNodes: ArchitectureNode[];
-			relationships: ResourceRelationship[];
-			kindIcons: Record<string, string>;
-			resourceCounts: Record<string, number>;
-			totalValues: number;
-			overriddenCount: number;
-			comparisonData: unknown;
-			availableEnvs: string[];
-			environment: string | null;
-		};
+		webviewData: WebviewData;
 		initTopology: () => void;
 		fitTopologyToScreen: () => void;
 	}
@@ -544,7 +535,7 @@ function renderNodes(
 		g.appendChild(title);
 
 		// Click handler
-		g.style.cursor = "pointer";
+		(g as HTMLElement).style.cursor = "pointer";
 		g.addEventListener("click", (e) => {
 			e.stopPropagation();
 			handleNodeClick(container, nodes, edges, node.id, g);
@@ -658,7 +649,7 @@ function initPanAndZoom(svg: Element, container: Element): void {
 	let isPanning = false;
 	let panStart = { x: 0, y: 0 };
 
-	svg.addEventListener("mousedown", (e) => {
+	svg.addEventListener("mousedown", ((e: MouseEvent) => {
 		const target = e.target as Element;
 		if (
 			target === svg ||
@@ -668,15 +659,15 @@ function initPanAndZoom(svg: Element, container: Element): void {
 			isPanning = true;
 			panStart = { x: e.clientX - topologyPanX, y: e.clientY - topologyPanY };
 		}
-	});
+	}) as EventListener);
 
-	svg.addEventListener("mousemove", (e) => {
+	svg.addEventListener("mousemove", ((e: MouseEvent) => {
 		if (isPanning) {
 			topologyPanX = e.clientX - panStart.x;
 			topologyPanY = e.clientY - panStart.y;
 			updateTopologyZoom(container);
 		}
-	});
+	}) as EventListener);
 
 	svg.addEventListener("mouseup", () => {
 		isPanning = false;
@@ -687,12 +678,12 @@ function initPanAndZoom(svg: Element, container: Element): void {
 	});
 
 	// Mouse wheel zoom
-	svg.addEventListener("wheel", (e) => {
+	svg.addEventListener("wheel", ((e: WheelEvent) => {
 		e.preventDefault();
 		const delta = e.deltaY > 0 ? -0.1 : 0.1;
 		topologyZoom = Math.max(0.3, Math.min(3, topologyZoom + delta));
 		updateTopologyZoom(container);
-	});
+	}) as EventListener);
 
 	// Click on background to deselect
 	svg.addEventListener("click", (e) => {
@@ -751,7 +742,7 @@ function fitTopologyToScreen(): void {
 	if (!svg || !container) return;
 
 	try {
-		const bbox = (container as SVGGraphicsElement).getBBox();
+		const bbox = (container as unknown as SVGGraphicsElement).getBBox();
 		const svgWidth = svg.clientWidth || 1000;
 		const svgHeight = svg.clientHeight || 650;
 
@@ -784,10 +775,10 @@ function updateTopologyZoom(container: Element | null): void {
 /**
  * Helper to create SVG element with attributes
  */
-function createSvgElement(tag: string, attributes: Record<string, string>): Element {
+function createSvgElement(tag: string, attributes: Record<string, string | number>): Element {
 	const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
 	for (const [key, value] of Object.entries(attributes)) {
-		element.setAttribute(key, value);
+		element.setAttribute(key, String(value));
 	}
 	return element;
 }
@@ -795,5 +786,3 @@ function createSvgElement(tag: string, attributes: Record<string, string>): Elem
 // Export for use in main.ts
 window.initTopology = initTopology;
 window.fitTopologyToScreen = fitTopologyToScreen;
-
-export {};

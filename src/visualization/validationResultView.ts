@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
-import type { ValidationResult, ValidationIssue } from "../processing/chartValidator";
-import { loadTemplate, getTemplatePath, escapeHtml } from "../webview/templateLoader";
+import type { ValidationIssue, ValidationResult } from "../processing/chartValidator";
+import { escapeHtml, getTemplatePath, loadTemplate } from "../webview/templateLoader";
 
 // Module-level state (singleton pattern for VSCode extension)
 let validationPanel: vscode.WebviewPanel | undefined;
@@ -61,6 +61,7 @@ function isAllowedJumpPath(filePath: string): boolean {
  * Show validation results in a dedicated webview panel
  */
 export async function showValidationResults(context: vscode.ExtensionContext, result: ValidationResult): Promise<void> {
+	console.log("[Validation TS] showValidationResults CALLED");
 	validationContext = context;
 
 	const columnToShowIn = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
@@ -89,21 +90,21 @@ export async function showValidationResults(context: vscode.ExtensionContext, re
 			null,
 			context.subscriptions
 		);
-
-		// Handle messages from the webview
-		validationPanel.webview.onDidReceiveMessage(
-			async (rawMessage: unknown) => {
-				const message = parseValidationMessage(rawMessage);
-				if (!message) {
-					vscode.window.showWarningMessage("Ignored invalid validation webview message");
-					return;
-				}
-				await handleValidationMessage(message, context);
-			},
-			null,
-			context.subscriptions
-		);
 	}
+
+	// Handle messages from the webview (always register, even for existing panel)
+	validationPanel.webview.onDidReceiveMessage(
+		async (rawMessage: unknown) => {
+			const message = parseValidationMessage(rawMessage);
+			if (!message) {
+				vscode.window.showWarningMessage("Ignored invalid validation webview message");
+				return;
+			}
+			await handleValidationMessage(message, context);
+		},
+		null,
+		context.subscriptions
+	);
 
 	// Update the panel content
 	await updateValidationPanel(result);
@@ -246,7 +247,7 @@ function generateInlineValidationHtml(data: Record<string, unknown>): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
     <title>Validation Results</title>
     <style>
         body {
@@ -489,7 +490,7 @@ async function generateErrorHtml(errorMessage: string, extensionUri?: vscode.Uri
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
     <title>Error</title>
     <style>
         body {
@@ -552,12 +553,18 @@ async function handleValidationMessage(
 			break;
 		case "jumpToFile":
 			if (message.file) {
+				console.log("[Validation] Jump request for file:", message.file);
 				if (!isAllowedJumpPath(message.file)) {
+					console.log("[Validation] File rejected - not in workspace:", message.file);
 					vscode.window.showErrorMessage("Refused to open file outside workspace");
 					return;
 				}
 				try {
-					const document = await vscode.workspace.openTextDocument(message.file);
+					console.log("[Validation] Attempting to open:", message.file);
+					// Convert file path to VS Code URI
+					const fileUri = vscode.Uri.file(message.file);
+					const document = await vscode.workspace.openTextDocument(fileUri);
+					console.log("[Validation] Document opened, showing editor");
 					const editor = await vscode.window.showTextDocument(document, {
 						viewColumn: vscode.ViewColumn.One,
 						preserveFocus: false,
@@ -569,6 +576,7 @@ async function handleValidationMessage(
 						editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
 					}
 				} catch (error) {
+					console.log("[Validation] Error opening file:", error);
 					vscode.window.showErrorMessage(`Failed to open file: ${message.file}`);
 				}
 			}
