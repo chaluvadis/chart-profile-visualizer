@@ -1,5 +1,5 @@
-import * as yaml from "js-yaml";
 import type { RenderedResource } from "../k8s/helmRenderer";
+import { parseYamlAsUnknown } from "../utils/yaml";
 
 /**
  * Diff types for resources
@@ -24,12 +24,7 @@ export enum DriftSeverity {
  * Field path patterns that map to severity levels.
  * Patterns are matched against the full dot-notation field path (case-insensitive).
  */
-const CRITICAL_PATTERNS: RegExp[] = [
-	/\bimage\b/i,
-	/\bresources\b/i,
-	/\bsecurityContext\b/i,
-	/\breplicas\b/i,
-];
+const CRITICAL_PATTERNS: RegExp[] = [/\bimage\b/i, /\bresources\b/i, /\bsecurityContext\b/i, /\breplicas\b/i];
 
 const WARNING_PATTERNS: RegExp[] = [
 	/\bingress\b/i,
@@ -221,17 +216,29 @@ function compareResourceFields(left: RenderedResource, right: RenderedResource):
 		const leftYaml = left.yaml.replace(/^#.*$/gm, "").trim();
 		const rightYaml = right.yaml.replace(/^#.*$/gm, "").trim();
 
-		const leftObj = yaml.load(leftYaml) as any;
-		const rightObj = yaml.load(rightYaml) as any;
+		const leftObj = parseYamlAsUnknown(leftYaml);
+		const rightObj = parseYamlAsUnknown(rightYaml);
 
 		if (leftObj && rightObj) {
 			// Compare spec, metadata, etc.
-			compareObjects("spec", leftObj.spec, rightObj.spec, diffs);
-			compareObjects("metadata.labels", leftObj.metadata?.labels, rightObj.metadata?.labels, diffs);
+			const leftMeta = leftObj.metadata as Record<string, unknown> | undefined;
+			const rightMeta = rightObj.metadata as Record<string, unknown> | undefined;
+			compareObjects(
+				"spec",
+				leftObj.spec as Record<string, unknown> | undefined,
+				rightObj.spec as Record<string, unknown> | undefined,
+				diffs
+			);
+			compareObjects(
+				"metadata.labels",
+				leftMeta?.labels as Record<string, unknown> | undefined,
+				rightMeta?.labels as Record<string, unknown> | undefined,
+				diffs
+			);
 			compareObjects(
 				"metadata.annotations",
-				leftObj.metadata?.annotations,
-				rightObj.metadata?.annotations,
+				leftMeta?.annotations as Record<string, unknown> | undefined,
+				rightMeta?.annotations as Record<string, unknown> | undefined,
 				diffs
 			);
 		}

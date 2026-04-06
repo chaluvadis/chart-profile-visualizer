@@ -1,14 +1,14 @@
 import * as vscode from "vscode";
+import { renderHelmTemplate } from "../k8s/helmRenderer";
 import {
-	KubernetesConnector,
-	type ResourceRuntimeState,
 	type ClusterInfo,
 	type HelmRelease,
+	KubernetesConnector,
+	type ResourceRuntimeState,
 } from "../k8s/kubernetesConnector";
-import { renderHelmTemplate } from "../k8s/helmRenderer";
-import { CACHE_TTL, REFRESH_INTERVAL, TIMEOUT } from "../utils/constants";
-import { validateCliIdentifier } from "../utils/cliValidation";
 import { runKubectl as runKubectlCommand } from "../utils/cliRunner";
+import { validateCliIdentifier } from "../utils/cliValidation";
+import { CACHE_TTL, REFRESH_INTERVAL, TIMEOUT } from "../utils/constants";
 
 /**
  * Runtime state for all resources in a chart
@@ -235,10 +235,10 @@ export class RuntimeStateManager {
 	): Promise<Array<{ lastSeen: string; type: string; reason: string; message: string }>> {
 		const state = await this.connector.getResourceState(kind, name, namespace);
 		return (state.events || []).map((e) => ({
-			lastSeen: e.lastSeen,
-			type: e.type,
-			reason: e.reason,
-			message: e.message,
+			lastSeen: e.lastTimestamp ?? "",
+			type: e.type ?? "",
+			reason: e.reason ?? "",
+			message: e.message ?? "",
 		}));
 	}
 
@@ -353,6 +353,17 @@ export class RuntimeStateManager {
 
 // Singleton instance
 let managerInstance: RuntimeStateManager | null = null;
+
+/**
+ * Reset the singleton instance (call on extension deactivate)
+ * This ensures clean cleanup of timers and resources
+ */
+export function resetRuntimeStateManager(): void {
+	if (managerInstance) {
+		managerInstance.dispose();
+		managerInstance = null;
+	}
+}
 
 export function getRuntimeStateManager(): RuntimeStateManager {
 	if (!managerInstance) {

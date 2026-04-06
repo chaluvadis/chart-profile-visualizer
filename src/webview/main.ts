@@ -1,27 +1,17 @@
-/**
- * Main webview script for Helm Chart Visualizer
- * Handles tab switching, toolbar actions, and resource explorer interactions
- */
-
-export {}; // Make this file a module to enable global augmentation
-
-// Global state
-const currentZoom = 1;
-
 // VS Code API instance - acquired once at initialization
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 declare const acquireVsCodeApi: () => { postMessage: (message: unknown) => void };
 const vscode = acquireVsCodeApi();
 
 // Webview data interfaces
-interface WebviewData {
+export interface WebviewData {
 	architectureNodes: ArchitectureNode[];
 	relationships: ResourceRelationship[];
 	kindIcons: Record<string, string>;
 	resourceCounts: Record<string, number>;
 	totalValues: number;
 	overriddenCount: number;
-	comparisonData: ComparisonData | null;
+	comparisonData: unknown;
 	availableEnvs: string[];
 	environment: string | null;
 }
@@ -48,48 +38,6 @@ interface ResourceRelationship {
 	label?: string;
 	namespace?: string;
 	crossNamespace?: boolean;
-}
-
-interface ComparisonData {
-	header: {
-		chartName: string;
-		leftEnv: string;
-		rightEnv: string;
-	};
-	summary: {
-		added: number;
-		removed: number;
-		modified: number;
-		unchanged: number;
-		total: number;
-		changePercentage: number;
-		critical: number;
-		warning: number;
-		info: number;
-	};
-	resources: ComparisonResource[];
-	kindGroups?: KindGroup[];
-}
-
-interface ComparisonResource {
-	kind: string;
-	name: string;
-	namespace?: string;
-	diffType: string;
-	maxSeverity?: string;
-	fields?: FieldDiff[];
-}
-
-interface FieldDiff {
-	path: string;
-	leftValue: unknown;
-	rightValue: unknown;
-	severity?: string;
-}
-
-interface KindGroup {
-	kind: string;
-	count: number;
 }
 
 // Will be initialized with data from the extension
@@ -237,7 +185,19 @@ function renderComparisonResults(): void {
 	const comparisonResults = document.getElementById("comparison-results") as HTMLElement | null;
 	if (!comparisonResults) return;
 
-	const data = window.webviewData.comparisonData;
+	const data = window.webviewData.comparisonData as {
+		header: { leftEnv: string; rightEnv: string; chartName: string };
+		summary: { added: number; removed: number; modified: number; critical: number; warning: number; info: number };
+		resources: Array<{
+			diffType: string;
+			kind: string;
+			name: string;
+			namespace: string;
+			fields: Array<{ leftValue: unknown; rightValue: unknown; severity: string; path: string }>;
+			maxSeverity: string;
+		}>;
+		kindGroups: Record<string, unknown>;
+	} | null;
 
 	// Validate comparison data structure
 	if (!data || typeof data !== "object") {

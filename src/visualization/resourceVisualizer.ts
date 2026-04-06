@@ -1,5 +1,5 @@
-import * as yaml from "js-yaml";
 import type { RenderedResource } from "../k8s/helmRenderer";
+import { parseYamlAsUnknown } from "../utils/yaml";
 
 /**
  * Resource type categories for color coding and organization
@@ -142,7 +142,7 @@ export function parseResource(resource: RenderedResource): StructuredResource {
 	try {
 		// Parse the YAML string to extract structured data
 		const yamlContent = resource.yaml.replace(/^#.*$/gm, "").trim();
-		const parsed = yaml.load(yamlContent) as any;
+		const parsed = parseYamlAsUnknown(yamlContent);
 
 		if (parsed && typeof parsed === "object") {
 			spec = parsed.spec || {};

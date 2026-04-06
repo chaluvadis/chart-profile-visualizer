@@ -1,18 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
-import { renderHelmTemplate, isHelmAvailable } from "../k8s/helmRenderer";
+import { isHelmAvailable, type RenderedResource, renderHelmTemplate } from "../k8s/helmRenderer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { runHelm } from "../utils/cliRunner";
 
-/**
- * Validation severity levels
- */
 export type ValidationSeverity = "error" | "warning" | "info";
 
-/**
- * Validation result for a single check
- */
 export interface ValidationIssue {
 	severity: ValidationSeverity;
 	code: string;
@@ -23,9 +17,6 @@ export interface ValidationIssue {
 	remediation?: string;
 }
 
-/**
- * Complete validation result
- */
 export interface ValidationResult {
 	valid: boolean;
 	issues: ValidationIssue[];
@@ -46,23 +37,30 @@ export class ChartValidator {
 		this.chartPath = chartPath;
 	}
 
-	/**
-	 * Run all validations
-	 */
 	async validateAll(environment: string): Promise<ValidationResult> {
 		const issues: ValidationIssue[] = [];
 
-		// Run validations in parallel
+		let resources: RenderedResource[] = [];
+		try {
+			resources = await renderHelmTemplate(this.chartPath, environment);
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			issues.push({
+				severity: "warning",
+				code: "RENDER000",
+				message: `Failed to render templates: ${errorMessage}`,
+			});
+		}
+
 		const [lintIssues, schemaIssues, templateIssues, securityIssues] = await Promise.all([
 			this.runHelmLint(),
-			this.validateSchemas(environment),
+			this.validateSchemasWithResources(resources),
 			this.validateTemplates(environment),
-			this.runSecurityChecks(environment),
+			this.runSecurityChecksWithResources(resources),
 		]);
 
 		issues.push(...lintIssues, ...schemaIssues, ...templateIssues, ...securityIssues);
 
-		// Calculate summary
 		const summary = {
 			errors: issues.filter((i) => i.severity === "error").length,
 			warnings: issues.filter((i) => i.severity === "warning").length,
@@ -79,9 +77,6 @@ export class ChartValidator {
 		};
 	}
 
-	/**
-	 * Run helm lint
-	 */
 	async runHelmLint(): Promise<ValidationIssue[]> {
 		const issues: ValidationIssue[] = [];
 
@@ -101,12 +96,10 @@ export class ChartValidator {
 				timeout: 30000,
 			});
 
-			// Parse lint output
 			const output = stdout + stderr;
 			const lines = output.split("\n");
 
 			for (const line of lines) {
-				// Parse [ERROR] and [WARNING] lines
 				const errorMatch = line.match(/\[ERROR\]\s+(.+)/);
 				const warningMatch = line.match(/\[WARNING\]\s+(.+)/);
 				const infoMatch = line.match(/\[INFO\]\s+(.+)/);
@@ -133,7 +126,6 @@ export class ChartValidator {
 				}
 			}
 		} catch (error: unknown) {
-			// Helm lint failed - parse error output
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			issues.push({
 				severity: "error",
@@ -146,14 +138,10 @@ export class ChartValidator {
 		return issues;
 	}
 
-	/**
-	 * Validate rendered templates against Kubernetes schemas
-	 */
-	async validateSchemas(environment: string): Promise<ValidationIssue[]> {
+	async validateSchemasWithResources(resources: RenderedResource[]): Promise<ValidationIssue[]> {
 		const issues: ValidationIssue[] = [];
 
 		try {
-			const resources = await renderHelmTemplate(this.chartPath, environment);
 			const connector = getKubernetesConnector();
 			const kubectlAvailable = await connector.isKubectlAvailable();
 
@@ -167,13 +155,13 @@ export class ChartValidator {
 				return issues;
 			}
 
-			// Validate each resource
 			for (const resource of resources) {
 				if (resource.kind === "Error" || resource.kind === "Notice") {
 					continue;
 				}
 
 				const result = await connector.validateResource(resource.yaml);
+				const filePath = resource.template ? path.join(this.chartPath, resource.template) : this.chartPath;
 
 				if (!result.valid) {
 					for (const error of result.errors) {
@@ -182,7 +170,7 @@ export class ChartValidator {
 							code: "SCHEMA001",
 							message: error,
 							resource: `${resource.kind}/${resource.name}`,
-							file: resource.template,
+							file: filePath,
 							remediation: "Fix the resource definition to match Kubernetes schema",
 						});
 					}
@@ -194,7 +182,7 @@ export class ChartValidator {
 						code: "SCHEMA002",
 						message: warning,
 						resource: `${resource.kind}/${resource.name}`,
-						file: resource.template,
+						file: filePath,
 					});
 				}
 			}
@@ -211,9 +199,44 @@ export class ChartValidator {
 		return issues;
 	}
 
-	/**
-	 * Validate template syntax and structure
-	 */
+	async validateSchemas(environment: string): Promise<ValidationIssue[]> {
+		const resources = await renderHelmTemplate(this.chartPath, environment);
+		return this.validateSchemasWithResources(resources);
+	}
+
+	async runSecurityChecksWithResources(resources: RenderedResource[]): Promise<ValidationIssue[]> {
+		const issues: ValidationIssue[] = [];
+
+		try {
+			for (const resource of resources) {
+				if (!["Deployment", "StatefulSet", "DaemonSet", "Pod", "Job", "CronJob"].includes(resource.kind)) {
+					continue;
+				}
+
+				const yamlContent = yaml.load(resource.yaml) as Record<string, unknown>;
+				const spec = this.getPodSpec(yamlContent);
+
+				if (!spec) continue;
+
+				this.checkSecurityIssues(spec, resource, issues);
+			}
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			issues.push({
+				severity: "warning",
+				code: "SEC000",
+				message: `Security check failed: ${errorMessage}`,
+			});
+		}
+
+		return issues;
+	}
+
+	async runSecurityChecks(environment: string): Promise<ValidationIssue[]> {
+		const resources = await renderHelmTemplate(this.chartPath, environment);
+		return this.runSecurityChecksWithResources(resources);
+	}
+
 	async validateTemplates(_environment: string): Promise<ValidationIssue[]> {
 		const issues: ValidationIssue[] = [];
 		const templatesDir = path.join(this.chartPath, "templates");
@@ -229,19 +252,16 @@ export class ChartValidator {
 			return issues;
 		}
 
-		// Check for common template issues
 		const templateFiles = this.getTemplateFiles(templatesDir);
 
 		for (const templateFile of templateFiles) {
 			const content = fs.readFileSync(templateFile, "utf8");
 			const relativePath = path.relative(this.chartPath, templateFile);
 
-			// Check for common issues
 			this.checkTemplateSyntax(content, relativePath, issues);
 			this.checkBestPractices(content, relativePath, issues);
 		}
 
-		// Check Chart.yaml
 		const chartYamlPath = path.join(this.chartPath, "Chart.yaml");
 		if (!fs.existsSync(chartYamlPath)) {
 			issues.push({
@@ -267,7 +287,6 @@ export class ChartValidator {
 			}
 		}
 
-		// Check values.yaml
 		const valuesYamlPath = path.join(this.chartPath, "values.yaml");
 		if (!fs.existsSync(valuesYamlPath)) {
 			issues.push({
@@ -282,44 +301,6 @@ export class ChartValidator {
 		return issues;
 	}
 
-	/**
-	 * Run security checks
-	 */
-	async runSecurityChecks(environment: string): Promise<ValidationIssue[]> {
-		const issues: ValidationIssue[] = [];
-
-		try {
-			const resources = await renderHelmTemplate(this.chartPath, environment);
-
-			for (const resource of resources) {
-				// Skip non-workload resources
-				if (!["Deployment", "StatefulSet", "DaemonSet", "Pod", "Job", "CronJob"].includes(resource.kind)) {
-					continue;
-				}
-
-				const yamlContent = yaml.load(resource.yaml) as Record<string, unknown>;
-				const spec = this.getPodSpec(yamlContent);
-
-				if (!spec) continue;
-
-				// Check for security issues
-				this.checkSecurityIssues(spec, resource, issues);
-			}
-		} catch (error: unknown) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			issues.push({
-				severity: "warning",
-				code: "SEC000",
-				message: `Security check failed: ${errorMessage}`,
-			});
-		}
-
-		return issues;
-	}
-
-	/**
-	 * Get all template files recursively
-	 */
 	private getTemplateFiles(dir: string): string[] {
 		const files: string[] = [];
 
@@ -336,11 +317,7 @@ export class ChartValidator {
 		return files;
 	}
 
-	/**
-	 * Check template syntax
-	 */
 	private checkTemplateSyntax(content: string, file: string, issues: ValidationIssue[]): void {
-		// Check for unclosed template tags
 		const openTags = (content.match(/\{\{/g) || []).length;
 		const closeTags = (content.match(/\}\}/g) || []).length;
 
@@ -354,15 +331,12 @@ export class ChartValidator {
 			});
 		}
 
-		// Check for common syntax errors
 		const lines = content.split("\n");
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
 			const lineNum = i + 1;
 
-			// Check for malformed template syntax
 			if (line.includes("{{ .") && !line.includes("}}")) {
-				// Might be multiline, check next line
 				if (i + 1 < lines.length && !lines[i + 1].includes("}}")) {
 					issues.push({
 						severity: "warning",
@@ -374,7 +348,6 @@ export class ChartValidator {
 				}
 			}
 
-			// Check for deprecated syntax
 			if (line.includes("{{.Values") && !line.includes("{{ .Values")) {
 				issues.push({
 					severity: "info",
@@ -387,11 +360,7 @@ export class ChartValidator {
 		}
 	}
 
-	/**
-	 * Check best practices
-	 */
 	private checkBestPractices(content: string, file: string, issues: ValidationIssue[]): void {
-		// Check for hardcoded values
 		if (content.includes("replicas: 1") && !content.includes(".Values")) {
 			issues.push({
 				severity: "info",
@@ -401,7 +370,6 @@ export class ChartValidator {
 			});
 		}
 
-		// Check for missing labels
 		if (content.includes("kind: Deployment") || content.includes("kind: StatefulSet")) {
 			if (!content.includes("app.kubernetes.io/version")) {
 				issues.push({
@@ -414,7 +382,6 @@ export class ChartValidator {
 			}
 		}
 
-		// Check for resource limits
 		if (content.includes("containers:")) {
 			if (!content.includes("resources:") && !content.includes(".Values.resources")) {
 				issues.push({
@@ -428,9 +395,6 @@ export class ChartValidator {
 		}
 	}
 
-	/**
-	 * Validate Chart.yaml structure
-	 */
 	private validateChartYaml(chartYaml: Record<string, unknown>, issues: ValidationIssue[]): void {
 		if (!chartYaml.name) {
 			issues.push({
@@ -449,7 +413,6 @@ export class ChartValidator {
 				file: "Chart.yaml",
 			});
 		} else {
-			// Validate semver format
 			const semverRegex = /^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$/;
 			if (typeof chartYaml.version === "string" && !semverRegex.test(chartYaml.version)) {
 				issues.push({
@@ -462,7 +425,6 @@ export class ChartValidator {
 			}
 		}
 
-		// Check for deprecated apiVersion
 		if (chartYaml.apiVersion === "v1") {
 			issues.push({
 				severity: "info",
@@ -473,9 +435,6 @@ export class ChartValidator {
 		}
 	}
 
-	/**
-	 * Get pod spec from resource
-	 */
 	private getPodSpec(resource: Record<string, unknown>): Record<string, unknown> | null {
 		if (!resource) return null;
 
@@ -507,9 +466,6 @@ export class ChartValidator {
 		}
 	}
 
-	/**
-	 * Check for security issues in pod spec
-	 */
 	private checkSecurityIssues(
 		spec: Record<string, unknown>,
 		resource: { kind: string; name: string },
@@ -523,7 +479,6 @@ export class ChartValidator {
 			const containerName = (container.name as string) || "unnamed";
 			const securityContext = container.securityContext as Record<string, unknown> | undefined;
 
-			// Check for privileged containers
 			if (securityContext?.privileged) {
 				issues.push({
 					severity: "warning",
@@ -534,7 +489,6 @@ export class ChartValidator {
 				});
 			}
 
-			// Check for running as root
 			if (securityContext?.runAsUser === 0) {
 				issues.push({
 					severity: "warning",
@@ -545,7 +499,6 @@ export class ChartValidator {
 				});
 			}
 
-			// Check for host network
 			if (spec.hostNetwork) {
 				issues.push({
 					severity: "warning",
@@ -556,7 +509,6 @@ export class ChartValidator {
 				});
 			}
 
-			// Check for host PID
 			if (spec.hostPID) {
 				issues.push({
 					severity: "warning",
@@ -566,7 +518,6 @@ export class ChartValidator {
 				});
 			}
 
-			// Check for host path volumes
 			const volumes = (spec.volumes as Record<string, unknown>[]) || [];
 			for (const volume of volumes) {
 				const hostPath = volume.hostPath as Record<string, unknown> | undefined;
@@ -581,7 +532,6 @@ export class ChartValidator {
 				}
 			}
 
-			// Check for missing security context
 			if (!securityContext) {
 				issues.push({
 					severity: "info",
@@ -592,7 +542,6 @@ export class ChartValidator {
 				});
 			}
 
-			// Check for sensitive environment variables
 			const env = (container.env as Record<string, unknown>[]) || [];
 			for (const envVar of env) {
 				const name = ((envVar.name as string) || "").toLowerCase();
@@ -616,9 +565,6 @@ export class ChartValidator {
 		}
 	}
 
-	/**
-	 * Check for breaking changes between environments
-	 */
 	async checkBreakingChanges(fromEnvironment: string, toEnvironment: string): Promise<ValidationIssue[]> {
 		const issues: ValidationIssue[] = [];
 
@@ -628,11 +574,9 @@ export class ChartValidator {
 
 			const connector = getKubernetesConnector();
 
-			// Create maps for comparison
 			const fromMap = new Map(fromResources.map((r) => [`${r.kind}/${r.name}`, r]));
 			const toMap = new Map(toResources.map((r) => [`${r.kind}/${r.name}`, r]));
 
-			// Check for removed resources
 			for (const [key] of fromMap) {
 				if (!toMap.has(key)) {
 					issues.push({
@@ -645,7 +589,6 @@ export class ChartValidator {
 				}
 			}
 
-			// Check for breaking changes in existing resources
 			for (const [key, toResource] of toMap) {
 				const fromResource = fromMap.get(key);
 				if (fromResource) {
@@ -677,9 +620,6 @@ export class ChartValidator {
 	}
 }
 
-/**
- * Create a validator for a chart
- */
 export function createChartValidator(chartPath: string): ChartValidator {
 	return new ChartValidator(chartPath);
 }
