@@ -88,42 +88,6 @@ export function activate(context: vscode.ExtensionContext) {
 		await showRenderedYaml(item as Parameters<typeof showRenderedYaml>[0]);
 	});
 
-	// Legacy aliases for backward compatibility (these call the handler directly)
-	const viewRenderedCommand = vscode.commands.registerCommand(
-		"chartProfiles.viewRenderedYaml",
-		async (item: unknown) => {
-			const typedItem = item as { action?: string };
-			const helmAvailable = await isHelmAvailable();
-			if (!helmAvailable && typedItem?.action === "rendered") {
-				const result = await vscode.window.showWarningMessage(
-					"Helm CLI is not installed or not in PATH. Rendered YAML will show placeholder content.",
-					"Continue Anyway",
-					"Learn More"
-				);
-
-				if (result === "Learn More") {
-					vscode.env.openExternal(vscode.Uri.parse("https://helm.sh/docs/intro/install/"));
-					return;
-				} else if (result !== "Continue Anyway") {
-					return;
-				}
-			}
-			await showRenderedYaml(item as Parameters<typeof showRenderedYaml>[0]);
-		}
-	);
-
-	const viewMergedValuesCommand = vscode.commands.registerCommand(
-		"chartProfiles.viewMergedValues",
-		async (item: unknown) => {
-			const typedItem = item as { chart?: unknown; environment?: unknown } | undefined;
-			if (!typedItem?.chart || !typedItem?.environment) {
-				vscode.window.showErrorMessage("No chart environment selected");
-				return;
-			}
-			await showRenderedYaml(item as Parameters<typeof showRenderedYaml>[0]);
-		}
-	);
-
 	// Register visualize chart command
 	const visualizeChartCommand = vscode.commands.registerCommand(
 		"chartProfiles.visualizeChart",
@@ -329,8 +293,7 @@ export function activate(context: vscode.ExtensionContext) {
 		treeView,
 		expandAllCommand,
 		refreshCommand,
-		viewRenderedCommand,
-		viewMergedValuesCommand,
+		viewYamlCommand,
 		visualizeChartCommand,
 		validateChartCommand,
 		checkClusterStatusCommand,

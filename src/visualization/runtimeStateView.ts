@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ResourceRuntimeState } from "../k8s/kubernetesConnector";
 import type { ChartRuntimeState, HealthSummary } from "../state/runtimeStateManager";

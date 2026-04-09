@@ -541,7 +541,7 @@ async function updatePanel(item: ChartTreeItem) {
 			panel.webview.html = await getErrorHtml("Extension context not available");
 		}
 	} catch (error: any) {
-		vscode.window.showErrorMessage(`[FIXED] Error loading chart visualization: ${error.message}`);
+		vscode.window.showErrorMessage(`Error loading chart visualization: ${error.message}`);
 		const extUri = currentContext?.extensionUri;
 		panel.webview.html = await getErrorHtml(error.message, extUri);
 	}
@@ -574,7 +574,7 @@ async function updatePanelForCompare(item: ChartTreeItem) {
 			panel.webview.html = await getErrorHtml("Extension context not available");
 		}
 	} catch (error: any) {
-		vscode.window.showErrorMessage(`[NEW CODE] Error loading chart comparison: ${error.message}`);
+		vscode.window.showErrorMessage(`Error loading chart comparison: ${error.message}`);
 		const extUri = currentContext?.extensionUri;
 		panel.webview.html = await getErrorHtml(error.message, extUri);
 	}

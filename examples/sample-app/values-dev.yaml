@@ -20,4 +20,16 @@ resources:
     cpu: 100m
     memory: 128Mi
 
+# Unused dev-only settings
+debug:
+  enabled: true
+  logLevel: "verbose"
+  verbose: true
+
+# Unused feature flags
+features:
+  newUI: true
+  betaAPI: false
+
+# Used environment setting
 environment: dev

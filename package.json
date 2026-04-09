@@ -2,7 +2,7 @@
   "name": "chart-profile-visualizer",
   "displayName": "Helm Chart Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "nomad-in-code",
   "repository": {
     "type": "git",
@@ -40,100 +40,55 @@
       {
         "command": "chartProfiles.refreshCharts",
         "title": "Refresh Charts",
+        "description": "Refresh the chart profiles tree view",
         "icon": "$(refresh)"
       },
       {
         "command": "chartProfiles.expandAll",
-        "title": "Expand All Charts"
-      },
-      {
-        "command": "chartProfiles.viewRenderedYaml",
-        "title": "View Rendered YAML"
+        "title": "Expand All Charts",
+        "description": "Expand all nodes in the chart profiles tree view"
       },
       {
         "command": "chartProfiles.viewYaml",
-        "title": "View YAML"
+        "title": "View YAML",
+        "description": "View chart YAML (rendered or merged values)"
       },
       {
         "command": "chartProfiles.visualizeChart",
-        "title": "Visualize Chart"
+        "title": "Visualize Chart",
+        "description": "Open the chart visualization with resource overview"
+      },
+      {
+        "command": "chartProfiles.compareEnvironments",
+        "title": "Compare Environments",
+        "description": "Compare two environments side-by-side to see differences"
       },
       {
         "command": "chartProfiles.validateChart",
         "title": "Validate Chart",
+        "description": "Validate chart configuration and check for best practices",
         "icon": "$(check)"
       },
       {
         "command": "chartProfiles.checkClusterStatus",
         "title": "Check Cluster Status",
+        "description": "Check Kubernetes cluster connection status",
         "icon": "$(server)"
       },
       {
         "command": "chartProfiles.checkRuntimeState",
         "title": "Check Runtime State",
+        "description": "Check runtime state of deployed resources in the cluster",
         "icon": "$(pulse)"
       },
       {
         "command": "chartProfiles.updateDependencies",
         "title": "Update Dependencies",
+        "description": "Update Helm chart dependencies",
         "icon": "$(cloud-download)",
         "category": "Chart Profiles"
-      },
-      {
-        "command": "chartProfiles.viewMergedValues",
-        "title": "View Merged Values"
-      },
-      {
-        "command": "chartProfiles.exportComparisonReport",
-        "title": "Export Comparison Report",
-        "icon": "$(export)"
-      },
-      {
-        "command": "chartProfiles.startWalkthrough",
-        "title": "Helm Chart Visualizer: Getting Started",
-        "icon": "$(rocket)"
       }
     ],
-    "configuration": {
-      "title": "Helm Chart Visualizer",
-      "properties": {
-        "chartProfiles.showWalkthroughOnFirstRun": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show the guided getting-started walkthrough the first time Helm Chart Visualizer activates. Disable to suppress the prompt."
-        },
-        "chartProfiles.timeouts.helmTemplate": {
-          "type": "number",
-          "default": 30000,
-          "description": "Timeout in milliseconds for Helm template rendering. Increase for complex charts."
-        },
-        "chartProfiles.timeouts.kubectl": {
-          "type": "number",
-          "default": 10000,
-          "description": "Timeout in milliseconds for kubectl commands."
-        },
-        "chartProfiles.timeouts.clusterInfo": {
-          "type": "number",
-          "default": 5000,
-          "description": "Timeout in milliseconds for kubectl cluster-info command."
-        },
-        "chartProfiles.autoRefreshInterval": {
-          "type": "number",
-          "default": 30000,
-          "description": "Interval in milliseconds for automatic runtime state refresh. Set to 0 to disable."
-        },
-        "chartProfiles.debug": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable debug logging in output channel."
-        },
-        "chartProfiles.showOutputChannel": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically show the output channel when extension logs messages."
-        }
-      }
-    },
     "menus": {
       "view/title": [
         {
@@ -158,19 +113,11 @@
           "when": "false"
         },
         {
-          "command": "chartProfiles.viewRenderedYaml",
-          "when": "false"
-        },
-        {
           "command": "chartProfiles.validateChart",
           "when": "false"
         },
         {
           "command": "chartProfiles.checkRuntimeState",
-          "when": "false"
-        },
-        {
-          "command": "chartProfiles.viewMergedValues",
           "when": "false"
         }
       ]

@@ -634,6 +634,9 @@ function initResourceExplorer(): void {
  * Initialize Chart.js visualizations
  */
 function initCharts(): void {
+	// Use VS Code theme colors for better dark/light theme support
+	const style = getComputedStyle(document.body);
+	const primary = style.getPropertyValue("--vscode-editorForeground").trim() || "#007acc";
 	const chartColors = {
 		primary: "#007acc",
 		secondary: "#68217a",
@@ -643,8 +646,12 @@ function initCharts(): void {
 		info: "#2196f3",
 	};
 
+	// Fallback to default colors if CSS variables not available
+	const foreground = style.getPropertyValue("--vscode-editor-foreground").trim();
+	const resolvedPrimary = foreground ? "#007acc" : primary;
+
 	const colorPalette = [
-		chartColors.primary,
+		resolvedPrimary,
 		chartColors.secondary,
 		chartColors.success,
 		chartColors.warning,

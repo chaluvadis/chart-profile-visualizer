@@ -165,6 +165,17 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 	const warnings = result.issues.filter((i) => i.severity === "warning");
 	const infos = result.issues.filter((i) => i.severity === "info");
 
+	// Group issues by category
+	const categories = {
+		lint: result.issues.filter((i) => i.category === "lint"),
+		schema: result.issues.filter((i) => i.category === "schema"),
+		template: result.issues.filter((i) => i.category === "template"),
+		security: result.issues.filter((i) => i.category === "security"),
+		unused: result.issues.filter((i) => i.category === "unused"),
+		breaking: result.issues.filter((i) => i.category === "breaking"),
+		general: result.issues.filter((i) => !i.category || i.category === "general"),
+	};
+
 	// Format timestamp
 	const timestamp = new Date(result.timestamp).toLocaleString();
 	const useCompactSummary = result.issues.length > 0 && result.issues.length <= 3;
@@ -189,6 +200,17 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		statusSubtitle = `${infos.length} informational check(s) found`;
 	}
 
+	// Build category summary for tabs
+	const categorySummary = [
+		{ id: "all", label: "All", count: result.issues.length, icon: "📋" },
+		{ id: "lint", label: "Lint", count: categories.lint.length, icon: "🔍" },
+		{ id: "schema", label: "Schema", count: categories.schema.length, icon: "📄" },
+		{ id: "template", label: "Template", count: categories.template.length, icon: "📝" },
+		{ id: "security", label: "Security", count: categories.security.length, icon: "🔒" },
+		{ id: "unused", label: "Unused Values", count: categories.unused.length, icon: "♻️" },
+		{ id: "breaking", label: "Breaking", count: categories.breaking.length, icon: "⚠️" },
+	].filter((c) => c.count > 0);
+
 	return {
 		chartName,
 		chartPath: result.chartPath,
@@ -212,6 +234,16 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		errorCount: errors.length,
 		warningCount: warnings.length,
 		infoCount: infos.length,
+		categorySummary,
+		categories: {
+			lint: formatIssues(categories.lint),
+			schema: formatIssues(categories.schema),
+			template: formatIssues(categories.template),
+			security: formatIssues(categories.security),
+			unused: formatIssues(categories.unused),
+			breaking: formatIssues(categories.breaking),
+			general: formatIssues(categories.general),
+		},
 	};
 }
 
@@ -229,6 +261,8 @@ function formatIssues(issues: ValidationIssue[]): Record<string, unknown>[] {
 		fileDisplay: issue.file ? `${issue.file}${issue.line && issue.line > 0 ? `:${issue.line}` : ""}` : null,
 		remediation: issue.remediation || null,
 		hasDetails: !!(issue.resource || issue.file || issue.remediation),
+		category: issue.category || "general",
+		severity: issue.severity,
 	}));
 }
 

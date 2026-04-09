@@ -7,6 +7,8 @@ import { runHelm } from "../utils/cliRunner";
 
 export type ValidationSeverity = "error" | "warning" | "info";
 
+export type ValidationCategory = "lint" | "schema" | "template" | "security" | "unused" | "breaking" | "general";
+
 export interface ValidationIssue {
 	severity: ValidationSeverity;
 	code: string;
@@ -15,6 +17,7 @@ export interface ValidationIssue {
 	line?: number;
 	file?: string;
 	remediation?: string;
+	category?: ValidationCategory;
 }
 
 export interface ValidationResult {
@@ -52,14 +55,22 @@ export class ChartValidator {
 			});
 		}
 
-		const [lintIssues, schemaIssues, templateIssues, securityIssues] = await Promise.all([
+		const [lintIssues, schemaIssues, templateIssues, securityIssues, unusedValuesIssues] = await Promise.all([
 			this.runHelmLint(),
 			this.validateSchemasWithResources(resources),
 			this.validateTemplates(environment),
 			this.runSecurityChecksWithResources(resources),
+			this.checkUnusedValues(),
 		]);
 
-		issues.push(...lintIssues, ...schemaIssues, ...templateIssues, ...securityIssues);
+		issues.push(...lintIssues, ...schemaIssues, ...templateIssues, ...securityIssues, ...unusedValuesIssues);
+
+		// Tag categories to issues
+		lintIssues.forEach((i) => (i.category = "lint"));
+		schemaIssues.forEach((i) => (i.category = "schema"));
+		templateIssues.forEach((i) => (i.category = "template"));
+		securityIssues.forEach((i) => (i.category = "security"));
+		unusedValuesIssues.forEach((i) => (i.category = "unused"));
 
 		const summary = {
 			errors: issues.filter((i) => i.severity === "error").length,
@@ -592,6 +603,7 @@ export class ChartValidator {
 						message: `Resource ${key} exists in ${fromEnvironment} but not in ${toEnvironment}`,
 						resource: key,
 						remediation: "Verify this removal is intentional",
+						category: "breaking",
 					});
 				}
 			}
@@ -609,6 +621,7 @@ export class ChartValidator {
 								message: change,
 								resource: key,
 								remediation: "This change may require resource recreation",
+								category: "breaking",
 							});
 						}
 					}
@@ -620,10 +633,192 @@ export class ChartValidator {
 				severity: "error",
 				code: "BREAK000",
 				message: `Breaking change check failed: ${errorMessage}`,
+				category: "breaking",
 			});
 		}
 
 		return issues;
+	}
+
+	async checkUnusedValues(): Promise<ValidationIssue[]> {
+		const issues: ValidationIssue[] = [];
+		const valuesFiles = this.getValuesFiles();
+
+		if (valuesFiles.length === 0) {
+			return issues;
+		}
+
+		const allValuePaths = new Set<string>();
+		const valueFileContents = new Map<string, Record<string, unknown>>();
+
+		for (const valuesFile of valuesFiles) {
+			try {
+				const content = fs.readFileSync(valuesFile, "utf8");
+				const values = yaml.load(content) as Record<string, unknown>;
+				valueFileContents.set(valuesFile, values);
+
+				const paths = this.extractValuePaths("", values);
+				for (const p of paths) {
+					allValuePaths.add(p);
+				}
+			} catch (error: unknown) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				issues.push({
+					severity: "warning",
+					code: "UNUSED001",
+					message: `Failed to parse values file: ${errorMessage}`,
+					file: valuesFile,
+				});
+			}
+		}
+
+		const templateFiles = this.getTemplateFiles(path.join(this.chartPath, "templates"));
+		const allTemplateContent = templateFiles
+			.map((f) => {
+				try {
+					return fs.readFileSync(f, "utf8");
+				} catch {
+					return "";
+				}
+			})
+			.join("\n");
+
+		const allTemplatesContent = this.getAllTemplatesContent();
+		const combinedContent = allTemplateContent + "\n" + allTemplatesContent;
+
+		const commonUnusedPatterns = [/^#.*$/m, /^$/m];
+
+		for (const valuePath of allValuePaths) {
+			if (this.isCommonlyExcluded(valuePath)) {
+				continue;
+			}
+
+			const normalizedPath = valuePath.replace(/^\./, "");
+
+			const patterns = [
+				new RegExp(`\\.Values\\.${this.escapeRegex(normalizedPath)}`),
+				new RegExp(`\\.Values\\["${this.escapeRegex(normalizedPath)}"\\]`),
+				new RegExp(`\\.Values\\['${this.escapeRegex(normalizedPath)}'\\]`),
+				new RegExp(`\\(optional\\).*${this.escapeRegex(normalizedPath)}`),
+			];
+
+			let isUsed = false;
+			for (const pattern of patterns) {
+				if (pattern.test(combinedContent)) {
+					isUsed = true;
+					break;
+				}
+			}
+
+			if (!isUsed) {
+				const relevantFiles = valuesFiles.filter((f) => {
+					const values = valueFileContents.get(f);
+					if (!values) return false;
+					const paths = this.extractValuePaths("", values);
+					return paths.includes(valuePath);
+				});
+
+				issues.push({
+					severity: "info",
+					code: "UNUSED002",
+					message: `Value "${valuePath}" is defined but not referenced in any template`,
+					file: relevantFiles.length > 0 ? relevantFiles[0] : "values.yaml",
+					remediation: "Remove unused value or ensure it's referenced in templates",
+				});
+			}
+		}
+
+		return issues;
+	}
+
+	private escapeRegex(str: string): string {
+		return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	}
+
+	private isCommonlyExcluded(path: string): boolean {
+		const exclusions = [
+			"global",
+			"fullnameOverride",
+			"nameOverride",
+			"serviceAccountName",
+			"ingress",
+			"networkPolicy",
+			"resources",
+			"autoscaling",
+		];
+
+		const topLevel = path.split(".")[0];
+		return exclusions.includes(topLevel);
+	}
+
+	private extractValuePaths(prefix: string, obj: Record<string, unknown>): string[] {
+		const paths: string[] = [];
+
+		if (obj === null || typeof obj !== "object") {
+			return paths;
+		}
+
+		for (const [key, value] of Object.entries(obj)) {
+			const currentPath = prefix ? `${prefix}.${key}` : key;
+
+			paths.push(currentPath);
+
+			if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+				paths.push(...this.extractValuePaths(currentPath, value as Record<string, unknown>));
+			}
+		}
+
+		return paths;
+	}
+
+	private getValuesFiles(): string[] {
+		const files: string[] = [];
+		const valuesYamlPath = path.join(this.chartPath, "values.yaml");
+
+		if (fs.existsSync(valuesYamlPath)) {
+			files.push(valuesYamlPath);
+		}
+
+		const envDir = path.join(this.chartPath, "environments");
+		if (fs.existsSync(envDir) && fs.statSync(envDir).isDirectory()) {
+			const envFiles = fs.readdirSync(envDir);
+			for (const file of envFiles) {
+				if (file.endsWith(".yaml") || file.endsWith(".yml")) {
+					files.push(path.join(envDir, file));
+				}
+			}
+		}
+
+		return files;
+	}
+
+	private getAllTemplatesContent(): string {
+		let content = "";
+
+		const chartsDir = path.join(this.chartPath, "charts");
+		if (fs.existsSync(chartsDir) && fs.statSync(chartsDir).isDirectory()) {
+			const chartDirs = fs.readdirSync(chartsDir);
+			for (const chartDir of chartDirs) {
+				const chartPath = path.join(chartsDir, chartDir);
+				if (fs.statSync(chartPath).isDirectory()) {
+					const templatesDir = path.join(chartPath, "templates");
+					if (fs.existsSync(templatesDir)) {
+						const templateFiles = this.getTemplateFiles(templatesDir);
+						for (const templateFile of templateFiles) {
+							try {
+								content += fs.readFileSync(templateFile, "utf8") + "\n";
+							} catch {
+								// Skip files that can't be read
+							}
+						}
+					}
+				} else if (chartDir.endsWith(".tgz")) {
+					// Can't check inside tgz files without extraction
+				}
+			}
+		}
+
+		return content;
 	}
 }
 
