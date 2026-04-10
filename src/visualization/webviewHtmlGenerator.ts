@@ -1,9 +1,9 @@
 import * as crypto from "node:crypto";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
-import type { ResourceHierarchy } from "./resourceVisualizer";
 import { getIconDataUriWithFallback } from "../k8s/iconManager";
-import { loadTemplate, getTemplatePath } from "../webview/templateLoader";
+import { escapeAttr, escapeHtml, getTemplatePath, loadTemplate } from "../webview/templateLoader";
+import type { ResourceHierarchy } from "./resourceVisualizer";
 
 /**
  * Interface for dependency node from visualization data
@@ -664,22 +664,4 @@ function formatValue(value: any): string {
 		return JSON.stringify(value);
 	}
 	return String(value);
-}
-
-function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
-}
-
-function escapeAttr(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
 }

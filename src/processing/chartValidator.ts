@@ -16,6 +16,7 @@ export interface ValidationIssue {
 	resource?: string;
 	line?: number;
 	file?: string;
+	chartPath?: string;
 	remediation?: string;
 	category?: ValidationCategory;
 }
@@ -66,11 +67,21 @@ export class ChartValidator {
 		issues.push(...lintIssues, ...schemaIssues, ...templateIssues, ...securityIssues, ...unusedValuesIssues);
 
 		// Tag categories to issues
-		lintIssues.forEach((i) => (i.category = "lint"));
-		schemaIssues.forEach((i) => (i.category = "schema"));
-		templateIssues.forEach((i) => (i.category = "template"));
-		securityIssues.forEach((i) => (i.category = "security"));
-		unusedValuesIssues.forEach((i) => (i.category = "unused"));
+		for (const i of lintIssues) {
+			i.category = "lint";
+		}
+		for (const i of schemaIssues) {
+			i.category = "schema";
+		}
+		for (const i of templateIssues) {
+			i.category = "template";
+		}
+		for (const i of securityIssues) {
+			i.category = "security";
+		}
+		for (const i of unusedValuesIssues) {
+			i.category = "unused";
+		}
 
 		const summary = {
 			errors: issues.filter((i) => i.severity === "error").length,
@@ -162,6 +173,30 @@ export class ChartValidator {
 					code: "KCTL001",
 					message: "kubectl not found - cannot validate against Kubernetes schema",
 					remediation: "Install kubectl from https://kubernetes.io/docs/tasks/tools/",
+					category: "schema",
+				});
+				return issues;
+			}
+
+			try {
+				const clusterInfo = await connector.getClusterInfo();
+				if (!clusterInfo.connected) {
+					issues.push({
+						severity: "info",
+						code: "KCTL002",
+						message: "No Kubernetes cluster connection - skipping schema validation",
+						remediation: "Connect to a cluster to enable schema validation",
+						category: "schema",
+					});
+					return issues;
+				}
+			} catch {
+				issues.push({
+					severity: "info",
+					code: "KCTL002",
+					message: "No Kubernetes cluster connection - skipping schema validation",
+					remediation: "Connect to a cluster to enable schema validation",
+					category: "schema",
 				});
 				return issues;
 			}
@@ -190,6 +225,7 @@ export class ChartValidator {
 							resource: `${resource.kind}/${resource.name}`,
 							file: filePath,
 							remediation: "Fix the resource definition to match Kubernetes schema",
+							category: "schema",
 						});
 					}
 				}
@@ -201,6 +237,7 @@ export class ChartValidator {
 						message: warning,
 						resource: `${resource.kind}/${resource.name}`,
 						file: filePath,
+						category: "schema",
 					});
 				}
 			}
@@ -211,15 +248,11 @@ export class ChartValidator {
 				code: "SCHEMA000",
 				message: `Schema validation failed: ${errorMessage}`,
 				remediation: "Ensure templates render correctly",
+				category: "schema",
 			});
 		}
 
 		return issues;
-	}
-
-	async validateSchemas(environment: string): Promise<ValidationIssue[]> {
-		const resources = await renderHelmTemplate(this.chartPath, environment);
-		return this.validateSchemasWithResources(resources);
 	}
 
 	async runSecurityChecksWithResources(resources: RenderedResource[]): Promise<ValidationIssue[]> {
@@ -248,11 +281,6 @@ export class ChartValidator {
 		}
 
 		return issues;
-	}
-
-	async runSecurityChecks(environment: string): Promise<ValidationIssue[]> {
-		const resources = await renderHelmTemplate(this.chartPath, environment);
-		return this.runSecurityChecksWithResources(resources);
 	}
 
 	async validateTemplates(_environment: string): Promise<ValidationIssue[]> {
@@ -668,6 +696,7 @@ export class ChartValidator {
 					code: "UNUSED001",
 					message: `Failed to parse values file: ${errorMessage}`,
 					file: valuesFile,
+					category: "unused",
 				});
 			}
 		}
@@ -687,6 +716,8 @@ export class ChartValidator {
 		const combinedContent = allTemplateContent + "\n" + allTemplatesContent;
 
 		const commonUnusedPatterns = [/^#.*$/m, /^$/m];
+
+		let unusedCounter = 0;
 
 		for (const valuePath of allValuePaths) {
 			if (this.isCommonlyExcluded(valuePath)) {
@@ -710,6 +741,8 @@ export class ChartValidator {
 				}
 			}
 
+			unusedCounter++;
+
 			if (!isUsed) {
 				const relevantFiles = valuesFiles.filter((f) => {
 					const values = valueFileContents.get(f);
@@ -720,10 +753,12 @@ export class ChartValidator {
 
 				issues.push({
 					severity: "info",
-					code: "UNUSED002",
+					code: `UNUSED${String(unusedCounter).padStart(3, "0")}`,
 					message: `Value "${valuePath}" is defined but not referenced in any template`,
 					file: relevantFiles.length > 0 ? relevantFiles[0] : "values.yaml",
+					chartPath: this.chartPath,
 					remediation: "Remove unused value or ensure it's referenced in templates",
+					category: "unused",
 				});
 			}
 		}

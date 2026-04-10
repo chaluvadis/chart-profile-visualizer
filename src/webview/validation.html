@@ -3,29 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
     <title>Validation Results</title>
     <style>
-        :root {
-            --error-color: #f85149;
-            --error-bg: rgba(248, 81, 73, 0.12);
-            --warning-color: #d29922;
-            --warning-bg: rgba(210, 153, 34, 0.12);
-            --info-color: #58a6ff;
-            --info-bg: rgba(88, 166, 255, 0.12);
-            --success-color: #3fb950;
-            --success-bg: rgba(63, 185, 80, 0.12);
-            --unused-color: #a371f7;
-            --unused-bg: rgba(163, 113, 247, 0.12);
-            --security-color: #f0883e;
-            --security-bg: rgba(240, 136, 62, 0.12);
-            --lint-color: #3fb950;
-            --lint-bg: rgba(63, 185, 80, 0.12);
-            --template-color: #79c0ff;
-            --template-bg: rgba(121, 192, 255, 0.12);
-            --breaking-color: #ff7b72;
-            --breaking-bg: rgba(255, 123, 114, 0.12);
-        }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: var(--vscode-font-family);
@@ -34,9 +14,8 @@
             padding: 0;
             min-height: 100vh;
         }
-
-        /* Header */
-        .validation-header {
+        
+        .header {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -49,33 +28,23 @@
             align-items: center;
             gap: 14px;
         }
-        .status-icon-large {
-            width: 48px;
-            height: 48px;
+        .status-icon {
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 12px;
-            font-size: 24px;
+            border-radius: 10px;
+            font-size: 22px;
         }
-        .status-icon-large.valid { background: var(--success-bg); color: var(--success-color); }
-        .status-icon-large.invalid { background: var(--error-bg); color: var(--error-color); }
-        .status-icon-large.attention { background: var(--warning-bg); color: var(--warning-color); }
-        .header-title h2 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-        .header-title p {
-            font-size: 13px;
-            color: var(--vscode-descriptionForeground);
-        }
-        .header-actions {
-            display: flex;
-            gap: 8px;
-        }
-        .header-btn {
-            display: flex;
+        .status-icon.valid { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+        .status-icon.invalid { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+        .status-icon.attention { background: rgba(210, 153, 34, 0.15); color: #d29922; }
+        .header-title h2 { font-size: 17px; font-weight: 600; margin-bottom: 2px; }
+        .header-title p { font-size: 12px; color: var(--vscode-descriptionForeground); }
+        
+        .btn {
+            display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 8px 14px;
@@ -86,71 +55,89 @@
             font-size: 13px;
             cursor: pointer;
         }
-        .header-btn:hover {
-            background: var(--vscode-button-hoverBackground);
-        }
-
-        /* Category Tabs */
-        .category-tabs {
+        .btn:hover { background: var(--vscode-button-hoverBackground); }
+        
+        .tabs {
             display: flex;
             gap: 4px;
-            padding: 12px 20px;
+            padding: 10px 20px;
             background: var(--vscode-editor-background);
             border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
             overflow-x: auto;
         }
-        .category-tab {
+        .tab-btn {
             display: flex;
             align-items: center;
             gap: 8px;
             padding: 8px 16px;
             background: transparent;
             border: 1px solid transparent;
-            border-radius: 8px;
+            border-radius: 6px;
             font-size: 13px;
             color: var(--vscode-foreground);
             cursor: pointer;
             white-space: nowrap;
-            transition: all 0.15s ease;
         }
-        .category-tab:hover {
-            background: var(--vscode-editor-lineHighlightBackground);
-        }
-        .category-tab.active {
+        .tab-btn:hover { background: var(--vscode-editor-lineHighlightBackground); }
+        .tab-btn.active {
             background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
             border-color: var(--vscode-focusBorder);
         }
-        .category-tab .count {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 6px;
+        .tab-btn .count {
+            font-size: 11px;
+            padding: 2px 6px;
             background: var(--vscode-editor-selectionBackground);
             border-radius: 10px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        .category-tab.active .count {
-            background: rgba(255,255,255,0.2);
         }
         
-        /* Tab-specific colors */
-        .category-tab[data-category="all"].active { border-color: var(--info-color); }
-        .category-tab[data-category="lint"].active { border-color: var(--lint-color); }
-        .category-tab[data-category="schema"].active { border-color: var(--info-color); }
-        .category-tab[data-category="template"].active { border-color: var(--template-color); }
-        .category-tab[data-category="security"].active { border-color: var(--security-color); }
-        .category-tab[data-category="unused"].active { border-color: var(--unused-color); }
-        .category-tab[data-category="breaking"].active { border-color: var(--breaking-color); }
-
-        /* Summary Cards */
+        .compact-view {
+            padding: 16px 20px;
+            background: var(--vscode-editor-lineHighlightBackground);
+            border-bottom: 1px solid var(--vscode-focusBorder);
+        }
+        .compact-status {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .compact-status.valid { color: #3fb950; }
+        .compact-status.invalid { color: #f85149; }
+        .compact-status.attention { color: #d29922; }
+        .compact-summary {
+            font-size: 13px;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 12px;
+        }
+        .compact-issues {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .compact-issue {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: var(--vscode-editor-background);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .compact-issue:hover { background: var(--vscode-editor-selectionBackground); }
+        .compact-issue .path {
+            color: var(--vscode-foreground);
+            font-weight: 500;
+        }
+        .compact-issue .message {
+            color: var(--vscode-descriptionForeground);
+            flex: 1;
+        }
+        
         .summary-row {
             display: flex;
             gap: 12px;
-            padding: 16px 20px;
+            padding: 14px 20px;
             background: var(--vscode-editor-background);
             border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
             overflow-x: auto;
@@ -159,159 +146,106 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 12px 16px;
+            padding: 10px 14px;
             background: var(--vscode-editor-lineHighlightBackground);
-            border-radius: 8px;
-            min-width: 100px;
+            border-radius: 6px;
+            min-width: 90px;
         }
-        .summary-card .icon {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-        .summary-card .count {
-            font-size: 20px;
-            font-weight: 700;
-        }
-        .summary-card .label {
-            font-size: 12px;
-            color: var(--vscode-descriptionForeground);
-        }
+        .summary-card .count { font-size: 18px; font-weight: 700; }
+        .summary-card .label { font-size: 11px; color: var(--vscode-descriptionForeground); }
+        .summary-card.error .count { color: #f85149; }
+        .summary-card.warning .count { color: #d29922; }
+        .summary-card.info .count { color: #58a6ff; }
         
-        .summary-card.error .icon { background: var(--error-bg); color: var(--error-color); }
-        .summary-card.error .count { color: var(--error-color); }
-        .summary-card.warning .icon { background: var(--warning-bg); color: var(--warning-color); }
-        .summary-card.warning .count { color: var(--warning-color); }
-        .summary-card.info .icon { background: var(--info-bg); color: var(--info-color); }
-        .summary-card.info .count { color: var(--info-color); }
-
-        /* Search & Filter */
-        .filter-row {
+        .search-row {
             display: flex;
-            gap: 12px;
-            padding: 12px 20px;
+            gap: 10px;
+            padding: 10px 20px;
             background: var(--vscode-editor-background);
             border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
         }
         .search-input {
             flex: 1;
-            padding: 10px 14px;
+            padding: 8px 12px;
             background: var(--vscode-editor-lineHighlightBackground);
             border: 1px solid var(--vscode-focusBorder);
-            border-radius: 6px;
-            color: var(--vscode-foreground);
-            font-size: 13px;
-        }
-        .search-input:focus {
-            outline: none;
-            border-color: var(--info-color);
-        }
-        .view-toggle {
-            display: flex;
-            gap: 4px;
-            background: var(--vscode-editor-lineHighlightBackground);
-            padding: 4px;
-            border-radius: 6px;
-        }
-        .view-btn {
-            padding: 8px 12px;
-            background: transparent;
-            border: none;
             border-radius: 4px;
-            color: var(--vscode-descriptionForeground);
-            cursor: pointer;
+            color: var(--vscode-foreground);
             font-size: 12px;
         }
-        .view-btn.active {
-            background: var(--vscode-editor-background);
-            color: var(--vscode-foreground);
-        }
-
-        /* Issues Container */
-        .issues-container {
+        .search-input:focus { outline: none; border-color: #58a6ff; }
+        
+        .issues-list {
             padding: 16px 20px;
         }
         
-        /* Cards View */
         .issue-card {
-            padding: 14px 16px;
-            margin-bottom: 10px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
             background: var(--vscode-editor-lineHighlightBackground);
-            border-radius: 8px;
-            border-left: 4px solid;
+            border-radius: 6px;
+            border-left: 3px solid;
         }
-        .issue-card.error { border-left-color: var(--error-color); }
-        .issue-card.warning { border-left-color: var(--warning-color); }
-        .issue-card.info { border-left-color: var(--info-color); }
+        .issue-card.error { border-left-color: #f85149; }
+        .issue-card.warning { border-left-color: #d29922; }
+        .issue-card.info { border-left-color: #58a6ff; }
         
         .issue-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .issue-code {
-            display: inline-block;
-            padding: 3px 8px;
+            font-size: 10px;
+            padding: 2px 6px;
             background: var(--vscode-editor-background);
-            border-radius: 4px;
-            font-size: 11px;
+            border-radius: 3px;
             font-family: var(--vscode-editor-font-family);
             color: var(--vscode-descriptionForeground);
         }
         .issue-severity {
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 10px;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
             font-weight: 600;
             text-transform: uppercase;
         }
-        .issue-severity.error { background: var(--error-bg); color: var(--error-color); }
-        .issue-severity.warning { background: var(--warning-bg); color: var(--warning-color); }
-        .issue-severity.info { background: var(--info-bg); color: var(--info-color); }
+        .issue-severity.error { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+        .issue-severity.warning { background: rgba(210, 153, 34, 0.15); color: #d29922; }
+        .issue-severity.info { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
         
         .issue-message {
-            font-size: 13px;
+            font-size: 12px;
             line-height: 1.5;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         
         .issue-meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-        }
-        .meta-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            background: var(--vscode-editor-background);
-            border-radius: 4px;
+            gap: 6px;
             font-size: 11px;
+        }
+        .meta-tag {
+            padding: 2px 6px;
+            background: var(--vscode-editor-background);
+            border-radius: 3px;
             color: var(--vscode-descriptionForeground);
         }
-        .meta-item.resource { color: var(--success-color); }
-        .meta-item.file { cursor: pointer; }
-        .meta-item.file:hover { color: var(--info-color); }
-        .meta-item.remediation { color: var(--warning-color); }
+        .meta-tag.file { cursor: pointer; }
+        .meta-tag.file:hover { color: #58a6ff; }
+        .meta-tag.remediation { color: #d29922; }
         
         .issue-actions {
             display: flex;
-            gap: 8px;
-            margin-top: 12px;
-            padding-top: 10px;
+            gap: 6px;
+            margin-top: 8px;
+            padding-top: 8px;
             border-top: 1px solid var(--vscode-editor-selectionBackground);
         }
         .action-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
+            padding: 4px 10px;
             background: var(--vscode-editor-background);
             border: 1px solid var(--vscode-focusBorder);
             border-radius: 4px;
@@ -319,235 +253,180 @@
             cursor: pointer;
             color: var(--vscode-foreground);
         }
-        .action-btn:hover {
-            background: var(--vscode-editor-selectionBackground);
+        .action-btn:hover { background: var(--vscode-editor-selectionBackground); }
+        
+        .grouped-issues {
+            margin-top: 8px;
+            padding: 8px;
+            background: var(--vscode-editor-background);
+            border-radius: 4px;
         }
-
-        /* Table View */
-        .table-view {
-            display: none;
+        .grouped-issue {
+            font-size: 11px;
+            padding: 4px 0;
+            color: var(--vscode-descriptionForeground);
+            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
         }
-        .table-view.active {
-            display: block;
-        }
-        .cards-view.hidden {
-            display: none;
-        }
-        .issues-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .issues-table th {
-            text-align: left;
-            padding: 12px;
-            background: var(--vscode-editor-lineHighlightBackground);
+        .grouped-issue:last-child { border-bottom: none; }
+        .issue-count {
             font-size: 12px;
             font-weight: 600;
-            color: var(--vscode-descriptionForeground);
-            border-bottom: 1px solid var(--vscode-focusBorder);
         }
-        .issues-table td {
-            padding: 12px;
-            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
-            font-size: 12px;
-        }
-        .issues-table tr:hover td {
-            background: var(--vscode-editor-lineHighlightBackground);
-        }
-
-        /* Empty State */
+        
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
+            padding: 50px 20px;
             color: var(--vscode-descriptionForeground);
         }
-        .empty-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-        .empty-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--vscode-foreground);
-            margin-bottom: 8px;
-        }
-        .empty-text {
-            font-size: 13px;
-        }
-
-        /* Footer */
-        .validation-footer {
+        .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+        .empty-state .title { font-size: 14px; font-weight: 600; color: var(--vscode-foreground); margin-bottom: 6px; }
+        .empty-state .text { font-size: 12px; }
+        
+        .footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 20px;
+            padding: 10px 20px;
             background: var(--vscode-editor-lineHighlightBackground);
             border-top: 1px solid var(--vscode-focusBorder);
-            font-size: 12px;
+            font-size: 11px;
             color: var(--vscode-descriptionForeground);
         }
-        .footer-info {
-            display: flex;
-            gap: 16px;
-        }
-        .footer-info span {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        /* Toast */
-        .copy-toast {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
-            z-index: 100;
-            padding: 10px 16px;
-            background: var(--vscode-notifications-background);
-            border: 1px solid var(--vscode-focusBorder);
-            border-radius: 6px;
-            font-size: 12px;
-            color: var(--vscode-notifications-foreground);
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all 0.2s ease;
-            pointer-events: none;
-        }
-        .copy-toast.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div class="validation-header">
+    <div class="header">
         <div class="header-left">
-            <div class="status-icon-large {{statusClass}}">{{statusIcon}}</div>
+            <div class="status-icon {{statusClass}}">{{statusIcon}}</div>
             <div class="header-title">
                 <h2>{{statusTitle}}</h2>
                 <p>{{statusSubtitle}}</p>
             </div>
         </div>
-        <div class="header-actions">
-            <button class="header-btn" onclick="refreshValidation()">
-                <span>&#8635;</span> Refresh
-            </button>
-        </div>
+        <button class="btn" id="refreshBtn">↻ Refresh</button>
     </div>
 
-    <div class="category-tabs" id="categoryTabs">
-        {{#each categorySummary}}
-        <button class="category-tab {{#if @first}}active{{/if}}" data-category="{{id}}" onclick="selectCategory('{{id}}')">
-            <span>{{icon}}</span>
-            <span>{{label}}</span>
-            <span class="count">{{count}}</span>
-        </button>
-        {{/each}}
+    <div class="tabs" id="categoryTabs"></div>
+
+    <div class="compact-view" id="compactView">
+        <div class="compact-status" id="compactStatus"></div>
+        <div class="compact-summary" id="compactSummary"></div>
+        <div class="compact-issues" id="compactIssues"></div>
     </div>
 
     <div class="summary-row">
         <div class="summary-card error">
-            <div class="icon">&#10007;</div>
-            <div>
-                <div class="count">{{errorCount}}</div>
-                <div class="label">Errors</div>
-            </div>
+            <span class="count">{{errorCount}}</span>
+            <span class="label">Errors</span>
         </div>
         <div class="summary-card warning">
-            <div class="icon">&#9888;</div>
-            <div>
-                <div class="count">{{warningCount}}</div>
-                <div class="label">Warnings</div>
-            </div>
+            <span class="count">{{warningCount}}</span>
+            <span class="label">Warnings</span>
         </div>
         <div class="summary-card info">
-            <div class="icon">&#8505;</div>
-            <div>
-                <div class="count">{{infoCount}}</div>
-                <div class="label">Info</div>
-            </div>
+            <span class="count">{{infoCount}}</span>
+            <span class="label">Info</span>
         </div>
     </div>
 
-    <div class="filter-row">
-        <input type="text" class="search-input" id="searchInput" placeholder="Search issues..." oninput="filterCurrentCategory()">
-        <div class="view-toggle">
-            <button class="view-btn active" id="cardsViewBtn" onclick="setView('cards')">Cards</button>
-            <button class="view-btn" id="tableViewBtn" onclick="setView('table')">Table</button>
-        </div>
+    <div class="search-row">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search issues...">
     </div>
 
-    <div class="issues-container">
-        <div id="cardsView" class="cards-view">
-            <!-- Issues will be rendered here by JavaScript -->
-        </div>
-        <div id="tableView" class="table-view">
-            <table class="issues-table">
-                <thead>
-                    <tr>
-                        <th>Severity</th>
-                        <th>Code</th>
-                        <th>Message</th>
-                        <th>Location</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
-        </div>
-        <div id="emptyState" class="empty-state" style="display: none;">
-            <div class="empty-icon">&#128269;</div>
-            <div class="empty-title">No issues found</div>
-            <div class="empty-text">No issues match your current filter in this category.</div>
-        </div>
+    <div class="issues-list" id="issuesList"></div>
+
+    <div class="footer">
+        <span>{{chartName}} • {{environment}}</span>
+        <span>{{totalIssues}} issues • {{timestamp}}</span>
     </div>
 
-    <div class="validation-footer">
-        <div class="footer-info">
-            <span>&#128196; {{chartName}}</span>
-            <span>&#128197; {{timestamp}}</span>
-        </div>
-        <span>{{totalIssues}} total issues</span>
-    </div>
-
-    <div id="copyToast" class="copy-toast">Copied!</div>
-
+    <script type="application/json" id="init-data">{{{initData}}}</script>
+    <script type="application/json" id="compact-data">{{{compactData}}}</script>
     <script>
+        var initData = { categories: {}, totalIssues: 0 };
+        var compactData = { status: 'valid', issues: [] };
+        
+        try {
+            var el = document.getElementById('init-data');
+            if (el && el.textContent) {
+                initData = JSON.parse(el.textContent);
+            }
+        } catch (e) {
+            console.error('Failed to parse initData:', e);
+        }
+        
+        try {
+            var compactEl = document.getElementById('compact-data');
+            if (compactEl && compactEl.textContent) {
+                compactData = JSON.parse(compactEl.textContent);
+            }
+        } catch (e) {
+            console.error('Failed to parse compactData:', e);
+        }
+        
         var currentCategory = 'all';
-        var currentView = 'cards';
-        var allIssues = {{json categories}};
+        
         var vscodeApi = (typeof acquireVsCodeApi === 'function') ? acquireVsCodeApi() : null;
-
-        function postVsCodeMessage(payload) {
+        
+        function postMessage(payload) {
             if (vscodeApi && payload && typeof payload.command === 'string') {
                 vscodeApi.postMessage(payload);
                 return true;
             }
             return false;
         }
-
-        function selectCategory(category) {
-            currentCategory = category;
-            document.querySelectorAll('.category-tab').forEach(function(tab) {
-                tab.classList.toggle('active', tab.getAttribute('data-category') === category);
-            });
+        
+        function init() {
+            renderTabs();
             renderIssues();
+            
+            document.getElementById('searchInput').addEventListener('input', renderIssues);
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                postMessage({ command: 'refreshValidation' });
+            });
         }
-
-        function getCategoryIssues() {
-            if (currentCategory === 'all') {
-                var combined = [];
-                Object.keys(allIssues).forEach(function(cat) {
-                    combined = combined.concat(allIssues[cat] || []);
+        
+        function renderTabs() {
+            var tabs = initData.categories || {};
+            var container = document.getElementById('categoryTabs');
+            var total = initData.totalIssues || 0;
+            
+            var html = '<button class="tab-btn active" data-category="all">All <span class="count">' + total + '</span></button>';
+            
+            Object.keys(tabs).forEach(function(cat) {
+                var items = tabs[cat] || [];
+                if (items.length > 0) {
+                    var label = cat.charAt(0).toUpperCase() + cat.slice(1);
+                    html += '<button class="tab-btn" data-category="' + cat + '">' + label + ' <span class="count">' + items.length + '</span></button>';
+                }
+            });
+            
+            container.innerHTML = html;
+            
+            container.querySelectorAll('.tab-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    currentCategory = this.getAttribute('data-category');
+                    container.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                    this.classList.add('active');
+                    renderIssues();
                 });
-                return combined;
-            }
-            return allIssues[currentCategory] || [];
+            });
         }
-
-        function renderIssues() {
-            var issues = getCategoryIssues();
+        
+        function getFilteredIssues() {
             var search = document.getElementById('searchInput').value.toLowerCase();
+            var tabs = initData.categories || {};
+            var issues = [];
+            
+            if (currentCategory === 'all') {
+                Object.keys(tabs).forEach(function(cat) {
+                    issues = issues.concat(tabs[cat] || []);
+                });
+            } else {
+                issues = tabs[currentCategory] || [];
+            }
             
             if (search) {
                 issues = issues.filter(function(i) {
@@ -555,111 +434,134 @@
                            (i.code || '').toLowerCase().indexOf(search) !== -1;
                 });
             }
-
-            var cardsView = document.getElementById('cardsView');
-            var tableView = document.getElementById('tableView');
-            var emptyState = document.getElementById('emptyState');
-
+            
+            return issues;
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        
+        function escapeAttr(str) {
+            return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
+        
+        function renderIssues() {
+            var issues = getFilteredIssues();
+            var container = document.getElementById('issuesList');
+            
             if (issues.length === 0) {
-                cardsView.classList.add('hidden');
-                tableView.classList.remove('active');
-                emptyState.style.display = 'block';
+                container.innerHTML = '<div class="empty-state"><div class="icon">✓</div><div class="title">No issues found</div><div class="text">No issues match your current filter</div></div>';
                 return;
             }
-
-            emptyState.style.display = 'none';
-
-            if (currentView === 'cards') {
-                cardsView.classList.remove('hidden');
-                tableView.classList.remove('active');
-                cardsView.innerHTML = issues.map(function(issue) {
-                    var remediation = issue.remediation ? '<span class="meta-item remediation">&#128161; ' + escapeHtml(issue.remediation) + '</span>' : '';
-                    var resource = issue.resource ? '<span class="meta-item resource">&#128230; ' + escapeHtml(issue.resource) + '</span>' : '';
-                    var file = issue.file ? '<span class="meta-item file" data-file="' + escapeForAttr(issue.file) + '" data-line="' + (issue.lineNumber || 1) + '" onclick="jumpToFile(this)">&#128196; ' + escapeHtml(issue.fileDisplay || issue.file) + '</span>' : '';
+            
+            // For unused category, group by chartPath -> file
+            if (currentCategory === 'unused') {
+                var grouped = {};
+                issues.forEach(function(issue) {
+                    var chartKey = issue.chartPath || 'unknown';
+                    var fileKey = issue.file || 'unknown';
+                    var groupKey = chartKey + '||' + fileKey;
                     
-                    return '<div class="issue-card ' + issue.severity + '">' +
+                    if (!grouped[groupKey]) {
+                        grouped[groupKey] = {
+                            chartPath: chartKey,
+                            file: fileKey,
+                            issues: []
+                        };
+                    }
+                    grouped[groupKey].issues.push(issue);
+                });
+                
+                var groupKeys = Object.keys(grouped).sort();
+                container.innerHTML = groupKeys.map(function(groupKey) {
+                    var group = grouped[groupKey];
+                    var chartName = group.chartPath.split(/[/\\]/).pop() || group.chartPath;
+                    var fileName = group.file.split(/[/\\]/).pop() || group.file;
+                    
+                    var issuesHtml = group.issues.map(function(issue) {
+                        return '<div class="grouped-issue">' + escapeHtml(issue.message) + '</div>';
+                    }).join('');
+                    
+                    var jumpBtn = group.file !== 'unknown' ? '<button class="action-btn" data-file="' + escapeAttr(group.file) + '" data-line="1">➡️ Jump to ' + escapeHtml(fileName) + '</button>' : '';
+                    var copyAllBtn = '<button class="action-btn" data-issues="' + escapeAttr(JSON.stringify(group.issues.map(function(i) { return { code: i.code, message: i.message }; }))) + '">📋 Copy All (' + group.issues.length + ')</button>';
+                    
+                    return '<div class="issue-card ' + group.issues[0].severity + '">' +
                         '<div class="issue-header">' +
-                            '<span class="issue-code">' + escapeHtml(issue.code) + '</span>' +
-                            '<span class="issue-severity ' + issue.severity + '">' + issue.severity + '</span>' +
+                            '<span class="issue-count">' + group.issues.length + ' unused values</span>' +
+                            '<span class="issue-severity ' + group.issues[0].severity + '">' + group.issues[0].severity + '</span>' +
                         '</div>' +
-                        '<div class="issue-message">' + escapeHtml(issue.message) + '</div>' +
-                        '<div class="issue-meta">' + resource + file + remediation + '</div>' +
-                        '<div class="issue-actions">' +
-                            '<button class="action-btn" onclick="copyIssue(\'' + escapeForAttr(issue.code) + '\', \'' + escapeForAttr(issue.message) + '\')">&#128203; Copy</button>' +
-                            (issue.file ? '<button class="action-btn" onclick="jumpToLocation(\'' + escapeForAttr(issue.file) + '\', ' + (issue.lineNumber || 1) + ')">&#10140; Jump</button>' : '') +
-                        '</div>' +
+                        '<div class="issue-message">' + escapeHtml(chartName) + ' → ' + escapeHtml(fileName) + '</div>' +
+                        '<div class="grouped-issues">' + issuesHtml + '</div>' +
+                        '<div class="issue-actions">' + copyAllBtn + jumpBtn + '</div>' +
                     '</div>';
                 }).join('');
-            } else {
-                cardsView.classList.add('hidden');
-                tableView.classList.add('active');
-                var tbody = document.getElementById('tableBody');
-                tbody.innerHTML = issues.map(function(issue) {
-                    var jumpBtn = issue.file ? '<button class="action-btn" onclick="jumpToLocation(\'' + escapeForAttr(issue.file) + '\', ' + (issue.lineNumber || 1) + ')">&#10140;</button>' : '-';
-                    return '<tr>' +
-                        '<td><span class="issue-severity ' + issue.severity + '">' + issue.severity + '</span></td>' +
-                        '<td><span class="issue-code">' + escapeHtml(issue.code) + '</span></td>' +
-                        '<td>' + escapeHtml(issue.message) + '</td>' +
-                        '<td>' + escapeHtml(issue.fileDisplay || '-') + '</td>' +
-                        '<td>' + jumpBtn + '</td>' +
-                    '</tr>';
-                }).join('');
+                
+                container.querySelectorAll('.action-btn').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var file = this.getAttribute('data-file');
+                        var issuesData = this.getAttribute('data-issues');
+                        
+                        if (file) {
+                            postMessage({ command: 'jumpToFile', file: file, line: 1 });
+                        }
+                        if (issuesData) {
+                            try {
+                                var parsed = JSON.parse(issuesData);
+                                var text = parsed.map(function(i) { return '[' + i.code + '] ' + i.message; }).join('\n');
+                                postMessage({ command: 'copyText', text: text });
+                            } catch (e) {}
+                        }
+                    });
+                });
+                return;
             }
+            
+            // Default rendering for other categories
+            container.innerHTML = issues.map(function(issue) {
+                var fileTag = issue.file ? '<span class="meta-tag file" data-file="' + escapeAttr(issue.file) + '" data-line="' + (issue.lineNumber || 1) + '">📄 ' + escapeHtml(issue.fileDisplay || issue.file) + '</span>' : '';
+                var remediationTag = issue.remediation ? '<span class="meta-tag remediation">💡 ' + escapeHtml(issue.remediation) + '</span>' : '';
+                var copyBtn = '<button class="action-btn" data-code="' + escapeAttr(issue.code) + '" data-message="' + escapeAttr(issue.message) + '">📋 Copy</button>';
+                var jumpBtn = issue.file ? '<button class="action-btn" data-file="' + escapeAttr(issue.file) + '" data-line="' + (issue.lineNumber || 1) + '">➡️ Jump</button>' : '';
+                
+                return '<div class="issue-card ' + issue.severity + '">' +
+                    '<div class="issue-header">' +
+                        '<span class="issue-code">' + escapeHtml(issue.code) + '</span>' +
+                        '<span class="issue-severity ' + issue.severity + '">' + issue.severity + '</span>' +
+                    '</div>' +
+                    '<div class="issue-message">' + escapeHtml(issue.message) + '</div>' +
+                    '<div class="issue-meta">' + fileTag + remediationTag + '</div>' +
+                    '<div class="issue-actions">' + copyBtn + jumpBtn + '</div>' +
+                '</div>';
+            }).join('');
+            
+            container.querySelectorAll('.action-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var code = this.getAttribute('data-code');
+                    var message = this.getAttribute('data-message');
+                    var file = this.getAttribute('data-file');
+                    var line = parseInt(this.getAttribute('data-line') || '1', 10);
+                    
+                    if (code && message) {
+                        postMessage({ command: 'copyText', text: '[' + code + '] ' + message });
+                    }
+                    if (file) {
+                        postMessage({ command: 'jumpToFile', file: file, line: line });
+                    }
+                });
+            });
+            
+            container.querySelectorAll('.meta-tag.file').forEach(function(tag) {
+                tag.addEventListener('click', function() {
+                    var file = this.getAttribute('data-file');
+                    var line = parseInt(this.getAttribute('data-line') || '1', 10);
+                    postMessage({ command: 'jumpToFile', file: file, line: line });
+                });
+            });
         }
-
-        function filterCurrentCategory() {
-            renderIssues();
-        }
-
-        function setView(view) {
-            currentView = view;
-            document.getElementById('cardsViewBtn').classList.toggle('active', view === 'cards');
-            document.getElementById('tableViewBtn').classList.toggle('active', view === 'table');
-            renderIssues();
-        }
-
-        function escapeHtml(value) {
-            if (!value) return '';
-            return String(value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        }
-
-        function escapeForAttr(value) {
-            return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        }
-
-        function copyIssue(code, message) {
-            var text = '[' + code + '] ' + message;
-            postVsCodeMessage({ command: 'copyText', text: text });
-            showToast();
-        }
-
-        function jumpToFile(btn) {
-            var file = btn.getAttribute('data-file');
-            var line = parseInt(btn.getAttribute('data-line') || '1', 10);
-            jumpToLocation(file, line);
-        }
-
-        function jumpToLocation(file, line) {
-            postVsCodeMessage({ command: 'jumpToFile', file: file, line: line });
-        }
-
-        function showToast() {
-            var toast = document.getElementById('copyToast');
-            toast.classList.add('visible');
-            setTimeout(function() { toast.classList.remove('visible'); }, 1500);
-        }
-
-        function refreshValidation() {
-            postVsCodeMessage({ command: 'refreshValidation' });
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            renderIssues();
-        });
+        
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

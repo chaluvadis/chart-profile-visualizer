@@ -69,7 +69,6 @@ function isAllowedJumpPath(filePath: string): boolean {
  * Show validation results in a dedicated webview panel
  */
 export async function showValidationResults(context: vscode.ExtensionContext, result: ValidationResult): Promise<void> {
-	console.log("[Validation TS] showValidationResults CALLED");
 	validationContext = context;
 
 	const columnToShowIn = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
@@ -147,7 +146,7 @@ async function updateValidationPanel(result: ValidationResult): Promise<void> {
 			const extUri = validationContext.extensionUri;
 			panel.webview.html = await loadTemplate(getTemplatePath("validation", extUri), templateData);
 		} else {
-			panel.webview.html = generateInlineValidationHtml(templateData);
+			throw new Error("Extension context not available");
 		}
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -186,6 +185,36 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 	const statusClass = hasErrors ? "invalid" : hasWarnings || hasInfo ? "attention" : "valid";
 	const statusIcon = hasErrors ? "✗" : hasWarnings ? "!" : hasInfo ? "i" : "✓";
 
+	// Generate compact summary for minimal output
+	const compactIssues = result.issues
+		.filter((i) => i.severity === "error" || i.severity === "warning")
+		.slice(0, 5)
+		.map((i) => ({
+			message: i.message,
+			path: i.file ? i.file.split(/[/\\]/).pop() : i.resource || "[chart]",
+			code: i.code,
+		}));
+
+	let compactSummary = "";
+	if (hasErrors) {
+		compactSummary = `${errors.length} error(s) found in chart`;
+	} else if (hasWarnings) {
+		compactSummary = `${warnings.length} warning(s) found`;
+	} else if (hasInfo) {
+		compactSummary = `${infos.length} note(s)`;
+	} else {
+		compactSummary = "Chart is valid";
+	}
+
+	const compactData = {
+		status: hasErrors ? "invalid" : hasWarnings ? "attention" : "valid",
+		statusIcon,
+		summary: compactSummary,
+		issues: compactIssues,
+		chartName,
+		environment: result.environment,
+	};
+
 	let statusTitle = "Validation Passed";
 	let statusSubtitle = "All checks passed for this chart/environment";
 
@@ -211,6 +240,20 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		{ id: "breaking", label: "Breaking", count: categories.breaking.length, icon: "⚠️" },
 	].filter((c) => c.count > 0);
 
+	// Create init data for webview
+	const initData = {
+		categories: {
+			lint: formatIssues(categories.lint),
+			schema: formatIssues(categories.schema),
+			template: formatIssues(categories.template),
+			security: formatIssues(categories.security),
+			unused: formatIssues(categories.unused),
+			breaking: formatIssues(categories.breaking),
+			general: formatIssues(categories.general),
+		},
+		totalIssues: result.issues.length,
+	};
+
 	return {
 		chartName,
 		chartPath: result.chartPath,
@@ -221,29 +264,17 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		statusClass,
 		statusTitle,
 		statusSubtitle,
-		useCompactSummary,
-		showFullSummary: !useCompactSummary,
 		totalIssues: result.issues.length,
 		summary: result.summary,
 		hasErrors,
 		hasWarnings,
 		hasInfo,
-		errors: formatIssues(errors),
-		warnings: formatIssues(warnings),
-		info: formatIssues(infos),
 		errorCount: errors.length,
 		warningCount: warnings.length,
 		infoCount: infos.length,
 		categorySummary,
-		categories: {
-			lint: formatIssues(categories.lint),
-			schema: formatIssues(categories.schema),
-			template: formatIssues(categories.template),
-			security: formatIssues(categories.security),
-			unused: formatIssues(categories.unused),
-			breaking: formatIssues(categories.breaking),
-			general: formatIssues(categories.general),
-		},
+		initData: JSON.stringify(initData),
+		compactData,
 	};
 }
 
@@ -256,6 +287,7 @@ function formatIssues(issues: ValidationIssue[]): Record<string, unknown>[] {
 		message: issue.message,
 		resource: issue.resource || null,
 		file: issue.file || null,
+		chartPath: issue.chartPath || null,
 		line: issue.line || null,
 		lineNumber: issue.line && issue.line > 0 ? issue.line : 1,
 		fileDisplay: issue.file ? `${issue.file}${issue.line && issue.line > 0 ? `:${issue.line}` : ""}` : null,
@@ -264,255 +296,6 @@ function formatIssues(issues: ValidationIssue[]): Record<string, unknown>[] {
 		category: issue.category || "general",
 		severity: issue.severity,
 	}));
-}
-
-/**
- * Generate inline HTML for validation results (fallback)
- */
-function generateInlineValidationHtml(data: Record<string, unknown>): string {
-	const { valid, summary, errors, warnings, info, chartName, environment, timestamp } = data as {
-		valid: boolean;
-		summary: { errors: number; warnings: number; info: number };
-		errors: Record<string, unknown>[];
-		warnings: Record<string, unknown>[];
-		info: Record<string, unknown>[];
-		chartName: string;
-		environment: string;
-		timestamp: string;
-	};
-
-	const statusClass = valid ? "status-valid" : "status-invalid";
-	const statusText = valid ? "✓ Chart Valid" : "✗ Chart Invalid";
-
-	return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
-    <title>Validation Results</title>
-    <style>
-        body {
-            font-family: var(--vscode-font-family);
-            color: var(--vscode-foreground);
-            background-color: var(--vscode-editor-background);
-            padding: 16px;
-            margin: 0;
-            line-height: 1.5;
-        }
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
-        }
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        .status-valid {
-            background-color: rgba(46, 160, 67, 0.2);
-            color: #3fb950;
-            border: 1px solid #3fb950;
-        }
-        .status-invalid {
-            background-color: rgba(248, 81, 73, 0.2);
-            color: #f85149;
-            border: 1px solid #f85149;
-        }
-        .summary {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .summary-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 12px;
-            background-color: var(--vscode-editor-lineHighlightBackground);
-            border-radius: 4px;
-        }
-        .count {
-            font-weight: 600;
-            font-size: 16px;
-        }
-        .count-error { color: #f85149; }
-        .count-warning { color: #d29922; }
-        .count-info { color: #58a6ff; }
-        .section {
-            margin-bottom: 20px;
-        }
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background-color: var(--vscode-editor-lineHighlightBackground);
-            border-radius: 4px;
-            margin-bottom: 8px;
-        }
-        .section-title {
-            font-weight: 600;
-            font-size: 14px;
-        }
-        .section-count {
-            background-color: var(--vscode-editor-selectionBackground);
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 12px;
-        }
-        .issue-card {
-            padding: 12px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-            border-left: 3px solid;
-        }
-        .issue-error {
-            border-left-color: #f85149;
-            background-color: rgba(248, 81, 73, 0.1);
-        }
-        .issue-warning {
-            border-left-color: #d29922;
-            background-color: rgba(210, 153, 34, 0.1);
-        }
-        .issue-info {
-            border-left-color: #58a6ff;
-            background-color: rgba(88, 166, 255, 0.1);
-        }
-        .issue-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
-        }
-        .issue-code {
-            font-family: var(--vscode-editor-font-family);
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            background-color: var(--vscode-editor-selectionBackground);
-        }
-        .issue-message {
-            font-size: 13px;
-        }
-        .issue-details {
-            margin-top: 8px;
-            font-size: 12px;
-            color: var(--vscode-descriptionForeground);
-        }
-        .issue-details div {
-            margin-top: 4px;
-        }
-        .issue-resource {
-            color: #7ee787;
-        }
-        .issue-remediation {
-            color: #ffa657;
-        }
-        .chart-info {
-            font-size: 12px;
-            color: var(--vscode-descriptionForeground);
-            margin-top: 16px;
-            padding-top: 12px;
-            border-top: 1px solid var(--vscode-editor-lineHighlightBackground);
-        }
-        .collapsible-content {
-            overflow: hidden;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <span class="status-badge ${statusClass}">${statusText}</span>
-        <span>Validation Results</span>
-    </div>
-
-    <div class="summary">
-        <div class="summary-item">
-            <span class="count count-error">${summary.errors}</span>
-            <span>Errors</span>
-        </div>
-        <div class="summary-item">
-            <span class="count count-warning">${summary.warnings}</span>
-            <span>Warnings</span>
-        </div>
-        <div class="summary-item">
-            <span class="count count-info">${summary.info}</span>
-            <span>Info</span>
-        </div>
-    </div>
-
-    ${generateSectionHtml("Errors", errors, "error", errors.length > 0)}
-    ${generateSectionHtml("Warnings", warnings, "warning", warnings.length > 0)}
-    ${generateSectionHtml("Info", info, "info", info.length > 0)}
-
-    <div class="chart-info">
-        <strong>Chart:</strong> ${chartName}<br>
-        <strong>Environment:</strong> ${environment}<br>
-        <strong>Timestamp:</strong> ${timestamp}
-    </div>
-</body>
-</html>`;
-}
-
-/**
- * Generate HTML for a collapsible section
- */
-function generateSectionHtml(
-	title: string,
-	issues: Record<string, unknown>[],
-	severity: string,
-	hasIssues: boolean
-): string {
-	if (!hasIssues) {
-		return "";
-	}
-
-	const icon = severity === "error" ? "✗" : severity === "warning" ? "⚠" : "ℹ";
-	const count = issues.length;
-
-	const itemsHtml = issues
-		.map((issue) => {
-			const hasDetails = issue.hasDetails as boolean;
-			const detailsHtml = hasDetails
-				? `
-            <div class="issue-details">
-                ${issue.resource ? `<div class="issue-resource">📦 Resource: ${issue.resource}</div>` : ""}
-                ${issue.file ? `<div>📄 File: ${issue.file}${issue.line ? `:${issue.line}` : ""}</div>` : ""}
-                ${issue.remediation ? `<div class="issue-remediation">💡 Fix: ${issue.remediation}</div>` : ""}
-            </div>
-        `
-				: "";
-
-			return `
-        <div class="issue-card issue-${severity}">
-            <div class="issue-header">
-                <span class="issue-code">${issue.code}</span>
-            </div>
-            <div class="issue-message">${issue.message}</div>
-            ${detailsHtml}
-        </div>
-    `;
-		})
-		.join("");
-
-	return `
-    <div class="section">
-        <div class="section-header">
-            <span>${icon}</span>
-            <span class="section-title">${title}</span>
-            <span class="section-count">${count}</span>
-        </div>
-        <div class="collapsible-content">
-            ${itemsHtml}
-        </div>
-    </div>
-`;
 }
 
 /**
@@ -595,24 +378,18 @@ async function handleValidationMessage(
 			break;
 		case "jumpToFile":
 			if (message.file) {
-				console.log("[Validation] Jump request for file:", message.file);
-
 				let resolvedPath = message.file;
 				if (!path.isAbsolute(message.file) && currentValidationParams) {
 					resolvedPath = path.resolve(currentValidationParams.chartPath, message.file);
-					console.log("[Validation] Resolved relative path:", resolvedPath);
 				}
 
 				if (!isAllowedJumpPath(resolvedPath)) {
-					console.log("[Validation] File rejected - not in workspace:", resolvedPath);
 					vscode.window.showErrorMessage("Refused to open file outside workspace");
 					return;
 				}
 				try {
-					console.log("[Validation] Attempting to open:", resolvedPath);
 					const fileUri = vscode.Uri.file(resolvedPath);
 					const document = await vscode.workspace.openTextDocument(fileUri);
-					console.log("[Validation] Document opened, showing editor");
 					const editor = await vscode.window.showTextDocument(document, {
 						viewColumn: vscode.ViewColumn.One,
 						preserveFocus: false,
@@ -623,7 +400,6 @@ async function handleValidationMessage(
 						editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
 					}
 				} catch (error) {
-					console.log("[Validation] Error opening file:", error);
 					vscode.window.showErrorMessage(`Failed to open file: ${resolvedPath}`);
 				}
 			}
