@@ -722,13 +722,9 @@
             var issues = getFilteredIssues();
             var hierarchy = buildHierarchy(issues);
             
-            var chartIdCounter = 1;
-            var fileIdCounter = 1;
-            
             var exportData = {
                 charts: Object.keys(hierarchy).map(function(chartKey) {
                     var chart = hierarchy[chartKey];
-                    var chartId = 'chart-' + (chartIdCounter++);
                     
                     var errorCount = 0;
                     var warningCount = 0;
@@ -737,7 +733,6 @@
                     
                     var files = Object.keys(chart.files).map(function(fileKey) {
                         var file = chart.files[fileKey];
-                        var fileId = 'file-' + (fileIdCounter++);
                         
                         var fileErrorCount = file.logs.error.length;
                         var fileWarningCount = file.logs.warning.length;
@@ -796,7 +791,6 @@
                         }
                         
                         return {
-                            fileId: fileId,
                             fileName: file.fileName,
                             filePath: file.filePath,
                             summary: {
@@ -810,8 +804,8 @@
                     });
                     
                     return {
-                        chartId: chartId,
                         chartName: chart.chartName,
+                        chartPath: chart.chartPath,
                         summary: {
                             fileCount: fileCount,
                             logCount: errorCount + warningCount + infoCount,

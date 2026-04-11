@@ -177,7 +177,6 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 
 	// Format timestamp
 	const timestamp = new Date(result.timestamp).toLocaleString();
-	const useCompactSummary = result.issues.length > 0 && result.issues.length <= 3;
 	const hasErrors = errors.length > 0;
 	const hasWarnings = warnings.length > 0;
 	const hasInfo = infos.length > 0;
