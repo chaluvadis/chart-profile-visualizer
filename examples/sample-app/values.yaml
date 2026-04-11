@@ -27,4 +27,23 @@ resources:
     cpu: 50m
     memory: 64Mi
 
+# Unused values - not referenced in templates
+database:
+  host: "localhost"
+  port: 5432
+  username: "admin"
+  password: "changeme"
+
+# Another unused value
+monitoring:
+  enabled: false
+  endpoint: "http://metrics.example.com"
+
+# Used value
 environment: base
+
+# Unused nested value
+cache:
+  redis:
+    host: "redis.example.com"
+    port: 6379

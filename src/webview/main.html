@@ -10,7 +10,8 @@
 <body data-view-mode="{{{viewMode}}}">
     <!-- Init data embedded as JSON in a script element (avoids HTML entity encoding issues) -->
     <script type="application/json" id="init-data" nonce="{{{nonce}}}">{{{initData}}}</script>
-    <div class="toolbar">
+    <!-- Toolbar: Only visible in visualize mode -->
+    <div class="toolbar" id="mainToolbar">
         <div class="toolbar-actions" role="group" aria-label="Export actions">
             <button id="exportYaml" class="toolbar-btn" title="Export rendered YAML">📄 Export YAML</button>
             <button id="exportJson" class="toolbar-btn" title="Export as JSON">📋 Export JSON</button>
@@ -39,6 +40,12 @@
         {{{resultsContent}}}
     </div>
 
+    <script type="application/json" id="status-data" nonce="{{{nonce}}}">{{{statusBar}}}</script>
+
+    <div class="footer">
+        <div class="status-bar" id="mainStatusBar"></div>
+    </div>
+
     <script src="{{{chartJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{topologyJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>
@@ -56,6 +63,14 @@
 
             // Check view mode - 'visualize' or 'compare'
             var viewMode = document.body.getAttribute('data-view-mode') || 'visualize';
+
+            // Hide toolbar in compare mode
+            if (viewMode === 'compare') {
+                var toolbar = document.getElementById('mainToolbar');
+                if (toolbar) {
+                    toolbar.style.display = 'none';
+                }
+            }
 
             if (viewMode === 'compare') {
                 // Hide visualize tabs and content
