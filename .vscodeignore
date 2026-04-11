@@ -2,6 +2,8 @@
 .vscode-test/**
 src/**
 .gitignore
+tsconfig.tsbuildinfo
+.kilo/
 .yarnrc
 tsconfig.json
 eslint.config.mjs

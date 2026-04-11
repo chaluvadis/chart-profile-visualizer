@@ -3,911 +3,835 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'nonce-{{{nonce}}}'; script-src 'nonce-{{{nonce}}}'">
     <title>Validation Results</title>
-    <style>
-        :root {
-            --error-color: #f85149;
-            --error-bg: rgba(248, 81, 73, 0.1);
-            --warning-color: #d29922;
-            --warning-bg: rgba(210, 153, 34, 0.1);
-            --info-color: #58a6ff;
-            --info-bg: rgba(88, 166, 255, 0.1);
-            --success-color: #3fb950;
-            --success-bg: rgba(63, 185, 80, 0.1);
-        }
-        * { box-sizing: border-box; }
+    <style nonce="{{{nonce}}}">
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: var(--vscode-font-family);
             color: var(--vscode-foreground);
             background-color: var(--vscode-editor-background);
-            padding: 16px;
-            margin: 0;
+            padding: 0;
+            min-height: 100vh;
         }
+        
         .header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            padding: 16px;
-            background-color: var(--vscode-editor-lineHighlightBackground);
-            border-radius: 6px;
-            margin-bottom: 16px;
+            padding: 14px 20px;
+            background: var(--vscode-editor-lineHighlightBackground);
+            border-bottom: 1px solid var(--vscode-focusBorder);
         }
         .header-left {
             display: flex;
             align-items: center;
             gap: 12px;
         }
-        .status-badge {
-            width: 40px;
-            height: 40px;
+        .status-icon {
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
-            font-size: 20px;
+            border-radius: 8px;
+            font-size: 18px;
         }
-        .status-badge.valid { background-color: var(--success-bg); color: var(--success-color); }
-        .status-badge.invalid { background-color: var(--error-bg); color: var(--error-color); }
-        .status-badge.attention { background-color: var(--warning-bg); color: var(--warning-color); }
-        .header-text { flex: 1; }
-        .header-title { font-size: 16px; font-weight: 600; margin: 0; }
-        .header-subtitle { font-size: 12px; color: var(--vscode-descriptionForeground); margin: 4px 0 0 0; }
-
-        .summary { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-        .summary-item {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 14px;
-            background-color: var(--vscode-editor-lineHighlightBackground);
-            border-radius: 6px; flex: 1; min-width: 80px;
+        .status-icon.valid { background: rgba(63, 185, 80, 0.15); color: #3fb950; }
+        .status-icon.invalid { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+        .status-icon.attention { background: rgba(210, 153, 34, 0.15); color: #d29922; }
+        .header-title h2 { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+        .header-title p { font-size: 11px; color: var(--vscode-descriptionForeground); }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .summary-item.error { border-left: 3px solid var(--error-color); }
-        .summary-item.warning { border-left: 3px solid var(--warning-color); }
-        .summary-item.info { border-left: 3px solid var(--info-color); }
-        .summary-item.total { border-left: 3px solid var(--vscode-focusBorder); }
-        .summary-count { font-size: 20px; font-weight: 700; }
-        .summary-count.error { color: var(--error-color); }
-        .summary-count.warning { color: var(--warning-color); }
-        .summary-count.info { color: var(--info-color); }
-        .summary-count.total { color: var(--vscode-foreground); }
-        .summary-label { font-size: 12px; color: var(--vscode-descriptionForeground); }
-
-        .health-strip {
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 10px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .btn:hover { background: var(--vscode-button-hoverBackground); }
+        .btn-icon { font-size: 14px; }
+        
+        .tabs {
+            display: flex;
+            gap: 4px;
+            padding: 10px 20px;
+            background: var(--vscode-editor-background);
+            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
+            overflow-x: auto;
+        }
+        .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--vscode-foreground);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { background: var(--vscode-editor-lineHighlightBackground); }
+        .tab-btn.active {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border-color: var(--vscode-focusBorder);
+        }
+        .tab-btn .count {
+            font-size: 10px;
+            padding: 1px 5px;
+            background: var(--vscode-editor-selectionBackground);
+            border-radius: 8px;
+        }
+        
+        .search-row {
+            display: flex;
+            gap: 10px;
+            padding: 10px 20px;
+            background: var(--vscode-editor-background);
+            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
+        }
+        .search-input {
+            flex: 1;
+            padding: 6px 10px;
+            background: var(--vscode-editor-lineHighlightBackground);
+            border: 1px solid var(--vscode-focusBorder);
+            border-radius: 4px;
+            color: var(--vscode-foreground);
+            font-size: 12px;
+        }
+        .search-input:focus { outline: none; border-color: #58a6ff; }
+        
+        .main-content {
+            padding: 16px 20px;
+        }
+        
+        .chart-group {
+            margin-bottom: 16px;
+            background: var(--vscode-editor-background);
+            border-radius: 8px;
+            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            overflow: hidden;
+        }
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: var(--vscode-editor-lineHighlightBackground);
+            cursor: pointer;
+        }
+        .chart-header:hover { background: var(--vscode-editor-selectionBackground); }
+        .chart-info {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 16px;
-            padding: 10px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--vscode-editor-lineHighlightBackground);
-            background: var(--vscode-editor-background);
-            font-size: 12px;
-            color: var(--vscode-descriptionForeground);
-            flex-wrap: wrap;
         }
-        .health-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 8px;
-            border-radius: 999px;
-            border: 1px solid transparent;
-        }
-        .health-chip.error { color: var(--error-color); background: var(--error-bg); border-color: var(--error-color); }
-        .health-chip.warning { color: var(--warning-color); background: var(--warning-bg); border-color: var(--warning-color); }
-        .health-chip.info { color: var(--info-color); background: var(--info-bg); border-color: var(--info-color); }
-        .health-chip.total { color: var(--vscode-foreground); background: var(--vscode-editor-lineHighlightBackground); border-color: var(--vscode-focusBorder); }
-
-        .overview-bar {
+        .chart-icon {
+            width: 28px;
+            height: 28px;
             display: flex;
-            gap: 8px;
-            margin-bottom: 14px;
-            flex-wrap: wrap;
-        }
-        .meta-pill {
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 11px;
-            border: 1px solid var(--vscode-editor-lineHighlightBackground);
-            color: var(--vscode-descriptionForeground);
-            background: var(--vscode-editor-background);
-        }
-
-        .search-box { margin-bottom: 12px; }
-        .search-input {
-            width: 100%; padding: 10px 14px; font-size: 13px;
-            background-color: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-editor-lineHighlightBackground);
-            border-radius: 6px; color: var(--vscode-foreground);
-        }
-        .search-input:focus { outline: none; border-color: var(--info-color); }
-        .search-input:focus-visible {
-            outline: 2px solid var(--vscode-focusBorder);
-            outline-offset: 1px;
-        }
-        .search-input::placeholder { color: var(--vscode-descriptionForeground); }
-
-        .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-        .filter-btn {
-            display: flex; align-items: center; gap: 6px;
-            padding: 6px 12px; font-size: 12px;
-            background-color: var(--vscode-editor-lineHighlightBackground);
-            border: 1px solid transparent; border-radius: 16px;
-            color: var(--vscode-foreground); cursor: pointer;
-        }
-        .filter-btn:hover { background-color: var(--vscode-editor-selectionBackground); }
-        .filter-btn:focus-visible,
-        .filter-select:focus-visible,
-        .action-btn:focus-visible,
-        .section-header:focus-visible {
-            outline: 2px solid var(--vscode-focusBorder);
-            outline-offset: 1px;
-        }
-        .filter-btn.active { border-color: currentColor; }
-        .filter-btn.error.active { color: var(--error-color); background: var(--error-bg); }
-        .filter-btn.warning.active { color: var(--warning-color); background: var(--warning-bg); }
-        .filter-btn.info.active { color: var(--info-color); background: var(--info-bg); }
-        .view-btn.active {
-            color: var(--vscode-button-foreground);
-            background: var(--vscode-button-background);
-            border-color: var(--vscode-button-background);
-        }
-        .filter-btn.actionable.active {
-            color: var(--vscode-button-foreground);
-            background: var(--vscode-button-background);
-            border-color: var(--vscode-button-background);
-        }
-        .filter-select {
-            padding: 6px 10px;
-            font-size: 12px;
-            border-radius: 16px;
-            border: 1px solid var(--vscode-editor-lineHighlightBackground);
-            background: var(--vscode-editor-background);
-            color: var(--vscode-foreground);
-        }
-
-        .section { margin-bottom: 10px; }
-        .section-header {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px 12px;
-            background-color: var(--vscode-editor-lineHighlightBackground);
-            border-radius: 6px; margin-bottom: 6px; cursor: pointer; user-select: none;
-        }
-        .section-header:hover { background-color: var(--vscode-editor-selectionBackground); }
-        .section-header.error { border-left: 4px solid var(--error-color); }
-        .section-header.warning { border-left: 4px solid var(--warning-color); }
-        .section-header.info { border-left: 4px solid var(--info-color); }
-        .section-icon { font-size: 14px; width: 20px; text-align: center; }
-        .section-icon.error { color: var(--error-color); }
-        .section-icon.warning { color: var(--warning-color); }
-        .section-icon.info { color: var(--info-color); }
-        .section-title { font-weight: 600; font-size: 13px; flex: 1; }
-        .section-count { font-size: 12px; padding: 2px 8px; background-color: var(--vscode-editor-background); border-radius: 10px; }
-        .chevron { color: var(--vscode-descriptionForeground); font-size: 12px; transition: transform 0.2s; }
-        .chevron.collapsed { transform: rotate(-90deg); }
-
-        .issue-list { padding: 0; margin: 0; list-style: none; }
-        .issue-card {
-            padding: 10px; margin-bottom: 6px; border-radius: 6px; border-left: 3px solid;
-            background-color: var(--vscode-editor-lineHighlightBackground);
-        }
-        .issue-card.error { border-left-color: var(--error-color); background-color: var(--error-bg); }
-        .issue-card.warning { border-left-color: var(--warning-color); background-color: var(--warning-bg); }
-        .issue-card.info { border-left-color: var(--info-color); background-color: var(--info-bg); }
-        .issue-code {
-            display: inline-block; font-family: var(--vscode-editor-font-family);
-            font-size: 10px; padding: 2px 6px; background-color: var(--vscode-editor-background);
-            border-radius: 3px; margin-bottom: 6px; color: var(--vscode-descriptionForeground);
-        }
-        .issue-message { font-size: 12px; line-height: 1.4; margin: 0; }
-        .issue-details { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(128,128,128,0.2); display: flex; flex-wrap: wrap; gap: 4px; }
-        .detail-tag { font-size: 11px; padding: 3px 8px; background-color: var(--vscode-editor-background); border-radius: 4px; color: var(--vscode-descriptionForeground); }
-        .detail-tag.resource { color: #7ee787; }
-        .detail-tag.file { color: var(--vscode-foreground); cursor: pointer; }
-        .detail-tag.remediation { color: #ffa657; }
-
-        .issue-actions { margin-top: 8px; display: flex; gap: 4px; }
-        .action-btn {
-            display: inline-flex;
             align-items: center;
-            font-size: 11px;
-            padding: 4px 8px;
-            min-height: 24px;
-            background-color: var(--vscode-editor-background);
-            border: 1px solid var(--vscode-editor-lineHighlightBackground);
+            justify-content: center;
+            background: rgba(88, 166, 255, 0.15);
+            color: #58a6ff;
             border-radius: 4px;
-            color: var(--vscode-foreground);
-            cursor: pointer;
-            line-height: 1.2;
+            font-size: 14px;
         }
-        .action-icon {
-            display: inline-block;
-            width: 12px;
-            text-align: center;
-            flex: 0 0 12px;
-        }
-        .action-btn:hover { background-color: var(--vscode-editor-selectionBackground); }
-
-        .collapsible {
-            max-height: 1000px;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            list-style: none;
-            padding-left: 0;
-            margin: 0;
-        }
-        .collapsible.collapsed { max-height: 0; }
-
-        .filter-btn.refresh-btn {
-            margin-left: auto;
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border: 1px solid var(--vscode-button-background);
-        }
-        .filter-btn.refresh-btn:hover {
-            background-color: var(--vscode-button-hoverBackground);
-        }
-
-        .empty-state { text-align: center; padding: 40px 20px; color: var(--vscode-descriptionForeground); }
-        .empty-icon { font-size: 40px; margin-bottom: 12px; }
-
-        .validation-hidden { display: none !important; }
-        .validation-visible { display: block; }
-
-        .table-view {
-            margin-bottom: 16px;
-            border: 1px solid var(--vscode-editor-lineHighlightBackground);
-            border-radius: 8px;
-            overflow: hidden;
-            background: var(--vscode-editor-background);
-        }
-        .table-wrap {
-            overflow: auto;
-            max-height: 55vh;
-        }
-        .issues-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-        }
-        .issues-table th {
-            position: sticky;
-            top: 0;
-            z-index: 1;
-            text-align: left;
-            padding: 10px;
-            background: var(--vscode-editor-lineHighlightBackground);
-            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
-            color: var(--vscode-descriptionForeground);
+        .chart-title {
+            font-size: 13px;
             font-weight: 600;
-            user-select: none;
-            cursor: pointer;
-            white-space: nowrap;
         }
-        .issues-table td {
-            padding: 9px 10px;
-            border-bottom: 1px solid var(--vscode-editor-lineHighlightBackground);
-            vertical-align: top;
-        }
-        .issues-table tr:hover td {
-            background: color-mix(in srgb, var(--vscode-editor-selectionBackground) 45%, transparent);
-        }
-        .issues-table tbody tr:nth-child(even):not(.group-row) td {
-            background: color-mix(in srgb, var(--vscode-editor-lineHighlightBackground) 45%, transparent);
-        }
-        .issues-table tr.group-row td {
-            background: var(--vscode-editor-lineHighlightBackground);
+        .chart-subtitle {
+            font-size: 10px;
             color: var(--vscode-descriptionForeground);
-            font-weight: 600;
+            margin-top: 1px;
+        }
+        .chevron {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            transition: transform 0.2s ease;
+            margin-right: 8px;
+        }
+        .chevron.collapsed { transform: rotate(-90deg); }
+        
+        .chart-files { display: block; }
+        .chart-files.collapsed { display: none; }
+        
+        .file-logs { display: block; }
+        .file-logs.collapsed { display: none; }
+
+        .log-items { display: block; }
+        .log-items.collapsed { display: none; }
+        
+        .file-group {
             border-top: 1px solid var(--vscode-editor-lineHighlightBackground);
         }
-        .severity-pill {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 999px;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.2px;
-            font-weight: 700;
+        .file-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--vscode-editor-background);
+            cursor: pointer;
         }
-        .severity-pill.error { color: var(--error-color); background: var(--error-bg); }
-        .severity-pill.warning { color: var(--warning-color); background: var(--warning-bg); }
-        .severity-pill.info { color: var(--info-color); background: var(--info-bg); }
-        .table-message {
-            min-width: 300px;
-            max-width: 560px;
+        .file-header:hover { background: var(--vscode-list-hoverBackground); }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .file-icon {
+            font-size: 13px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .file-name {
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .file-meta {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .jump-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .jump-btn:hover { background: var(--vscode-button-hoverBackground); }
+        
+        .log-group {
+            background: var(--vscode-editor-lineHighlightBackground);
+        }
+        .log-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .log-header:hover { background: var(--vscode-editor-selectionBackground); }
+        .log-icon {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+        .log-icon.error { background: rgba(248, 81, 73, 0.2); color: #f85149; }
+        .log-icon.warning { background: rgba(210, 153, 34, 0.2); color: #d29922; }
+        .log-icon.info { background: rgba(88, 166, 255, 0.2); color: #58a6ff; }
+        .log-label {
+            flex: 1;
+        }
+        .log-count {
+            font-size: 10px;
+            padding: 1px 5px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .log-count.error { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+        .log-count.warning { background: rgba(210, 153, 34, 0.15); color: #d29922; }
+        .log-count.info { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+        
+        .log-items {
+            padding: 0 14px 12px;
+        }
+        .log-item {
+            padding: 8px 10px;
+            margin-top: 6px;
+            background: var(--vscode-editor-background);
+            border-radius: 4px;
+            border-left: 2px solid;
+        }
+        .log-item.error { border-left-color: #f85149; }
+        .log-item.warning { border-left-color: #d29922; }
+        .log-item.info { border-left-color: #58a6ff; }
+        .log-message {
+            font-size: 11px;
             line-height: 1.4;
         }
-        .table-location {
-            color: var(--vscode-descriptionForeground);
-            white-space: nowrap;
-        }
-        .table-remediation {
-            color: #ffa657;
-            min-width: 220px;
-            max-width: 420px;
-        }
-        .table-actions { white-space: nowrap; }
-        .table-actions .action-btn {
-            min-width: 64px;
-            justify-content: center;
-        }
-        .table-actions .action-btn + .action-btn {
-            margin-left: 6px;
-        }
-        .table-empty {
-            padding: 18px;
-            color: var(--vscode-descriptionForeground);
+        
+        .empty-state {
             text-align: center;
+            padding: 50px 20px;
+            color: var(--vscode-descriptionForeground);
         }
-
-        .copy-toast {
-            position: fixed;
-            right: 14px;
-            bottom: 14px;
-            z-index: 20;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            color: var(--vscode-notifications-foreground, var(--vscode-editor-background));
-            background: var(--vscode-notifications-background, var(--vscode-foreground));
-            border: 1px solid var(--vscode-editor-lineHighlightBackground);
-            opacity: 0;
-            transform: translateY(4px);
-            transition: opacity 0.18s ease, transform 0.18s ease;
-            pointer-events: none;
+        .empty-icon { font-size: 36px; margin-bottom: 10px; }
+        .empty-title { font-size: 13px; font-weight: 600; color: var(--vscode-foreground); margin-bottom: 4px; }
+        .empty-text { font-size: 11px; }
+        
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 20px;
+            background: var(--vscode-editor-lineHighlightBackground);
+            border-top: 1px solid var(--vscode-focusBorder);
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .copy-toast.visible {
-            opacity: 1;
-            transform: translateY(0);
+        
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
-
-        .hidden { display: none !important; }
+        
+        .status-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            background: var(--vscode-editor-background);
+            border-radius: 3px;
+        }
+        
+        .status-label {
+            color: var(--vscode-descriptionForeground);
+            font-weight: 500;
+        }
+        
+        .status-item.error .status-label,
+        .status-item.error {
+            color: #f85149;
+        }
+        
+        .status-item.warning .status-label,
+        .status-item.warning {
+            color: #d29922;
+        }
+        
+        .status-item.status-value {
+            font-weight: 600;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        
+        .footer-info {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-left">
-            <div class="status-badge {{statusClass}}">{{statusIcon}}</div>
-            <div class="header-text">
-                <h2 class="header-title">{{statusTitle}}</h2>
-                <p class="header-subtitle">{{statusSubtitle}}</p>
+            <div class="status-icon {{statusClass}}">{{statusIcon}}</div>
+            <div class="header-title">
+                <h2>{{statusTitle}}</h2>
+                <p>{{statusSubtitle}}</p>
             </div>
         </div>
-    </div>
-
-    {{#if showFullSummary}}
-    <div class="summary">
-        <div class="summary-item total">
-            <span class="summary-count total">{{totalIssues}}</span>
-            <span class="summary-label">Total Issues</span>
-        </div>
-        <div class="summary-item error">
-            <span class="summary-count error">{{errorCount}}</span>
-            <span class="summary-label">Errors</span>
-        </div>
-        <div class="summary-item warning">
-            <span class="summary-count warning">{{warningCount}}</span>
-            <span class="summary-label">Warnings</span>
-        </div>
-        <div class="summary-item info">
-            <span class="summary-count info">{{infoCount}}</span>
-            <span class="summary-label">Info</span>
+        <div class="header-right">
+            <button class="btn" id="refreshBtn"><span class="btn-icon">↻</span> Refresh</button>
+            <button class="btn" id="exportBtn"><span class="btn-icon">↓</span> Export</button>
         </div>
     </div>
-    {{/if}}
 
-    {{#if useCompactSummary}}
-    <div class="health-strip">
-        <span class="health-chip total">Total {{totalIssues}}</span>
-        <span class="health-chip error">Errors {{errorCount}}</span>
-        <span class="health-chip warning">Warnings {{warningCount}}</span>
-        <span class="health-chip info">Info {{infoCount}}</span>
-    </div>
-    {{/if}}
+    <div class="tabs" id="categoryTabs"></div>
 
-    <div class="overview-bar">
-        <span class="meta-pill">{{chartName}}</span>
-        <span class="meta-pill">{{environment}}</span>
-        <span class="meta-pill">{{timestamp}}</span>
+    <div class="search-row">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search issues...">
     </div>
 
-    <div class="search-box">
-        <input type="text" class="search-input" id="searchInput" placeholder="Search issues..." oninput="filterIssues()">
-    </div>
+    <div class="main-content" id="mainContent"></div>
 
-    <div class="filter-bar">
-        <button class="filter-btn error active" onclick="toggleFilter('error', this)">Errors ({{errorCount}})</button>
-        <button class="filter-btn warning active" onclick="toggleFilter('warning', this)">Warnings ({{warningCount}})</button>
-        <button class="filter-btn info active" onclick="toggleFilter('info', this)">Info ({{infoCount}})</button>
-        <button class="filter-btn actionable" id="actionableBtn" onclick="toggleActionable(this)">Only Actionable</button>
-        <button class="filter-btn view-btn active" id="cardsViewBtn" onclick="setView('cards')">Cards</button>
-        <button class="filter-btn view-btn" id="tableViewBtn" onclick="setView('table')">Table</button>
-        <select id="groupBySelect" class="filter-select" onchange="setGroupBy(this.value)">
-            <option value="none">Group: None</option>
-            <option value="file">Group: File</option>
-            <option value="resource">Group: Resource</option>
-        </select>
-        <button class="filter-btn refresh-btn" onclick="refreshValidation()" title="Re-run validation">&#8635; Refresh</button>
-    </div>
-
-    <div id="cardsView">
-    {{#if hasErrors}}
-    <div class="section" id="section-error">
-        <div class="section-header error" onclick="toggleSection(this)" onkeydown="handleSectionKey(event, this)" role="button" tabindex="0" aria-expanded="true" aria-controls="content-error">
-            <span class="section-icon error">&#10007;</span>
-            <span class="section-title">Errors</span>
-            <span class="section-count">{{errorCount}}</span>
-            <span class="chevron">&#9660;</span>
+    <div class="footer">
+        <div class="status-bar" id="statusBar"></div>
+        <div class="footer-info">
+            <span>{{chartName}} • {{environment}} • {{totalIssues}} issues • {{timestamp}}</span>
         </div>
-        <ul class="collapsible" id="content-error">
-            {{#each errors}}
-            <li class="issue-card error">
-                <span class="issue-code">{{code}}</span>
-                <p class="issue-message">{{message}}</p>
-                <div class="issue-details">
-                    {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
-                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{lineNumber}}">&#128196; {{fileDisplay}}</span>{{/if}}
-                    {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
-                </div>
-                <div class="issue-actions">
-                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)"><span class="action-icon">&#128203;</span><span>Copy</span></button>
-                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{lineNumber}}" onclick="jumpToFile(this)"><span class="action-icon">&#10140;</span><span>Jump</span></button>{{/if}}
-                </div>
-            </li>
-            {{/each}}
-        </ul>
-    </div>
-    {{/if}}
-
-    {{#if hasWarnings}}
-    <div class="section" id="section-warning">
-        <div class="section-header warning" onclick="toggleSection(this)" onkeydown="handleSectionKey(event, this)" role="button" tabindex="0" aria-expanded="true" aria-controls="content-warning">
-            <span class="section-icon warning">&#9888;</span>
-            <span class="section-title">Warnings</span>
-            <span class="section-count">{{warningCount}}</span>
-            <span class="chevron">&#9660;</span>
-        </div>
-        <ul class="collapsible" id="content-warning">
-            {{#each warnings}}
-            <li class="issue-card warning">
-                <span class="issue-code">{{code}}</span>
-                <p class="issue-message">{{message}}</p>
-                <div class="issue-details">
-                    {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
-                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{lineNumber}}">&#128196; {{fileDisplay}}</span>{{/if}}
-                    {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
-                </div>
-                <div class="issue-actions">
-                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)"><span class="action-icon">&#128203;</span><span>Copy</span></button>
-                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{lineNumber}}" onclick="jumpToFile(this)"><span class="action-icon">&#10140;</span><span>Jump</span></button>{{/if}}
-                </div>
-            </li>
-            {{/each}}
-        </ul>
-    </div>
-    {{/if}}
-
-    {{#if hasInfo}}
-    <div class="section" id="section-info">
-        <div class="section-header info" onclick="toggleSection(this)" onkeydown="handleSectionKey(event, this)" role="button" tabindex="0" aria-expanded="true" aria-controls="content-info">
-            <span class="section-icon info">&#8505;</span>
-            <span class="section-title">Info</span>
-            <span class="section-count">{{infoCount}}</span>
-            <span class="chevron">&#9660;</span>
-        </div>
-        <ul class="collapsible" id="content-info">
-            {{#each info}}
-            <li class="issue-card info">
-                <span class="issue-code">{{code}}</span>
-                <p class="issue-message">{{message}}</p>
-                <div class="issue-details">
-                    {{#if resource}}<span class="detail-tag resource">&#128230; {{resource}}</span>{{/if}}
-                    {{#if file}}<span class="detail-tag file" data-file="{{file}}" data-line="{{lineNumber}}">&#128196; {{fileDisplay}}</span>{{/if}}
-                    {{#if remediation}}<span class="detail-tag remediation">&#128161; {{remediation}}</span>{{/if}}
-                </div>
-                <div class="issue-actions">
-                    <button class="action-btn" data-code="{{code}}" data-message="{{message}}" onclick="copyIssue(this)"><span class="action-icon">&#128203;</span><span>Copy</span></button>
-                    {{#if file}}<button class="action-btn" data-file="{{file}}" data-line="{{lineNumber}}" onclick="jumpToFile(this)"><span class="action-icon">&#10140;</span><span>Jump</span></button>{{/if}}
-                </div>
-            </li>
-            {{/each}}
-        </ul>
-    </div>
-    {{/if}}
     </div>
 
-    <div id="tableView" class="table-view validation-hidden">
-        <div class="table-wrap">
-            <table class="issues-table">
-                <thead>
-                    <tr>
-                        <th data-sort="severity" onclick="sortTableBy('severity')">Severity</th>
-                        <th data-sort="code" onclick="sortTableBy('code')">Code</th>
-                        <th data-sort="message" onclick="sortTableBy('message')">Message</th>
-                        <th data-sort="location" onclick="sortTableBy('location')">Location</th>
-                        <th data-sort="remediation" onclick="sortTableBy('remediation')">Remediation</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="issueTableBody"></tbody>
-            </table>
-        </div>
-        <div id="tableEmptyState" class="table-empty validation-hidden">No issues match the current filters.</div>
-    </div>
+    <script type="application/json" id="status-data" nonce="{{{nonce}}}">{{{statusBar}}}</script>
 
-    <div id="copyToast" class="copy-toast" role="status" aria-live="polite">Copied</div>
-
-    <script>
-        // VS Code API is injected by VS Code - available as global function
+    <script type="application/json" id="init-data" nonce="{{{nonce}}}">{{{initData}}}</script>
+    <script nonce="{{{nonce}}}">
+        var initData = { categories: {}, totalIssues: 0 };
         
-        // Global error handler
-        window.onerror = function(msg, url, line, col, error) {
-            console.error("[Validation] Script error:", msg, "at line", line);
-            return false;
-        };
-
-        function toggleSection(header) {
-            var content = header.nextElementSibling;
-            var chevron = header.querySelector('.chevron');
-            if (content) content.classList.toggle('collapsed');
-            if (chevron) chevron.classList.toggle('collapsed');
-            if (content) {
-                var expanded = !content.classList.contains('collapsed');
-                header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        try {
+            var el = document.getElementById('init-data');
+            if (el && el.textContent) {
+                initData = JSON.parse(el.textContent);
             }
+        } catch (e) {
+            console.error('Failed to parse initData:', e);
         }
-
-        function handleSectionKey(event, header) {
-            if (!event || !header) return;
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                toggleSection(header);
-            }
-        }
-
-        var activeFilters = { error: true, warning: true, info: true };
-        var currentView = 'cards';
-        var currentSort = { key: 'severity', dir: 'asc' };
-        var onlyActionable = false;
-        var currentGroupBy = 'none';
+        
+        var currentCategory = 'all';
         
         var vscodeApi = (typeof acquireVsCodeApi === 'function') ? acquireVsCodeApi() : null;
-
-        function postVsCodeMessage(payload) {
+        
+        function postMessage(payload) {
             if (vscodeApi && payload && typeof payload.command === 'string') {
                 vscodeApi.postMessage(payload);
                 return true;
             }
             return false;
         }
-
-        function toggleFilter(type, btn) {
-            activeFilters[type] = !activeFilters[type];
-            btn.classList.toggle('active');
-            filterIssues();
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
-
-        function toggleActionable(btn) {
-            onlyActionable = !onlyActionable;
-            btn.classList.toggle('active', onlyActionable);
-            filterIssues();
-        }
-
-        function setGroupBy(value) {
-            currentGroupBy = value || 'none';
-            if (currentView === 'table') {
-                renderIssueTable();
-            }
-        }
-
-        function setView(view) {
-            currentView = view;
-            var cardsWrap = document.getElementById('cardsView');
-            var tableWrap = document.getElementById('tableView');
-            var cardsBtn = document.getElementById('cardsViewBtn');
-            var tableBtn = document.getElementById('tableViewBtn');
-
-            if (view === 'table') {
-                if (cardsWrap) cardsWrap.classList.add('validation-hidden');
-                if (tableWrap) tableWrap.classList.remove('validation-hidden');
-                if (cardsBtn) cardsBtn.classList.remove('active');
-                if (tableBtn) tableBtn.classList.add('active');
-                renderIssueTable();
-            } else {
-                if (cardsWrap) cardsWrap.classList.remove('validation-hidden');
-                if (tableWrap) tableWrap.classList.add('validation-hidden');
-                if (cardsBtn) cardsBtn.classList.add('active');
-                if (tableBtn) tableBtn.classList.remove('active');
-            }
-        }
-
-        function getSeverityRank(severity) {
-            if (severity === 'error') return 0;
-            if (severity === 'warning') return 1;
-            return 2;
-        }
-
-        function getVisibleIssueRows() {
-            var cards = document.querySelectorAll('.issue-card');
-            var rows = [];
-            cards.forEach(function(card) {
-                if (card.classList.contains('validation-hidden')) return;
-
-                var severity = card.classList.contains('error') ? 'error' : card.classList.contains('warning') ? 'warning' : 'info';
-                var code = (card.querySelector('.issue-code') || {}).textContent || '';
-                var message = (card.querySelector('.issue-message') || {}).textContent || '';
-                var remediationEl = card.querySelector('.detail-tag.remediation');
-                var resourceEl = card.querySelector('.detail-tag.resource');
-                var fileBtn = card.querySelector('.action-btn[onclick="jumpToFile(this)"]');
-                var copyBtn = card.querySelector('.action-btn[onclick="copyIssue(this)"]');
-                var resourceText = resourceEl ? (resourceEl.textContent || '').replace(/^\s*📦\s*/, '').trim() : '';
-
-                rows.push({
-                    severity: severity,
-                    code: code,
-                    message: message,
-                    resource: resourceText,
-                    remediation: remediationEl ? remediationEl.textContent || '' : '',
-                    file: fileBtn ? fileBtn.getAttribute('data-file') || '' : '',
-                    line: fileBtn ? fileBtn.getAttribute('data-line') || '1' : '1',
-                    location: fileBtn ? ((fileBtn.getAttribute('data-file') || '') + ':' + (fileBtn.getAttribute('data-line') || '1')) : '-',
-                    copyCode: copyBtn ? copyBtn.getAttribute('data-code') || '' : code,
-                    copyMessage: copyBtn ? copyBtn.getAttribute('data-message') || '' : message,
-                    actionable: !!(fileBtn || remediationEl)
-                });
-            });
-
-            rows.sort(function(a, b) {
-                var key = currentSort.key;
-                var dir = currentSort.dir === 'asc' ? 1 : -1;
-                var av = a[key] || '';
-                var bv = b[key] || '';
-
-                if (key === 'severity') {
-                    return (getSeverityRank(a.severity) - getSeverityRank(b.severity)) * dir;
-                }
-
-                return String(av).localeCompare(String(bv), undefined, { sensitivity: 'base' }) * dir;
-            });
-
-            return rows;
-        }
-
-        function renderIssueTable() {
-            var tbody = document.getElementById('issueTableBody');
-            var empty = document.getElementById('tableEmptyState');
-            if (!tbody || !empty) return;
-
-            var rows = getVisibleIssueRows();
-            if (rows.length === 0) {
-                tbody.innerHTML = '';
-                empty.classList.remove('validation-hidden');
-                return;
-            }
-
-            empty.classList.add('validation-hidden');
-
-            if (currentGroupBy === 'none') {
-                tbody.innerHTML = rows.map(function(row) {
-                    var remediation = row.remediation || '-';
-                    var jumpAction = row.file
-                        ? '<button class="action-btn" onclick="jumpToLocation(\'' + escapeForAttr(row.file) + '\',' + parseInt(row.line || '1', 10) + ')"><span class="action-icon">&#10140;</span><span>Jump</span></button>'
-                        : '';
-                    return '<tr>' +
-                        '<td><span class="severity-pill ' + row.severity + '">' + row.severity + '</span></td>' +
-                        '<td><span class="issue-code">' + escapeHtml(row.code) + '</span></td>' +
-                        '<td class="table-message">' + escapeHtml(row.message) + '</td>' +
-                        '<td class="table-location">' + escapeHtml(row.location) + '</td>' +
-                        '<td class="table-remediation">' + escapeHtml(remediation.replace('💡 ', '')) + '</td>' +
-                        '<td class="table-actions">' +
-                            '<button class="action-btn" onclick="copyIssueText(\'' + escapeForAttr(row.copyCode) + '\',\'' + escapeForAttr(row.copyMessage) + '")"><span class="action-icon">&#128203;</span><span>Copy</span></button>' +
-                            jumpAction +
-                        '</td>' +
-                    '</tr>';
-                }).join('');
-                return;
-            }
-
-            var grouped = {};
-            rows.forEach(function(row) {
-                var key = currentGroupBy === 'file' ? (row.file || '(no file)') : (row.resource || '(no resource)');
-                if (!grouped[key]) {
-                    grouped[key] = [];
-                }
-                grouped[key].push(row);
-            });
-
-            var groupKeys = Object.keys(grouped).sort(function(a, b) {
-                return a.localeCompare(b, undefined, { sensitivity: 'base' });
-            });
-
-            var html = '';
-            groupKeys.forEach(function(groupKey) {
-                var groupRows = grouped[groupKey];
-                html += '<tr class="group-row"><td colspan="6">' +
-                    escapeHtml((currentGroupBy === 'file' ? 'File: ' : 'Resource: ') + groupKey + ' (' + groupRows.length + ')') +
-                    '</td></tr>';
-
-                html += groupRows.map(function(row) {
-                    var remediation = row.remediation || '-';
-                    var jumpAction = row.file
-                        ? '<button class="action-btn" onclick="jumpToLocation(\'' + escapeForAttr(row.file) + '\',' + parseInt(row.line || '1', 10) + ')"><span class="action-icon">&#10140;</span><span>Jump</span></button>'
-                        : '';
-                    return '<tr>' +
-                        '<td><span class="severity-pill ' + row.severity + '">' + row.severity + '</span></td>' +
-                        '<td><span class="issue-code">' + escapeHtml(row.code) + '</span></td>' +
-                        '<td class="table-message">' + escapeHtml(row.message) + '</td>' +
-                        '<td class="table-location">' + escapeHtml(row.location) + '</td>' +
-                        '<td class="table-remediation">' + escapeHtml(remediation.replace('💡 ', '')) + '</td>' +
-                        '<td class="table-actions">' +
-                            '<button class="action-btn" onclick="copyIssueText(\'' + escapeForAttr(row.copyCode) + '\',\'' + escapeForAttr(row.copyMessage) + '")"><span class="action-icon">&#128203;</span><span>Copy</span></button>' +
-                            jumpAction +
-                        '</td>' +
-                    '</tr>';
-                }).join('');
-            });
-
-            tbody.innerHTML = html;
-        }
-
-        function sortTableBy(key) {
-            if (currentSort.key === key) {
-                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.key = key;
-                currentSort.dir = key === 'severity' ? 'asc' : 'asc';
-            }
-            if (currentView === 'table') {
-                renderIssueTable();
-            }
-        }
-
-        function escapeForAttr(value) {
-            return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        }
-
-        function escapeHtml(value) {
-            return String(value || '')
+        
+        function escapeAttr(str) {
+            if (!str) return '';
+            return String(str)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
-                .replace(/\"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
-
-        function filterIssues() {
+        
+        function renderStatusBar() {
+            var container = document.getElementById('statusBar');
+            var statusDataEl = document.getElementById('status-data');
+            if (!container || !statusDataEl) return;
+            
+            try {
+                var statusBar = JSON.parse(statusDataEl.textContent || '{}');
+                if (!statusBar || Object.keys(statusBar).length === 0) {
+                    container.innerHTML = '<span class="status-item">No data</span>';
+                    return;
+                }
+                
+                var html = '';
+                if (statusBar.totalCharts !== undefined) {
+                    html += '<span class="status-item"><span class="status-label">Charts:</span> ' + statusBar.totalCharts + '</span>';
+                }
+                if (statusBar.totalFiles !== undefined) {
+                    html += '<span class="status-item"><span class="status-label">Files:</span> ' + statusBar.totalFiles + '</span>';
+                }
+                if (statusBar.totalLogs !== undefined) {
+                    html += '<span class="status-item"><span class="status-label">Total:</span> ' + statusBar.totalLogs + '</span>';
+                }
+                if (statusBar.errorCount !== undefined) {
+                    html += '<span class="status-item error"><span class="status-label">Errors:</span> ' + statusBar.errorCount + '</span>';
+                }
+                if (statusBar.warningCount !== undefined) {
+                    html += '<span class="status-item warning"><span class="status-label">Warnings:</span> ' + statusBar.warningCount + '</span>';
+                }
+                if (statusBar.status) {
+                    html += '<span class="status-item status-value">' + statusBar.status + '</span>';
+                }
+                
+                container.innerHTML = html;
+            } catch (e) {
+                console.error('Failed to parse status data:', e);
+                container.innerHTML = '<span class="status-item">Error loading status</span>';
+            }
+        }
+        
+        function init() {
+            renderStatusBar();
+            renderTabs();
+            renderMainContent();
+            
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                e.preventDefault();
+                renderMainContent();
+            });
+            document.getElementById('refreshBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                postMessage({ command: 'refreshValidation' });
+            });
+            document.getElementById('exportBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                try {
+                    exportResults();
+                } catch (err) {
+                    console.error('Export error:', err);
+                    alert('Export failed: ' + err.message);
+                }
+            });
+        }
+        
+        function renderTabs() {
+            var tabs = initData.categories || {};
+            var container = document.getElementById('categoryTabs');
+            var total = initData.totalIssues || 0;
+            
+            var html = '<button class="tab-btn active" data-category="all">All <span class="count">' + total + '</span></button>';
+            
+            Object.keys(tabs).forEach(function(cat) {
+                var items = tabs[cat] || [];
+                if (items.length > 0) {
+                    var label = cat.charAt(0).toUpperCase() + cat.slice(1);
+                    html += '<button class="tab-btn" data-category="' + cat + '">' + label + ' <span class="count">' + items.length + '</span></button>';
+                }
+            });
+            
+            container.innerHTML = html;
+            
+            container.querySelectorAll('.tab-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    currentCategory = e.currentTarget.getAttribute('data-category');
+                    container.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                    e.currentTarget.classList.add('active');
+                    renderMainContent();
+                });
+            });
+        }
+        
+        function getFilteredIssues() {
             var search = document.getElementById('searchInput').value.toLowerCase();
-            var sections = document.querySelectorAll('.section');
-            sections.forEach(function(section) {
-                var cards = section.querySelectorAll('.issue-card');
-                var count = 0;
-                cards.forEach(function(card) {
-                    var severity = card.classList.contains('error') ? 'error' : card.classList.contains('warning') ? 'warning' : 'info';
-                    var code = (card.querySelector('.issue-code') || {}).textContent || '';
-                    var msg = (card.querySelector('.issue-message') || {}).textContent || '';
-                    var remediationEl = card.querySelector('.detail-tag.remediation');
-                    var jumpBtn = card.querySelector('.action-btn[onclick="jumpToFile(this)"]');
-                    var matchActionable = !onlyActionable || !!(remediationEl || jumpBtn);
-                    var matchSearch = !search || code.toLowerCase().indexOf(search) !== -1 || msg.toLowerCase().indexOf(search) !== -1;
-                    var matchFilter = activeFilters[severity];
-                    if (matchSearch && matchFilter && matchActionable) {
-                        card.classList.remove('validation-hidden');
-                        card.classList.add('validation-visible');
-                        count++;
-                    } else {
-                        card.classList.remove('validation-visible');
-                        card.classList.add('validation-hidden');
+            var tabs = initData.categories || {};
+            var issues = [];
+            
+            if (currentCategory === 'all') {
+                Object.keys(tabs).forEach(function(cat) {
+                    issues = issues.concat(tabs[cat] || []);
+                });
+            } else {
+                issues = tabs[currentCategory] || [];
+            }
+            
+            if (search) {
+                issues = issues.filter(function(i) {
+                    return (i.message || '').toLowerCase().indexOf(search) !== -1 ||
+                           (i.code || '').toLowerCase().indexOf(search) !== -1;
+                });
+            }
+            
+            return issues;
+        }
+        
+        function getLogIcon(severity) {
+            var icons = { error: '✗', warning: '⚠', info: 'i' };
+            return icons[severity] || '?';
+        }
+        
+        function getFileIcon(fileName) {
+            if (!fileName) return '📄';
+            var ext = fileName.split('.').pop().toLowerCase();
+            var icons = {
+                'yaml': '📝', 'yml': '📝',
+                'json': '📋',
+                'tpl': '📰',
+                'txt': '📃',
+                'sh': '⚡',
+                'lua': '🌙'
+            };
+            return icons[ext] || '📄';
+        }
+        
+        function buildHierarchy(issues) {
+            var chartMap = {};
+            
+            issues.forEach(function(issue) {
+                var chartPath = issue.chartPath || issue.file || 'unknown';
+                var filePath = issue.file || 'unknown';
+                var chartKey = chartPath;
+                var fileKey = chartPath + '||' + filePath;
+                
+                if (!chartMap[chartKey]) {
+                    chartMap[chartKey] = {
+                        chartPath: chartPath,
+                        chartName: chartPath.split(/[/\\]/).pop() || chartPath,
+                        files: {}
+                    };
+                }
+                
+                if (!chartMap[chartKey].files[fileKey]) {
+                    chartMap[chartKey].files[fileKey] = {
+                        filePath: filePath,
+                        fileName: filePath.split(/[/\\]/).pop() || filePath,
+                        logs: { error: [], warning: [], info: [] }
+                    };
+                }
+                
+                var severity = issue.severity || 'info';
+                if (chartMap[chartKey].files[fileKey].logs[severity]) {
+                    chartMap[chartKey].files[fileKey].logs[severity].push(issue);
+                }
+            });
+            
+            return chartMap;
+        }
+        
+        function renderMainContent() {
+            var container = document.getElementById('mainContent');
+            var issues = getFilteredIssues();
+            
+            if (issues.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">✓</div><div class="empty-title">No issues found</div><div class="empty-text">No issues match your current filter</div></div>';
+                return;
+            }
+            
+            var hierarchy = buildHierarchy(issues);
+            var html = '';
+            
+            Object.keys(hierarchy).forEach(function(chartKey) {
+                var chart = hierarchy[chartKey];
+                var filesHtml = '';
+                
+                Object.keys(chart.files).forEach(function(fileKey) {
+                    var file = chart.files[fileKey];
+                    var logsHtml = '';
+                    
+                    ['error', 'warning', 'info'].forEach(function(severity) {
+                        var logItems = file.logs[severity] || [];
+                        if (logItems.length === 0) return;
+                        
+                        var itemsHtml = logItems.map(function(item) {
+                            return '<div class="log-item ' + item.severity + '">' +
+                                '<div class="log-message">' + escapeHtml(item.message) + '</div>' +
+                            '</div>';
+                        }).join('');
+                        
+                        logsHtml += '<div class="log-group">' +
+                            '<div class="log-header" role="button" tabindex="0" aria-expanded="true" aria-label="' + severity + ' items (' + logItems.length + ')">' +
+                                '<div class="log-icon ' + severity + '">' + getLogIcon(severity) + '</div>' +
+                                '<span class="log-label">' + severity.charAt(0).toUpperCase() + severity.slice(1) + 's</span>' +
+                                '<span class="log-count ' + severity + '">' + logItems.length + '</span>' +
+                            '</div>' +
+                            '<div class="log-items">' + itemsHtml + '</div>' +
+                        '</div>';
+                    });
+                    
+                    var jumpBtn = (file.filePath !== 'unknown') ? 
+                        '<button class="jump-btn" data-file="' + escapeAttr(file.filePath) + '" data-line="1">↗ Open</button>' : '';
+                    
+                    var fileSeverity = file.logs.error.length > 0 ? 'error' : file.logs.warning.length > 0 ? 'warning' : 'info';
+                    var totalLogs = file.logs.error.length + file.logs.warning.length + file.logs.info.length;
+                    
+                    filesHtml += '<div class="file-group">' +
+                        '<div class="file-header" role="button" tabindex="0" aria-expanded="true" data-file="' + escapeAttr(file.filePath) + '">' +
+                            '<div class="file-info">' +
+                                '<span class="chevron">▼</span>' +
+                                '<span class="file-icon">' + getFileIcon(file.fileName) + '</span>' +
+                                '<span class="file-name">' + escapeHtml(file.fileName) + '</span>' +
+                                '<span class="file-meta">(' + totalLogs + ' ' + (totalLogs === 1 ? 'issue' : 'issues') + ')</span>' +
+                            '</div>' +
+                            jumpBtn +
+                        '</div>' +
+                        '<div class="file-logs">' + logsHtml + '</div>' +
+                    '</div>';
+                });
+                
+                html += '<div class="chart-group">' +
+                    '<div class="chart-header" role="button" tabindex="0" aria-expanded="true" data-chart="' + escapeAttr(chartKey) + '">' +
+                        '<div class="chart-info">' +
+                            '<span class="chevron">▼</span>' +
+                            '<div class="chart-icon">📦</div>' +
+                            '<div>' +
+                                '<div class="chart-title">' + escapeHtml(chart.chartName) + '</div>' +
+                                '<div class="chart-subtitle">' + escapeHtml(chart.chartPath) + '</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="chart-files">' + filesHtml + '</div>' +
+                '</div>';
+            });
+            
+            container.innerHTML = html;
+            
+            container.querySelectorAll('.jump-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var file = this.getAttribute('data-file');
+                    var line = parseInt(this.getAttribute('data-line') || '1', 10);
+                    if (file) {
+                        postMessage({ command: 'jumpToFile', file: file, line: line });
                     }
                 });
-                var content = section.querySelector('.collapsible');
-                if (content) {
-                    if (count === 0) {
-                        content.classList.add('validation-hidden');
-                        section.classList.add('validation-hidden');
-                    } else {
-                        content.classList.remove('validation-hidden');
-                        section.classList.remove('validation-hidden');
-                    }
+            });
+            
+            container.querySelectorAll('.chart-header').forEach(function(header) {
+                function toggle() {
+                    var group = header.closest('.chart-group');
+                    var filesDiv = group.querySelector('.chart-files');
+                    var chevron = header.querySelector('.chevron');
+                    var expanded = !filesDiv.classList.contains('collapsed');
+                    filesDiv.classList.toggle('collapsed');
+                    chevron.classList.toggle('collapsed');
+                    header.setAttribute('aria-expanded', String(!expanded));
                 }
+                header.addEventListener('click', toggle);
+                header.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+                });
             });
-
-            if (currentView === 'table') {
-                renderIssueTable();
-            }
-        }
-
-        function showCopyFeedback(button) {
-            if (button && button.innerHTML) {
-                var original = button.innerHTML;
-                button.innerHTML = '<span class="action-icon">&#10004;</span><span>Copied!</span>';
-                setTimeout(function() {
-                    button.innerHTML = original;
-                }, 1200);
-            }
-
-            var toast = document.getElementById('copyToast');
-            if (!toast) return;
-            toast.classList.add('visible');
-            setTimeout(function() {
-                toast.classList.remove('visible');
-            }, 1200);
-        }
-
-        function copyIssue(btn) {
-            var code = btn.getAttribute('data-code') || '';
-            var message = btn.getAttribute('data-message') || '';
-            var text = '[' + code + '] ' + message;
-            var copiedViaHost = postVsCodeMessage({ command: 'copyText', text: text });
-
-            if (copiedViaHost) {
-                showCopyFeedback(btn);
-                return;
-            }
-
-            navigator.clipboard.writeText(text).then(function() {
-                showCopyFeedback(btn);
-            });
-        }
-
-        function jumpToFile(btn) {
-            var file = btn.getAttribute('data-file');
-            var line = btn.getAttribute('data-line') || 1;
-            jumpToLocation(file, parseInt(line, 10) || 1);
-        }
-
-        function jumpToLocation(file, line) {
-            postVsCodeMessage({
-                command: 'jumpToFile',
-                file: file,
-                line: parseInt(line, 10) || 1
-            });
-        }
-
-        function copyIssueText(code, message) {
-            var text = '[' + code + '] ' + message;
-            if (postVsCodeMessage({ command: 'copyText', text: text })) {
-                showCopyFeedback();
-                return;
-            }
-
-            navigator.clipboard.writeText(text).then(function() {
-                showCopyFeedback();
-            });
-        }
-
-        function refreshValidation() {
-            postVsCodeMessage({
-                command: 'refreshValidation'
-            });
-        }
-
-        // Auto-collapse sections on load for better UX
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add animation to section headers
-            document.querySelectorAll('.section-header').forEach(function(header) {
-                header.style.transition = 'background-color 0.2s ease';
-            });
-
-            // Keep low-priority info collapsed when there are higher-priority findings.
-            var errorCount = parseInt('{{errorCount}}', 10) || 0;
-            var warningCount = parseInt('{{warningCount}}', 10) || 0;
-            if (errorCount > 0 || warningCount > 0) {
-                var infoHeader = document.querySelector('#section-info .section-header');
-                if (infoHeader && typeof toggleSection === 'function') {
-                    toggleSection(infoHeader);
+            
+            container.querySelectorAll('.file-header').forEach(function(header) {
+                function toggle() {
+                    var group = header.closest('.file-group');
+                    var logsDiv = group.querySelector('.file-logs');
+                    var chevron = header.querySelector('.chevron');
+                    var expanded = !logsDiv.classList.contains('collapsed');
+                    logsDiv.classList.toggle('collapsed');
+                    chevron.classList.toggle('collapsed');
+                    header.setAttribute('aria-expanded', String(!expanded));
                 }
-            }
+                header.addEventListener('click', toggle);
+                header.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+                });
+            });
 
-            // Auto-focus search input
-            var searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.focus();
-            }
-
-            filterIssues();
-        });
+            container.querySelectorAll('.log-header').forEach(function(header) {
+                function toggle() {
+                    var group = header.closest('.log-group');
+                    var itemsDiv = group.querySelector('.log-items');
+                    var expanded = !itemsDiv.classList.contains('collapsed');
+                    itemsDiv.classList.toggle('collapsed');
+                    header.setAttribute('aria-expanded', String(!expanded));
+                }
+                header.addEventListener('click', toggle);
+                header.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+                });
+            });
+        }
+        
+        function exportResults() {
+            var issues = getFilteredIssues();
+            var hierarchy = buildHierarchy(issues);
+            
+            var exportData = {
+                charts: Object.keys(hierarchy).map(function(chartKey) {
+                    var chart = hierarchy[chartKey];
+                    
+                    var errorCount = 0;
+                    var warningCount = 0;
+                    var infoCount = 0;
+                    var fileCount = 0;
+                    
+                    var files = Object.keys(chart.files).map(function(fileKey) {
+                        var file = chart.files[fileKey];
+                        
+                        var fileErrorCount = file.logs.error.length;
+                        var fileWarningCount = file.logs.warning.length;
+                        var fileInfoCount = file.logs.info.length;
+                        
+                        errorCount += fileErrorCount;
+                        warningCount += fileWarningCount;
+                        infoCount += fileInfoCount;
+                        fileCount++;
+                        
+                        var logTypes = [];
+                        
+                        if (fileErrorCount > 0) {
+                            logTypes.push({
+                                type: 'error',
+                                count: fileErrorCount,
+                                logs: file.logs.error.map(function(log) {
+                                    return {
+                                        message: log.message || '',
+                                        severity: log.severity || 'error',
+                                        sourceLine: log.line || null,
+                                        details: {}
+                                    };
+                                })
+                            });
+                        }
+                        
+                        if (fileWarningCount > 0) {
+                            logTypes.push({
+                                type: 'warning',
+                                count: fileWarningCount,
+                                logs: file.logs.warning.map(function(log) {
+                                    return {
+                                        message: log.message || '',
+                                        severity: log.severity || 'warning',
+                                        sourceLine: log.line || null,
+                                        details: {}
+                                    };
+                                })
+                            });
+                        }
+                        
+                        if (fileInfoCount > 0) {
+                            logTypes.push({
+                                type: 'info',
+                                count: fileInfoCount,
+                                logs: file.logs.info.map(function(log) {
+                                    return {
+                                        message: log.message || '',
+                                        severity: log.severity || 'info',
+                                        sourceLine: log.line || null,
+                                        details: {}
+                                    };
+                                })
+                            });
+                        }
+                        
+                        return {
+                            fileName: file.fileName,
+                            filePath: file.filePath,
+                            summary: {
+                                logCount: fileErrorCount + fileWarningCount + fileInfoCount,
+                                errorCount: fileErrorCount,
+                                warningCount: fileWarningCount,
+                                infoCount: fileInfoCount
+                            },
+                            logTypes: logTypes
+                        };
+                    });
+                    
+                    return {
+                        chartName: chart.chartName,
+                        chartPath: chart.chartPath,
+                        summary: {
+                            fileCount: fileCount,
+                            logCount: errorCount + warningCount + infoCount,
+                            errorCount: errorCount,
+                            warningCount: warningCount,
+                            infoCount: infoCount
+                        },
+                        files: files
+                    };
+                })
+            };
+            
+            var jsonStr = JSON.stringify(exportData, null, 2);
+            var blob = new Blob([jsonStr], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'validation-results.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

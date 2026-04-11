@@ -541,7 +541,7 @@ async function updatePanel(item: ChartTreeItem) {
 			panel.webview.html = await getErrorHtml("Extension context not available");
 		}
 	} catch (error: any) {
-		vscode.window.showErrorMessage(`[FIXED] Error loading chart visualization: ${error.message}`);
+		vscode.window.showErrorMessage(`Error loading chart visualization: ${error.message}`);
 		const extUri = currentContext?.extensionUri;
 		panel.webview.html = await getErrorHtml(error.message, extUri);
 	}
@@ -574,7 +574,7 @@ async function updatePanelForCompare(item: ChartTreeItem) {
 			panel.webview.html = await getErrorHtml("Extension context not available");
 		}
 	} catch (error: any) {
-		vscode.window.showErrorMessage(`[NEW CODE] Error loading chart comparison: ${error.message}`);
+		vscode.window.showErrorMessage(`Error loading chart comparison: ${error.message}`);
 		const extUri = currentContext?.extensionUri;
 		panel.webview.html = await getErrorHtml(error.message, extUri);
 	}
@@ -1065,7 +1065,6 @@ interface CollectChartDataParams {
 	chartPath: string;
 	chartName: string;
 	environment: string;
-	includeDependencyData?: boolean;
 }
 
 /**
@@ -1085,7 +1084,7 @@ async function collectChartDataCore(params: CollectChartDataParams): Promise<{
 	architectureNodes: ArchitectureNode[];
 	relationships: ResourceRelationship[];
 }> {
-	const { chartPath, chartName, environment, includeDependencyData = false } = params;
+	const { chartPath, chartName, environment } = params;
 
 	// Load base values
 	const baseValuesPath = path.join(chartPath, "values.yaml");
@@ -1169,7 +1168,6 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		chartPath: chart.path,
 		chartName: chart.name,
 		environment,
-		includeDependencyData: true,
 	});
 
 	// Get available environments
@@ -1205,6 +1203,13 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		comparisonData: null,
 		availableEnvs,
 		dependencyData,
+		statusBar: {
+			activeCharts: 1,
+			selectedChart: chart.name,
+			dataPoints: core.resources.length,
+			filtersApplied: 0,
+			renderStatus: "Loaded",
+		},
 	};
 }
 
@@ -1249,8 +1254,15 @@ async function collectChartDataForCompare(item: ChartTreeItem): Promise<ChartDat
 		resourceHierarchy: core.resourceHierarchy,
 		architectureNodes: core.architectureNodes,
 		relationships: core.relationships,
-		comparisonData: null,
+		comparisonData: getCurrentComparisonData(),
 		availableEnvs,
+		statusBar: {
+			activeCharts: 1,
+			selectedChart: chart.name,
+			dataPoints: availableEnvs.length,
+			filtersApplied: 0,
+			renderStatus: "Ready",
+		},
 	};
 }
 
@@ -1339,6 +1351,13 @@ interface ChartData {
 			disabled: number;
 			conflicts: number;
 		};
+	};
+	statusBar?: {
+		activeCharts: number;
+		selectedChart: string;
+		dataPoints: number;
+		filtersApplied: number;
+		renderStatus: string;
 	};
 }
 
