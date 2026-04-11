@@ -1065,7 +1065,6 @@ interface CollectChartDataParams {
 	chartPath: string;
 	chartName: string;
 	environment: string;
-	includeDependencyData?: boolean;
 }
 
 /**
@@ -1085,7 +1084,7 @@ async function collectChartDataCore(params: CollectChartDataParams): Promise<{
 	architectureNodes: ArchitectureNode[];
 	relationships: ResourceRelationship[];
 }> {
-	const { chartPath, chartName, environment, includeDependencyData = false } = params;
+	const { chartPath, chartName, environment } = params;
 
 	// Load base values
 	const baseValuesPath = path.join(chartPath, "values.yaml");
@@ -1169,7 +1168,6 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		chartPath: chart.path,
 		chartName: chart.name,
 		environment,
-		includeDependencyData: false,
 	});
 
 	// Get available environments

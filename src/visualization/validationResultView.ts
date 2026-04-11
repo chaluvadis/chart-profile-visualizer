@@ -1,7 +1,12 @@
+import * as crypto from "node:crypto";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ValidationIssue, ValidationResult } from "../processing/chartValidator";
 import { escapeHtml, getTemplatePath, loadTemplate } from "../webview/templateLoader";
+
+function generateNonce(): string {
+	return crypto.randomBytes(16).toString("base64");
+}
 
 // Module-level state (singleton pattern for VSCode extension)
 let validationPanel: vscode.WebviewPanel | undefined;
@@ -139,7 +144,8 @@ async function updateValidationPanel(result: ValidationResult): Promise<void> {
 
 	try {
 		// Prepare data for the template
-		const templateData = prepareValidationData(result, chartName);
+		const nonce = generateNonce();
+		const templateData = prepareValidationData(result, chartName, nonce);
 
 		// Generate HTML content
 		if (validationContext) {
@@ -158,7 +164,7 @@ async function updateValidationPanel(result: ValidationResult): Promise<void> {
 /**
  * Prepare validation data for the template
  */
-function prepareValidationData(result: ValidationResult, chartName: string): Record<string, unknown> {
+function prepareValidationData(result: ValidationResult, chartName: string, nonce: string): Record<string, unknown> {
 	// Group issues by severity
 	const errors = result.issues.filter((i) => i.severity === "error");
 	const warnings = result.issues.filter((i) => i.severity === "warning");
@@ -237,6 +243,7 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		errorCount: errors.length,
 		warningCount: warnings.length,
 		infoCount: infos.length,
+		nonce,
 		initData: JSON.stringify(initData).replace(/</g, "\\u003c"),
 		// Status bar metrics
 		statusBar: JSON.stringify({

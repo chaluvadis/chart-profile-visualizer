@@ -157,6 +157,11 @@
           "type": "number",
           "default": 5000,
           "description": "Timeout (in milliseconds) for cluster-info commands."
+        },
+        "chartProfiles.showWalkthroughOnFirstRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to show the guided walkthrough automatically on the first activation."
         }
       }
     }

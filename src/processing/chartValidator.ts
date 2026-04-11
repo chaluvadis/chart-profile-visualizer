@@ -754,14 +754,13 @@ export class ChartValidator {
 				}
 			}
 
-			unusedCounter++;
-
 			if (!isUsed) {
 				const relevantFiles = valuesFiles.filter((f) => {
 					const paths = filePathsMap.get(f);
 					return paths ? paths.includes(valuePath) : false;
 				});
 
+				unusedCounter++;
 				issues.push({
 					severity: "info",
 					code: `UNUSED${String(unusedCounter).padStart(3, "0")}`,
@@ -807,10 +806,17 @@ export class ChartValidator {
 		for (const [key, value] of Object.entries(obj)) {
 			const currentPath = prefix ? `${prefix}.${key}` : key;
 
-			paths.push(currentPath);
-
 			if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-				paths.push(...this.extractValuePaths(currentPath, value as Record<string, unknown>));
+				const nestedPaths = this.extractValuePaths(currentPath, value as Record<string, unknown>);
+				if (nestedPaths.length > 0) {
+					// Only add nested paths; the parent is covered when any descendant is checked
+					paths.push(...nestedPaths);
+				} else {
+					// Empty object — treat the key itself as a leaf
+					paths.push(currentPath);
+				}
+			} else {
+				paths.push(currentPath);
 			}
 		}
 
