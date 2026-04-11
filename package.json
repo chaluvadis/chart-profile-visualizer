@@ -125,6 +125,7 @@
           "when": "false"
         },
         {
+          
           "command": "chartProfiles.validateChart",
           "when": "false"
         },

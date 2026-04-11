@@ -1256,8 +1256,15 @@ async function collectChartDataForCompare(item: ChartTreeItem): Promise<ChartDat
 		resourceHierarchy: core.resourceHierarchy,
 		architectureNodes: core.architectureNodes,
 		relationships: core.relationships,
-		comparisonData: null,
+		comparisonData: getCurrentComparisonData(),
 		availableEnvs,
+		statusBar: {
+			activeCharts: 1,
+			selectedChart: chart.name,
+			dataPoints: availableEnvs.length,
+			filtersApplied: 0,
+			renderStatus: "Ready",
+		},
 	};
 }
 
