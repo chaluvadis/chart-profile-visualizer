@@ -624,7 +624,7 @@
                     });
                     
                     var jumpBtn = (file.filePath !== 'unknown') ? 
-                        '<button class="jump-btn" data-file="' + escapeAttr(file.filePath) + '" data-line="1">Jump</button>' : '';
+                        '<button class="jump-btn" data-file="' + escapeAttr(file.filePath) + '" data-line="1">↗ Open</button>' : '';
                     
                     var fileSeverity = file.logs.error.length > 0 ? 'error' : file.logs.warning.length > 0 ? 'warning' : 'info';
                     var totalLogs = file.logs.error.length + file.logs.warning.length + file.logs.info.length;
