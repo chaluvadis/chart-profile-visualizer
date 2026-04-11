@@ -1169,7 +1169,7 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		chartPath: chart.path,
 		chartName: chart.name,
 		environment,
-		includeDependencyData: true,
+		includeDependencyData: false,
 	});
 
 	// Get available environments
@@ -1205,6 +1205,13 @@ async function collectChartData(item: ChartTreeItem): Promise<ChartData> {
 		comparisonData: null,
 		availableEnvs,
 		dependencyData,
+		statusBar: {
+			activeCharts: 1,
+			selectedChart: chart.name,
+			dataPoints: core.resources.length,
+			filtersApplied: 0,
+			renderStatus: "Loaded",
+		},
 	};
 }
 
@@ -1339,6 +1346,13 @@ interface ChartData {
 			disabled: number;
 			conflicts: number;
 		};
+	};
+	statusBar?: {
+		activeCharts: number;
+		selectedChart: string;
+		dataPoints: number;
+		filtersApplied: number;
+		renderStatus: string;
 	};
 }
 

@@ -39,6 +39,12 @@
         {{{resultsContent}}}
     </div>
 
+    <script type="application/json" id="status-data" nonce="{{{nonce}}}">{{{statusBar}}}</script>
+
+    <div class="footer">
+        <div class="status-bar" id="mainStatusBar"></div>
+    </div>
+
     <script src="{{{chartJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{topologyJsUri}}}" nonce="{{{nonce}}}"></script>
     <script src="{{{mainJsUri}}}" nonce="{{{nonce}}}"></script>

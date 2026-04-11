@@ -89,6 +89,13 @@ export class ChartValidator {
 			info: issues.filter((i) => i.severity === "info").length,
 		};
 
+		// Add chartPath to each issue for tracking
+		for (const issue of issues) {
+			if (!issue.chartPath) {
+				issue.chartPath = this.chartPath;
+			}
+		}
+
 		return {
 			valid: summary.errors === 0,
 			issues,

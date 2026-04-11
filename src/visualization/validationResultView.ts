@@ -185,36 +185,6 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 	const statusClass = hasErrors ? "invalid" : hasWarnings || hasInfo ? "attention" : "valid";
 	const statusIcon = hasErrors ? "✗" : hasWarnings ? "!" : hasInfo ? "i" : "✓";
 
-	// Generate compact summary for minimal output
-	const compactIssues = result.issues
-		.filter((i) => i.severity === "error" || i.severity === "warning")
-		.slice(0, 5)
-		.map((i) => ({
-			message: i.message,
-			path: i.file ? i.file.split(/[/\\]/).pop() : i.resource || "[chart]",
-			code: i.code,
-		}));
-
-	let compactSummary = "";
-	if (hasErrors) {
-		compactSummary = `${errors.length} error(s) found in chart`;
-	} else if (hasWarnings) {
-		compactSummary = `${warnings.length} warning(s) found`;
-	} else if (hasInfo) {
-		compactSummary = `${infos.length} note(s)`;
-	} else {
-		compactSummary = "Chart is valid";
-	}
-
-	const compactData = {
-		status: hasErrors ? "invalid" : hasWarnings ? "attention" : "valid",
-		statusIcon,
-		summary: compactSummary,
-		issues: compactIssues,
-		chartName,
-		environment: result.environment,
-	};
-
 	let statusTitle = "Validation Passed";
 	let statusSubtitle = "All checks passed for this chart/environment";
 
@@ -229,17 +199,6 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		statusSubtitle = `${infos.length} informational check(s) found`;
 	}
 
-	// Build category summary for tabs
-	const categorySummary = [
-		{ id: "all", label: "All", count: result.issues.length, icon: "📋" },
-		{ id: "lint", label: "Lint", count: categories.lint.length, icon: "🔍" },
-		{ id: "schema", label: "Schema", count: categories.schema.length, icon: "📄" },
-		{ id: "template", label: "Template", count: categories.template.length, icon: "📝" },
-		{ id: "security", label: "Security", count: categories.security.length, icon: "🔒" },
-		{ id: "unused", label: "Unused Values", count: categories.unused.length, icon: "♻️" },
-		{ id: "breaking", label: "Breaking", count: categories.breaking.length, icon: "⚠️" },
-	].filter((c) => c.count > 0);
-
 	// Create init data for webview
 	const initData = {
 		categories: {
@@ -253,6 +212,13 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		},
 		totalIssues: result.issues.length,
 	};
+
+	// Calculate metrics for status bar
+	const uniqueCharts =
+		result.issues.length > 0 ? new Set(result.issues.map((i) => i.chartPath || "[chart]")).size : 0;
+	const uniqueFiles = result.issues.length > 0 ? new Set(result.issues.map((i) => i.file || "[no file]")).size : 0;
+
+	const validationStatus = hasErrors ? "Failed" : hasWarnings ? "Partial" : "Passed";
 
 	return {
 		chartName,
@@ -272,9 +238,16 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		errorCount: errors.length,
 		warningCount: warnings.length,
 		infoCount: infos.length,
-		categorySummary,
 		initData: JSON.stringify(initData),
-		compactData,
+		// Status bar metrics
+		statusBar: JSON.stringify({
+			totalCharts: uniqueCharts || 1,
+			totalFiles: uniqueFiles || 0,
+			totalLogs: result.issues.length,
+			errorCount: errors.length,
+			warningCount: warnings.length,
+			status: validationStatus,
+		}),
 	};
 }
 

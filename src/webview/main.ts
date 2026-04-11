@@ -75,11 +75,69 @@ function initializeWebview(data: WebviewData): void {
 	initToolbarActions();
 	initResourceExplorer();
 	initResultsTab();
+	initStatusBar();
 	// Call initTopology from window (defined in topology.ts)
 	if (typeof window.initTopology === "function") {
 		window.initTopology();
 	}
 	initCharts();
+}
+
+/**
+ * Render status bar for Visualize/Compare views
+ */
+function initStatusBar(): void {
+	const container = document.getElementById("mainStatusBar");
+	const statusDataEl = document.getElementById("status-data");
+	if (!container || !statusDataEl) return;
+
+	try {
+		const statusBar = JSON.parse(statusDataEl.textContent || "null");
+		if (!statusBar || Object.keys(statusBar).length === 0) {
+			container.innerHTML = '<span class="status-item">No data</span>';
+			return;
+		}
+
+		let html = "";
+		if (statusBar.activeCharts !== undefined) {
+			html += `<span class="status-item"><span class="status-label">Charts:</span> ${statusBar.activeCharts}</span>`;
+		}
+		if (statusBar.selectedChart) {
+			html += `<span class="status-item"><span class="status-label">Chart:</span> ${statusBar.selectedChart}</span>`;
+		}
+		if (statusBar.dataPoints !== undefined) {
+			html += `<span class="status-item"><span class="status-label">Data Points:</span> ${statusBar.dataPoints}</span>`;
+		}
+		if (statusBar.filtersApplied !== undefined) {
+			html += `<span class="status-item"><span class="status-label">Filters:</span> ${statusBar.filtersApplied}</span>`;
+		}
+		if (statusBar.renderStatus) {
+			html += `<span class="status-item status-value">${statusBar.renderStatus}</span>`;
+		}
+		if (statusBar.sourceEnv) {
+			html += `<span class="status-item"><span class="status-label">Source:</span> ${statusBar.sourceEnv}</span>`;
+		}
+		if (statusBar.targetEnv) {
+			html += `<span class="status-item"><span class="status-label">Target:</span> ${statusBar.targetEnv}</span>`;
+		}
+		if (statusBar.differences !== undefined) {
+			html += `<span class="status-item"><span class="status-label">Diffs:</span> ${statusBar.differences}</span>`;
+		}
+		if (statusBar.matched !== undefined) {
+			html += `<span class="status-item"><span class="status-label">Matched:</span> ${statusBar.matched}</span>`;
+		}
+		if (statusBar.missing !== undefined) {
+			html += `<span class="status-item"><span class="status-label">Missing:</span> ${statusBar.missing}</span>`;
+		}
+		if (statusBar.compareStatus) {
+			html += `<span class="status-item status-value">${statusBar.compareStatus}</span>`;
+		}
+
+		container.innerHTML = html;
+	} catch (e) {
+		console.error("Failed to parse status data:", e);
+		container.innerHTML = '<span class="status-item">Error loading status</span>';
+	}
 }
 
 /**
