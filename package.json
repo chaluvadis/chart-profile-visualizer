@@ -87,6 +87,18 @@
         "description": "Update Helm chart dependencies",
         "icon": "$(cloud-download)",
         "category": "Chart Profiles"
+      },
+      {
+        "command": "chartProfiles.exportComparisonReport",
+        "title": "Export Comparison Report",
+        "description": "Export the current environment comparison report",
+        "category": "Chart Profiles"
+      },
+      {
+        "command": "chartProfiles.startWalkthrough",
+        "title": "Start Walkthrough",
+        "description": "Start the chart profiles walkthrough",
+        "category": "Chart Profiles"
       }
     ],
     "menus": {
@@ -121,6 +133,31 @@
           "when": "false"
         }
       ]
+    },
+    "configuration": {
+      "title": "Chart Profiles",
+      "properties": {
+        "chartProfiles.autoRefreshInterval": {
+          "type": "number",
+          "default": 30000,
+          "description": "Interval (in milliseconds) at which the runtime state auto-refreshes."
+        },
+        "chartProfiles.timeouts.kubectl": {
+          "type": "number",
+          "default": 10000,
+          "description": "Timeout (in milliseconds) for kubectl commands."
+        },
+        "chartProfiles.timeouts.helmTemplate": {
+          "type": "number",
+          "default": 30000,
+          "description": "Timeout (in milliseconds) for helm template rendering."
+        },
+        "chartProfiles.timeouts.clusterInfo": {
+          "type": "number",
+          "default": 5000,
+          "description": "Timeout (in milliseconds) for cluster-info commands."
+        }
+      }
     }
   },
   "scripts": {

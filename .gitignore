@@ -6,3 +6,5 @@ out
 package-lock.json
 src/**/*.js
 src/**/*.js.map
+tsconfig.tsbuildinfo
+.kilo/

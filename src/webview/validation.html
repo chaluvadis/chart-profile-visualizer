@@ -228,6 +228,7 @@
             font-size: 11px;
             font-weight: 500;
             cursor: pointer;
+            user-select: none;
         }
         .log-header:hover { background: var(--vscode-editor-selectionBackground); }
         .log-icon {
@@ -343,7 +344,7 @@
 </head>
 <body>
     <div class="header">
-<div class="header-left">
+        <div class="header-left">
             <div class="status-icon {{statusClass}}">{{statusIcon}}</div>
             <div class="header-title">
                 <h2>{{statusTitle}}</h2>
@@ -353,7 +354,6 @@
         <div class="header-right">
             <button class="btn" id="refreshBtn"><span class="btn-icon">↻</span> Refresh</button>
             <button class="btn" id="exportBtn"><span class="btn-icon">↓</span> Export</button>
-        </div>
         </div>
     </div>
 
@@ -405,7 +405,13 @@
         }
         
         function escapeAttr(str) {
-            return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
         
         function renderStatusBar() {
@@ -606,7 +612,7 @@
                         }).join('');
                         
                         logsHtml += '<div class="log-group">' +
-                            '<div class="log-header">' +
+                            '<div class="log-header" role="button" tabindex="0" aria-expanded="true" aria-label="' + severity + ' items (' + logItems.length + ')">' +
                                 '<div class="log-icon ' + severity + '">' + getLogIcon(severity) + '</div>' +
                                 '<span class="log-label">' + severity.charAt(0).toUpperCase() + severity.slice(1) + 's</span>' +
                                 '<span class="log-count ' + severity + '">' + logItems.length + '</span>' +
@@ -622,7 +628,7 @@
                     var totalLogs = file.logs.error.length + file.logs.warning.length + file.logs.info.length;
                     
                     filesHtml += '<div class="file-group">' +
-                        '<div class="file-header" data-file="' + escapeAttr(file.filePath) + '">' +
+                        '<div class="file-header" role="button" tabindex="0" aria-expanded="true" data-file="' + escapeAttr(file.filePath) + '">' +
                             '<div class="file-info">' +
                                 '<span class="chevron">▼</span>' +
                                 '<span class="file-icon">' + getFileIcon(file.fileName) + '</span>' +
@@ -636,7 +642,7 @@
                 });
                 
                 html += '<div class="chart-group">' +
-                    '<div class="chart-header" data-chart="' + escapeAttr(chartKey) + '">' +
+                    '<div class="chart-header" role="button" tabindex="0" aria-expanded="true" data-chart="' + escapeAttr(chartKey) + '">' +
                         '<div class="chart-info">' +
                             '<span class="chevron">▼</span>' +
                             '<div class="chart-icon">📦</div>' +
@@ -664,22 +670,48 @@
             });
             
             container.querySelectorAll('.chart-header').forEach(function(header) {
-                header.addEventListener('click', function(e) {
-                    var group = this.closest('.chart-group');
+                function toggle() {
+                    var group = header.closest('.chart-group');
                     var filesDiv = group.querySelector('.chart-files');
-                    var chevron = this.querySelector('.chevron');
+                    var chevron = header.querySelector('.chevron');
+                    var expanded = !filesDiv.classList.contains('collapsed');
                     filesDiv.classList.toggle('collapsed');
                     chevron.classList.toggle('collapsed');
+                    header.setAttribute('aria-expanded', String(!expanded));
+                }
+                header.addEventListener('click', toggle);
+                header.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
                 });
             });
             
             container.querySelectorAll('.file-header').forEach(function(header) {
-                header.addEventListener('click', function(e) {
-                    var group = this.closest('.file-group');
+                function toggle() {
+                    var group = header.closest('.file-group');
                     var logsDiv = group.querySelector('.file-logs');
-                    var chevron = this.querySelector('.chevron');
+                    var chevron = header.querySelector('.chevron');
+                    var expanded = !logsDiv.classList.contains('collapsed');
                     logsDiv.classList.toggle('collapsed');
                     chevron.classList.toggle('collapsed');
+                    header.setAttribute('aria-expanded', String(!expanded));
+                }
+                header.addEventListener('click', toggle);
+                header.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+                });
+            });
+
+            container.querySelectorAll('.log-header').forEach(function(header) {
+                function toggle() {
+                    var group = header.closest('.log-group');
+                    var itemsDiv = group.querySelector('.log-items');
+                    var expanded = !itemsDiv.classList.contains('collapsed');
+                    itemsDiv.classList.toggle('collapsed');
+                    header.setAttribute('aria-expanded', String(!expanded));
+                }
+                header.addEventListener('click', toggle);
+                header.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
                 });
             });
         }

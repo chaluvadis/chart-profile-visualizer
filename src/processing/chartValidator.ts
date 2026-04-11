@@ -4,6 +4,7 @@ import * as yaml from "js-yaml";
 import { isHelmAvailable, type RenderedResource, renderHelmTemplate } from "../k8s/helmRenderer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { runHelm } from "../utils/cliRunner";
+import { FILE_PATTERNS } from "../utils/constants";
 
 export type ValidationSeverity = "error" | "warning" | "info";
 
@@ -700,7 +701,7 @@ export class ChartValidator {
 				const errorMessage = error instanceof Error ? error.message : String(error);
 				issues.push({
 					severity: "warning",
-					code: "UNUSED001",
+					code: "UNUSED_PARSE",
 					message: `Failed to parse values file: ${errorMessage}`,
 					file: valuesFile,
 					category: "unused",
@@ -722,7 +723,11 @@ export class ChartValidator {
 		const allTemplatesContent = this.getAllTemplatesContent();
 		const combinedContent = allTemplateContent + "\n" + allTemplatesContent;
 
-		const commonUnusedPatterns = [/^#.*$/m, /^$/m];
+		// Precompute paths per values file to avoid redundant re-computation later
+		const filePathsMap = new Map<string, string[]>();
+		for (const [file, values] of valueFileContents) {
+			filePathsMap.set(file, this.extractValuePaths("", values));
+		}
 
 		let unusedCounter = 0;
 
@@ -732,12 +737,13 @@ export class ChartValidator {
 			}
 
 			const normalizedPath = valuePath.replace(/^\./, "");
+			const usageBoundary = String.raw`(?=$|[\s|)\]}:,])`;
 
 			const patterns = [
-				new RegExp(`\\.Values\\.${this.escapeRegex(normalizedPath)}`),
-				new RegExp(`\\.Values\\["${this.escapeRegex(normalizedPath)}"\\]`),
-				new RegExp(`\\.Values\\['${this.escapeRegex(normalizedPath)}'\\]`),
-				new RegExp(`\\(optional\\).*${this.escapeRegex(normalizedPath)}`),
+				new RegExp(`\\.Values\\.${this.escapeRegex(normalizedPath)}${usageBoundary}`),
+				new RegExp(`\\.Values\\["${this.escapeRegex(normalizedPath)}"\\]${usageBoundary}`),
+				new RegExp(`\\.Values\\['${this.escapeRegex(normalizedPath)}'\\]${usageBoundary}`),
+				new RegExp(`\\(optional\\).*${this.escapeRegex(normalizedPath)}${usageBoundary}`),
 			];
 
 			let isUsed = false;
@@ -752,10 +758,8 @@ export class ChartValidator {
 
 			if (!isUsed) {
 				const relevantFiles = valuesFiles.filter((f) => {
-					const values = valueFileContents.get(f);
-					if (!values) return false;
-					const paths = this.extractValuePaths("", values);
-					return paths.includes(valuePath);
+					const paths = filePathsMap.get(f);
+					return paths ? paths.includes(valuePath) : false;
 				});
 
 				issues.push({
@@ -821,6 +825,19 @@ export class ChartValidator {
 			files.push(valuesYamlPath);
 		}
 
+		// Scan values-{env}.yaml files in the chart root (e.g., values-dev.yaml)
+		try {
+			const rootEntries = fs.readdirSync(this.chartPath);
+			for (const entry of rootEntries) {
+				if (FILE_PATTERNS.VALUES_ENV_REGEX.test(entry)) {
+					files.push(path.join(this.chartPath, entry));
+				}
+			}
+		} catch {
+			// ignore read errors
+		}
+
+		// Also scan environments/ sub-directory
 		const envDir = path.join(this.chartPath, "environments");
 		if (fs.existsSync(envDir) && fs.statSync(envDir).isDirectory()) {
 			const envFiles = fs.readdirSync(envDir);

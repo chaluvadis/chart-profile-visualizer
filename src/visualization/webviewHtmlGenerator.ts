@@ -111,7 +111,7 @@ export async function generateEnhancedHtml(
 			resultsContent,
 			availableEnvs: data.availableEnvs || [],
 			viewMode: compareMode ? "compare" : "visualize",
-			statusBar: data.statusBar ? JSON.stringify(data.statusBar) : null,
+			statusBar: data.statusBar ? JSON.stringify(data.statusBar).replace(/</g, "\\u003c") : null,
 		});
 
 		return mainTemplate;

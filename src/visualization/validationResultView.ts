@@ -238,7 +238,7 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 		errorCount: errors.length,
 		warningCount: warnings.length,
 		infoCount: infos.length,
-		initData: JSON.stringify(initData),
+		initData: JSON.stringify(initData).replace(/</g, "\\u003c"),
 		// Status bar metrics
 		statusBar: JSON.stringify({
 			totalCharts: uniqueCharts || 1,
@@ -247,7 +247,7 @@ function prepareValidationData(result: ValidationResult, chartName: string): Rec
 			errorCount: errors.length,
 			warningCount: warnings.length,
 			status: validationStatus,
-		}),
+		}).replace(/</g, "\\u003c"),
 	};
 }
 

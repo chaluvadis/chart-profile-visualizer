@@ -100,37 +100,37 @@ function initStatusBar(): void {
 
 		let html = "";
 		if (statusBar.activeCharts !== undefined) {
-			html += `<span class="status-item"><span class="status-label">Charts:</span> ${statusBar.activeCharts}</span>`;
+			html += `<span class="status-item"><span class="status-label">Charts:</span> ${escapeHtml(String(statusBar.activeCharts))}</span>`;
 		}
 		if (statusBar.selectedChart) {
-			html += `<span class="status-item"><span class="status-label">Chart:</span> ${statusBar.selectedChart}</span>`;
+			html += `<span class="status-item"><span class="status-label">Chart:</span> ${escapeHtml(String(statusBar.selectedChart))}</span>`;
 		}
 		if (statusBar.dataPoints !== undefined) {
-			html += `<span class="status-item"><span class="status-label">Data Points:</span> ${statusBar.dataPoints}</span>`;
+			html += `<span class="status-item"><span class="status-label">Data Points:</span> ${escapeHtml(String(statusBar.dataPoints))}</span>`;
 		}
 		if (statusBar.filtersApplied !== undefined) {
-			html += `<span class="status-item"><span class="status-label">Filters:</span> ${statusBar.filtersApplied}</span>`;
+			html += `<span class="status-item"><span class="status-label">Filters:</span> ${escapeHtml(String(statusBar.filtersApplied))}</span>`;
 		}
 		if (statusBar.renderStatus) {
-			html += `<span class="status-item status-value">${statusBar.renderStatus}</span>`;
+			html += `<span class="status-item status-value">${escapeHtml(String(statusBar.renderStatus))}</span>`;
 		}
 		if (statusBar.sourceEnv) {
-			html += `<span class="status-item"><span class="status-label">Source:</span> ${statusBar.sourceEnv}</span>`;
+			html += `<span class="status-item"><span class="status-label">Source:</span> ${escapeHtml(String(statusBar.sourceEnv))}</span>`;
 		}
 		if (statusBar.targetEnv) {
-			html += `<span class="status-item"><span class="status-label">Target:</span> ${statusBar.targetEnv}</span>`;
+			html += `<span class="status-item"><span class="status-label">Target:</span> ${escapeHtml(String(statusBar.targetEnv))}</span>`;
 		}
 		if (statusBar.differences !== undefined) {
-			html += `<span class="status-item"><span class="status-label">Diffs:</span> ${statusBar.differences}</span>`;
+			html += `<span class="status-item"><span class="status-label">Diffs:</span> ${escapeHtml(String(statusBar.differences))}</span>`;
 		}
 		if (statusBar.matched !== undefined) {
-			html += `<span class="status-item"><span class="status-label">Matched:</span> ${statusBar.matched}</span>`;
+			html += `<span class="status-item"><span class="status-label">Matched:</span> ${escapeHtml(String(statusBar.matched))}</span>`;
 		}
 		if (statusBar.missing !== undefined) {
-			html += `<span class="status-item"><span class="status-label">Missing:</span> ${statusBar.missing}</span>`;
+			html += `<span class="status-item"><span class="status-label">Missing:</span> ${escapeHtml(String(statusBar.missing))}</span>`;
 		}
 		if (statusBar.compareStatus) {
-			html += `<span class="status-item status-value">${statusBar.compareStatus}</span>`;
+			html += `<span class="status-item status-value">${escapeHtml(String(statusBar.compareStatus))}</span>`;
 		}
 
 		container.innerHTML = html;
@@ -694,19 +694,16 @@ function initResourceExplorer(): void {
 function initCharts(): void {
 	// Use VS Code theme colors for better dark/light theme support
 	const style = getComputedStyle(document.body);
-	const primary = style.getPropertyValue("--vscode-editorForeground").trim() || "#007acc";
+	const foreground = style.getPropertyValue("--vscode-editor-foreground").trim();
+	const resolvedPrimary = foreground || "#007acc";
 	const chartColors = {
-		primary: "#007acc",
+		primary: resolvedPrimary,
 		secondary: "#68217a",
 		success: "#4caf50",
 		warning: "#ff9800",
 		danger: "#f44336",
 		info: "#2196f3",
 	};
-
-	// Fallback to default colors if CSS variables not available
-	const foreground = style.getPropertyValue("--vscode-editor-foreground").trim();
-	const resolvedPrimary = foreground ? "#007acc" : primary;
 
 	const colorPalette = [
 		resolvedPrimary,
