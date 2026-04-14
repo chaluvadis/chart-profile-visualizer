@@ -1,12 +1,9 @@
 name: Build & Publish VS Code Extension
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Version tag (e.g., v1.0.0)'
-        required: true
-        type: string
+  push:
+    tags:
+      - "v*.*.*"
 
 permissions:
   contents: write
@@ -14,6 +11,9 @@ permissions:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout Repository
@@ -35,30 +35,37 @@ jobs:
       - name: Compile TypeScript
         run: pnpm run compile
 
+      - name: Read version from tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+
+          PKG_VERSION="v$(node -p "require('./package.json').version")"
+
+          echo "Tag: $TAG"
+          echo "Package.json: $PKG_VERSION"
+
+          if [ "$TAG" != "$PKG_VERSION" ]; then
+            echo "❌ Tag must match package.json version"
+            exit 1
+          fi
+
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VSIX_NAME=chart-profile-visualizer-${TAG}.vsix" >> $GITHUB_ENV
+
       - name: Package extension
         run: |
-          TAG="${{ inputs.tag }}"
-          if [ -z "$TAG" ]; then
-            TAG="$(echo "${GITHUB_SHA}" | cut -c1-7)"
-          fi
-          OUT="chart-profile-visualizer-${TAG}.vsix"
-          echo "OUT=${OUT}" >> $GITHUB_ENV
-          echo "Packaging VSIX -> ${OUT}"
-          pnpm exec vsce package --no-dependencies --out "${OUT}"
-        shell: bash
-
-      - name: Get version from tag
-        id: get_version
-        run: |
-          echo "VSIX_NAME=$(ls *.vsix | head -n 1)" >> $GITHUB_ENV
+          pnpm exec vsce package --no-dependencies --out "$VSIX_NAME"
 
       - name: Publish to Visual Studio Marketplace
-        run: pnpm exec vsce publish --packagePath "${{ env.VSIX_NAME }}" --pat "${{ secrets.VSCE_TOKEN }}"
+        run: |
+          pnpm exec vsce publish --packagePath "$VSIX_NAME" --pat "${{ secrets.VSCE_TOKEN }}"
 
-      - name: Upload VSIX artifact and create GitHub Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag }}
+          tag_name: ${{ env.TAG }}
           files: ${{ env.VSIX_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
