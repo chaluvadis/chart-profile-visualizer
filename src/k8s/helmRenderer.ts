@@ -35,14 +35,15 @@ export interface RenderedResource {
 export async function renderHelmTemplate(
 	chartPath: string,
 	environment: string,
-	releaseName = "release"
+	releaseName = "RELEASE-NAME",
+	namespace = "default"
 ): Promise<RenderedResource[]> {
 	// Check if helm is available
 	const helmAvailable = await isHelmAvailable();
 
 	if (!helmAvailable) {
 		console.warn("Helm CLI not found. Using placeholder rendering.");
-		return await getPlaceholderResources(chartPath, environment);
+		return await getPlaceholderResources(chartPath, environment, releaseName);
 	}
 
 	// Keep a printable command preview for diagnostics
@@ -50,10 +51,10 @@ export async function renderHelmTemplate(
 
 	try {
 		// Build helm template args
-		// helm template [RELEASE_NAME] [CHART] -f values.yaml -f values-<env>.yaml
+		// helm template [RELEASE_NAME] [CHART] --namespace [NAMESPACE] -f values.yaml -f values-<env>.yaml
 		const baseValuesPath = path.join(chartPath, "values.yaml");
 		const envValuesPath = path.join(chartPath, `values-${environment}.yaml`);
-		const args: string[] = ["template", releaseName, chartPath];
+		const args: string[] = ["template", releaseName, chartPath, "--namespace", namespace];
 
 		if (fs.existsSync(baseValuesPath)) {
 			args.push("-f", baseValuesPath);
@@ -244,7 +245,7 @@ export async function isHelmAvailable(): Promise<boolean> {
 /**
  * Returns fallback resources when Helm is not available by reading and partially rendering template files
  */
-async function getPlaceholderResources(chartPath: string, environment: string): Promise<RenderedResource[]> {
+async function getPlaceholderResources(chartPath: string, environment: string, releaseName = "RELEASE-NAME"): Promise<RenderedResource[]> {
 	const chartName = path.basename(chartPath);
 	const templatesDir = path.join(chartPath, "templates");
 	const resources: RenderedResource[] = [];
@@ -301,8 +302,6 @@ async function getPlaceholderResources(chartPath: string, environment: string): 
 			let templateContent = await fs.promises.readFile(templatePath, "utf8");
 
 			// Perform basic Go template variable substitution
-			const releaseName = `${chartName}-${environment}`;
-
 			// Replace common template variables using defined patterns
 			templateContent = templateContent
 				.replace(TEMPLATE_PATTERNS.RELEASE_NAME, releaseName)

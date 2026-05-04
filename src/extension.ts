@@ -8,6 +8,7 @@ import { getKubernetesConnector } from "./k8s/kubernetesConnector";
 import { createChartValidator } from "./processing/chartValidator";
 import { getRuntimeStateManager } from "./state/runtimeStateManager";
 import { showRenderedYaml } from "./utils/renderedYamlView";
+import { promptRenderContext } from "./core/renderContext";
 import {
 	exportComparisonReport,
 	show as showChartVisualization,
@@ -260,6 +261,19 @@ export function activate(context: vscode.ExtensionContext) {
 		await showFirstRunWalkthrough(context, /* forceShow */ true);
 	});
 
+	// Register configure render context command
+	const configureRenderContextCommand = vscode.commands.registerCommand(
+		"chartProfiles.configureRenderContext",
+		async () => {
+			const result = await promptRenderContext();
+			if (result) {
+				vscode.window.showInformationMessage(
+					`Render context updated — Release Name: "${result.releaseName}", Namespace: "${result.namespace}"`
+				);
+			}
+		}
+	);
+
 	// Register update dependencies command
 	const updateDependenciesCommand = vscode.commands.registerCommand(
 		"chartProfiles.updateDependencies",
@@ -301,6 +315,7 @@ export function activate(context: vscode.ExtensionContext) {
 		compareEnvironmentsCommand,
 		exportComparisonReportCommand,
 		startWalkthroughCommand,
+		configureRenderContextCommand,
 		updateDependenciesCommand
 	);
 
