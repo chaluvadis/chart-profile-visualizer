@@ -4,6 +4,7 @@ import * as path from "node:path";
 import * as yaml from "js-yaml";
 import * as vscode from "vscode";
 import type { ChartTreeItem } from "../core/chartProfilesProvider";
+import { getRenderContext, getChartContext } from "../core/renderContext";
 import { type ComparisonWebviewData, compareEnvironments, formatComparisonForWebview } from "../diff/environmentDiff";
 import { type RenderedResource, renderHelmTemplate } from "../k8s/helmRenderer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
@@ -611,11 +612,10 @@ async function handleMessage(message: WebviewMessage) {
 
 					vscode.window.showInformationMessage(`Re-running comparison: ${leftEnv} vs ${rightEnv}...`);
 
-					const releaseName1 = `${chartName}-${leftEnv}`;
-					const releaseName2 = `${chartName}-${rightEnv}`;
-
-					const resources1 = await renderHelmTemplate(chartPath, leftEnv, releaseName1);
-					const resources2 = await renderHelmTemplate(chartPath, rightEnv, releaseName2);
+					const renderContext1 = getChartContext(chartPath, leftEnv);
+					const renderContext2 = getChartContext(chartPath, rightEnv);
+					const resources1 = await renderHelmTemplate(chartPath, leftEnv, renderContext1.releaseName, renderContext1.namespace);
+					const resources2 = await renderHelmTemplate(chartPath, rightEnv, renderContext2.releaseName, renderContext2.namespace);
 
 					const comparison = compareEnvironments(leftEnv, resources1, rightEnv, resources2, chartName);
 					const comparisonData = formatComparisonForWebview(comparison);
@@ -692,11 +692,10 @@ async function runComparisonFromWebview(env1: string, env2: string): Promise<voi
 	try {
 		vscode.window.showInformationMessage(`Comparing ${env1} vs ${env2}...`);
 
-		const releaseName1 = `${chartName}-${env1}`;
-		const releaseName2 = `${chartName}-${env2}`;
-
-		const resources1 = await renderHelmTemplate(chartPath, env1, releaseName1);
-		const resources2 = await renderHelmTemplate(chartPath, env2, releaseName2);
+		const renderContext1 = getChartContext(chartPath, env1);
+		const renderContext2 = getChartContext(chartPath, env2);
+		const resources1 = await renderHelmTemplate(chartPath, env1, renderContext1.releaseName, renderContext1.namespace);
+		const resources2 = await renderHelmTemplate(chartPath, env2, renderContext2.releaseName, renderContext2.namespace);
 
 		const comparison = compareEnvironments(env1, resources1, env2, resources2, chartName);
 		const comparisonData = formatComparisonForWebview(comparison);
@@ -1116,8 +1115,8 @@ async function collectChartDataCore(params: CollectChartDataParams): Promise<{
 	let resources: RenderedResource[] = [];
 
 	try {
-		const releaseName = `${chartName}-${environment}`;
-		resources = await renderHelmTemplate(chartPath, environment, releaseName);
+		const renderContext = getChartContext(chartPath, environment);
+		resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace);
 		renderedResources = resources;
 
 		resources.forEach((resource) => {

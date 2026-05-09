@@ -10,6 +10,7 @@
 		"src/diff/environmentDiff.ts",
 		"src/k8s/helmRenderer.ts",
 		"src/k8s/kubernetesConnector.ts",
-		"src/core/walkthroughSettings.ts"
+		"src/core/walkthroughSettings.ts",
+		"src/core/renderContextSettings.ts"
 	]
 }

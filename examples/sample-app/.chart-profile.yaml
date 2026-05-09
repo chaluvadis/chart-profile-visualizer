@@ -1,0 +1,21 @@
+# Chart Profile Configuration
+# This file defines chart-specific rendering context settings
+
+# Default release name and namespace for this chart
+releaseName: sample-app
+namespace: sample-app
+
+# Environment-specific overrides
+environments:
+  dev:
+    releaseName: sample-app-dev
+    namespace: dev
+  staging:
+    releaseName: sample-app-staging
+    namespace: staging
+  uat:
+    releaseName: sample-app-uat
+    namespace: uat
+  prod:
+    releaseName: sample-app
+    namespace: production

@@ -2,7 +2,7 @@
   "name": "chart-profile-visualizer",
   "displayName": "Helm Chart Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "publisher": "nomad-in-code",
   "repository": {
     "type": "git",
@@ -99,6 +99,13 @@
         "title": "Start Walkthrough",
         "description": "Start the chart profiles walkthrough",
         "category": "Chart Profiles"
+      },
+      {
+        "command": "chartProfiles.configureRenderContext",
+        "title": "Configure Render Context",
+        "description": "Set the release name and namespace used when rendering Helm templates",
+        "category": "Chart Profiles",
+        "icon": "$(gear)"
       }
     ],
     "menus": {
@@ -117,6 +124,11 @@
           "command": "chartProfiles.updateDependencies",
           "when": "view == chartProfiles",
           "group": "navigation"
+        },
+        {
+          "command": "chartProfiles.configureRenderContext",
+          "when": "view == chartProfiles",
+          "group": "navigation"
         }
       ],
       "commandPalette": [
@@ -125,7 +137,6 @@
           "when": "false"
         },
         {
-          
           "command": "chartProfiles.validateChart",
           "when": "false"
         },
@@ -162,6 +173,16 @@
           "type": "boolean",
           "default": true,
           "description": "Whether to show the guided walkthrough automatically on the first activation."
+        },
+        "chartProfiles.renderContext.releaseName": {
+          "type": "string",
+          "default": "chart-profile",
+          "description": "Helm release name used when rendering templates, visualizing, validating, or comparing charts. Corresponds to `.Release.Name` in Helm templates."
+        },
+        "chartProfiles.renderContext.namespace": {
+          "type": "string",
+          "default": "default",
+          "description": "Kubernetes namespace passed to `helm template --namespace` during rendering, visualization, validation, and comparison."
         }
       }
     }
@@ -175,16 +196,16 @@
     "lint:fix": "biome lint --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js && node test/kubectlDetection.test.js && node test/firstRunWalkthrough.test.js"
+    "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js && node test/kubectlDetection.test.js && node test/firstRunWalkthrough.test.js && node test/renderContext.test.js"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.11",
+    "@biomejs/biome": "^2.4.14",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.6.2",
     "@types/vscode": "^1.110.0",
-    "@vscode/vsce": "^3.7.1",
+    "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.28.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.3"
   },
   "dependencies": {
     "chart.js": "^4.5.1",

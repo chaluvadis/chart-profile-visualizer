@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { renderHelmTemplate } from "../k8s/helmRenderer";
+import { getChartContext } from "../core/renderContext";
 import {
 	type ClusterInfo,
 	type HelmRelease,
@@ -110,7 +111,8 @@ export class RuntimeStateManager {
 
 		// Render chart to get expected resources
 		try {
-			const renderedResources = await renderHelmTemplate(chartPath, environment);
+			const renderContext = getChartContext(chartPath, environment);
+			const renderedResources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace);
 
 			// Get runtime state for each resource
 			for (const resource of renderedResources) {
@@ -299,8 +301,9 @@ export class RuntimeStateManager {
 		// Get deployed resource
 		const deployed = await this.getResourceYaml(kind, name, namespace);
 
-		// Get rendered resource
-		const resources = await renderHelmTemplate(chartPath, environment);
+		// Get rendered resource with chart-specific context
+		const renderContext = getChartContext(chartPath, environment);
+		const resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace);
 		const resource = resources.find((r) => r.kind === kind && r.name === name);
 
 		const rendered = resource?.yaml || "";

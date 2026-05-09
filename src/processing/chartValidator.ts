@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
+import { getRenderContext, getChartContext } from "../core/renderContext";
 import { isHelmAvailable, type RenderedResource, renderHelmTemplate } from "../k8s/helmRenderer";
 import { getKubernetesConnector } from "../k8s/kubernetesConnector";
 import { runHelm } from "../utils/cliRunner";
@@ -47,7 +48,8 @@ export class ChartValidator {
 
 		let resources: RenderedResource[] = [];
 		try {
-			resources = await renderHelmTemplate(this.chartPath, environment);
+			const renderContext = getChartContext(this.chartPath, environment);
+			resources = await renderHelmTemplate(this.chartPath, environment, renderContext.releaseName, renderContext.namespace);
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			issues.push({
@@ -623,8 +625,10 @@ export class ChartValidator {
 		const issues: ValidationIssue[] = [];
 
 		try {
-			const fromResources = await renderHelmTemplate(this.chartPath, fromEnvironment);
-			const toResources = await renderHelmTemplate(this.chartPath, toEnvironment);
+			const fromContext = getChartContext(this.chartPath, fromEnvironment);
+			const toContext = getChartContext(this.chartPath, toEnvironment);
+			const fromResources = await renderHelmTemplate(this.chartPath, fromEnvironment, fromContext.releaseName, fromContext.namespace);
+			const toResources = await renderHelmTemplate(this.chartPath, toEnvironment, toContext.releaseName, toContext.namespace);
 
 			const connector = getKubernetesConnector();
 
