@@ -99,6 +99,13 @@
         "title": "Start Walkthrough",
         "description": "Start the chart profiles walkthrough",
         "category": "Chart Profiles"
+      },
+      {
+        "command": "chartProfiles.configureRenderContext",
+        "title": "Configure Render Context",
+        "description": "Set the release name and namespace used when rendering Helm templates",
+        "category": "Chart Profiles",
+        "icon": "$(gear)"
       }
     ],
     "menus": {
@@ -115,6 +122,11 @@
         },
         {
           "command": "chartProfiles.updateDependencies",
+          "when": "view == chartProfiles",
+          "group": "navigation"
+        },
+        {
+          "command": "chartProfiles.configureRenderContext",
           "when": "view == chartProfiles",
           "group": "navigation"
         }
@@ -162,6 +174,16 @@
           "type": "boolean",
           "default": true,
           "description": "Whether to show the guided walkthrough automatically on the first activation."
+        },
+        "chartProfiles.renderContext.releaseName": {
+          "type": "string",
+          "default": "RELEASE-NAME",
+          "description": "Helm release name used when rendering templates, visualizing, validating, or comparing charts. Corresponds to `.Release.Name` in Helm templates."
+        },
+        "chartProfiles.renderContext.namespace": {
+          "type": "string",
+          "default": "default",
+          "description": "Kubernetes namespace passed to `helm template --namespace` during rendering, visualization, validation, and comparison."
         }
       }
     }
@@ -175,7 +197,7 @@
     "lint:fix": "biome lint --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js && node test/kubectlDetection.test.js && node test/firstRunWalkthrough.test.js"
+    "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js && node test/kubectlDetection.test.js && node test/firstRunWalkthrough.test.js && node test/renderContext.test.js"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",

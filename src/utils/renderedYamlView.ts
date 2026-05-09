@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { ChartTreeItem } from "../core/chartProfilesProvider";
+import { getRenderContext } from "../core/renderContext";
 import { renderHelmTemplate, type RenderedResource } from "../k8s/helmRenderer";
 import { generateAnnotatedYaml, mergeValues } from "../processing/valuesMerger";
 
@@ -109,9 +110,9 @@ async function showRenderedTemplates(chartPath: string, environment: string, cha
 		async (progress) => {
 			progress.report({ increment: 0 });
 
-			// Render templates
-			const releaseName = `${chartName}-${environment}`;
-			const resources = await renderHelmTemplate(chartPath, environment, releaseName);
+			// Render templates using render context from workspace settings
+			const renderContext = getRenderContext();
+			const resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace);
 
 			progress.report({ increment: 50 });
 
