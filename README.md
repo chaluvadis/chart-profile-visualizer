@@ -1,153 +1,53 @@
 # Helm Chart Visualizer
 
-Visualize, validate, compare, and monitor Helm chart environments directly inside VS Code.
+VS Code extension for visualizing, validating, comparing, and monitoring Helm charts.
 
-This extension is designed for teams managing multiple environment overlays (`values-dev.yaml`, `values-qa.yaml`, `values-prod.yaml`, etc.) and wanting a fast, consistent desktop workflow for release confidence.
+## Features
 
-![Build & Release VS Code Extension](https://github.com/chaluvadis/chart-profile-visualizer/actions/workflows/workflow.yml/badge.svg)
+- **Visualize Chart** - View resource architecture, values, and rendered YAML
+- **Validate Chart** - Check for errors, warnings, and best practices
+- **Compare Environments** - Side-by-side comparison between dev/staging/prod
+- **Check Runtime State** - View cluster status against rendered resources
+- **Export** - YAML, JSON, and Markdown reports
 
-## What You Can Do
+## Quick Start
 
-- Visualize a chart environment with architecture and resource insights
-- Validate chart quality and best-practice issues in an actionable UI
-- Compare two environments with field-level change details
-- Export comparison results as Markdown (for humans) or JSON (for automation)
-- Check runtime state against the cluster in a dedicated runtime dashboard
-- Export rendered manifests as YAML or JSON
+1. Open a workspace with Helm charts (folders containing `Chart.yaml`)
+2. Open the **Chart Profiles** view in VS Code Explorer
+3. Expand a chart and click an environment
+4. Select **Visualize Chart**, **Validate Chart**, or **Compare Environments**
 
-## Tree View Experience
+## Chart-Specific Configuration
 
-In Explorer, open **Chart Profiles** and expand:
+Add `.chart-profile.yaml` in your chart directory to configure release name and namespace per environment:
 
-- `Chart`
-  - `Compare Environments`
-  - `Environment (dev/qa/staging/prod...)`
-    - `Visualize Chart`
-    - `Validate Chart`
-    - `Check Runtime State`
+```yaml
+# Default values
+releaseName: my-app
+namespace: my-app
 
-The tree is environment-aware and supports multi-root workspaces.
-
-## Core Workflows
-
-## 1) Visualize Chart
-
-`Visualize Chart` opens a desktop-first webview with:
-
-- **Overview tab**
-  - Resource architecture graph/topology
-  - Values and override summary cards
-  - Chart-level metrics
-- **Resources tab**
-  - Grouped resources by Kubernetes kind
-  - Expandable resource cards with YAML
-  - Copy resource YAML action
-- **Toolbar actions**
-  - Export YAML
-  - Export JSON
-
-## 2) Validate Chart
-
-`Validate Chart` opens a dedicated validation view with:
-
-- Status header aligned to result severity
-- Error/Warning/Info summaries
-- Search and severity filtering
-- Cards view and table view
-- Grouping, sorting, and actionable filtering
-- Quick actions:
-  - Copy issue text
-  - Jump to file/line when location is available
-
-## 3) Compare Environments
-
-`Compare Environments` provides:
-
-- Side-by-side environment comparison
-- Added/Removed/Modified resource categorization
-- Field-level value differences
-- Change filters and grouped summaries
-- **Export Comparison Report** — export as Markdown or JSON
-
-### Export Comparison Report
-
-After running a comparison, click **📤 Export Report** in the comparison view header, or run **Export Comparison Report** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
-
-You will be prompted to choose a save location and file format:
-
-- **Markdown (`.md`)** — Human-readable report for PR reviews and change approvals
-- **JSON (`.json`)** — Machine-readable output for automation pipelines
-
-#### Example Markdown Output
-
-```markdown
-# Comparison Report: dev vs prod
-**Chart:** sample-app
-**Generated:** 2026-03-25T16:00:00.000Z
-
-## Summary
-
-### Change Counts
-| Category  | Count |
-|-----------|-------|
-| Added     | 1     |
-| Removed   | 0     |
-| Modified  | 2     |
-| Unchanged | 5     |
-| **Total** | **8** |
-| Change %  | 37.5% |
-
-### Severity Counts
-| Severity    | Count |
-|-------------|-------|
-| 🔴 Critical | 1     |
-| 🟡 Warning  | 3     |
-| 🔵 Info     | 2     |
-
-## Drift List
-
-### Deployment/sample-app
-**Status:** modified — **Critical**
-
-| Field | dev | prod | Severity |
-|-------|-----|------|----------|
-| `spec.replicas` | `1` | `3` | critical |
-| `spec.template.spec.containers[0].resources.limits.memory` | `"256Mi"` | `"512Mi"` | warning |
+# Environment overrides
+environments:
+  dev:
+    releaseName: my-app-dev
+    namespace: dev
+  prod:
+    releaseName: my-app
+    namespace: production
 ```
 
-#### Example JSON Output
-
-The JSON export contains the full structured comparison data, including header, summary, resource list, field diffs, and kind groups — suitable for CI/CD pipelines and automated drift analysis.
-
-## 4) Check Runtime State
-
-`Check Runtime State` opens a runtime dashboard (not raw markdown):
-
-- Cluster context and connection state
-- Healthy/Warning/Critical/NotFound/Unknown summaries
-- Structured resource status sections
-- All resources list with quick actions:
-  - **View YAML**
-- Helm release summary table
+**Precedence order** (highest to lowest):
+1. Workspace settings
+2. Environment-specific profile
+3. Chart-level profile
+4. Built-in defaults
 
 ## Requirements
 
 - VS Code `^1.110.0`
-- Helm CLI (`helm`) for rendering/validation flows
-- Kubernetes CLI (`kubectl`) for runtime state flows
+- Helm CLI (`helm`) - for rendering/validation
+- kubectl - for runtime state
 
-## Example Chart Layout
-
-```text
-sample-app/
-  Chart.yaml
-  values.yaml
-  values-dev.yaml
-  values-qa.yaml
-  values-staging.yaml
-  values-prod.yaml
-  templates/
-```
 ## Development
 
 ```bash
@@ -155,34 +55,6 @@ pnpm install
 pnpm run compile
 ```
 
-Useful scripts:
-
-- `pnpm run compile` - build extension + webview assets
-- `pnpm run lint` - lint with Biome
-- `pnpm run format` - format with Biome
-- `pnpm run package` - compile and produce `.vsix`
-
-## Security and Privacy Notes
-
-- Local-first processing: chart rendering and analysis happen on your machine
-- Runtime queries are executed through local CLIs (`kubectl`, `helm`)
-- HTML output uses escaping and constrained templating paths
-- Sensitive manifest content handling includes redaction safeguards in resource flows
-
-## Architecture
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for module-level design and data flow.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
 ## License
 
 MIT
-
-## Support
-
-Issues and feature requests:
-
-- https://github.com/chaluvadis/chart-profile-visualizer/issues

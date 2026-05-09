@@ -5,6 +5,10 @@ import {
 	DEFAULT_RELEASE_NAME,
 	RENDER_CONTEXT_NAMESPACE_SETTING,
 	RENDER_CONTEXT_RELEASE_NAME_SETTING,
+	getChartRenderContext,
+	loadChartProfile,
+	CHART_PROFILE_FILE,
+	type ChartProfileConfig,
 	type RenderContext,
 } from "./renderContextSettings";
 
@@ -15,7 +19,11 @@ export {
 	DEFAULT_RELEASE_NAME,
 	RENDER_CONTEXT_NAMESPACE_SETTING,
 	RENDER_CONTEXT_RELEASE_NAME_SETTING,
+	loadChartProfile,
+	CHART_PROFILE_FILE,
+	type ChartProfileConfig,
 	type RenderContext,
+	getChartRenderContext,
 };
 
 /**
@@ -27,6 +35,16 @@ export function getRenderContext(): RenderContext {
 	const releaseName = config.get<string>("renderContext.releaseName");
 	const namespace = config.get<string>("renderContext.namespace");
 	return buildRenderContext(releaseName, namespace);
+}
+
+/**
+ * Get render context for a specific chart, merging workspace settings and chart profile.
+ */
+export function getChartContext(chartPath: string, environment: string): RenderContext {
+	const config = vscode.workspace.getConfiguration("chartProfiles");
+	const releaseName = config.get<string>("renderContext.releaseName");
+	const namespace = config.get<string>("renderContext.namespace");
+	return getChartRenderContext(releaseName, namespace, chartPath, environment);
 }
 
 /**

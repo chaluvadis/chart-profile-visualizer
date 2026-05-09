@@ -35,7 +35,7 @@ export interface RenderedResource {
 export async function renderHelmTemplate(
 	chartPath: string,
 	environment: string,
-	releaseName = "RELEASE-NAME",
+	releaseName = "chart-profile",
 	namespace = "default"
 ): Promise<RenderedResource[]> {
 	// Check if helm is available
@@ -245,7 +245,7 @@ export async function isHelmAvailable(): Promise<boolean> {
 /**
  * Returns fallback resources when Helm is not available by reading and partially rendering template files
  */
-async function getPlaceholderResources(chartPath: string, environment: string, releaseName = "RELEASE-NAME"): Promise<RenderedResource[]> {
+async function getPlaceholderResources(chartPath: string, environment: string, releaseName = "chart-profile"): Promise<RenderedResource[]> {
 	const chartName = path.basename(chartPath);
 	const templatesDir = path.join(chartPath, "templates");
 	const resources: RenderedResource[] = [];
