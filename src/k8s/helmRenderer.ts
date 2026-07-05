@@ -30,13 +30,28 @@ export interface RenderedResource {
 }
 
 /**
+ * Additional `helm template` flags sourced from the render context / chart profile.
+ */
+export interface HelmRenderOptions {
+	/** Extra `-f` values files, relative to the chart directory unless absolute */
+	valuesFiles?: string[];
+	/** `--set` overrides, passed through verbatim */
+	setValues?: string[];
+	/** `--api-versions` entries */
+	apiVersions?: string[];
+	/** `--kube-version` override */
+	kubeVersion?: string;
+}
+
+/**
  * Renders Helm templates using helm template command with full error handling and fallback rendering
  */
 export async function renderHelmTemplate(
 	chartPath: string,
 	environment: string,
 	releaseName = "chart-profile",
-	namespace = "default"
+	namespace = "default",
+	renderOptions: HelmRenderOptions = {}
 ): Promise<RenderedResource[]> {
 	// Check if helm is available
 	const helmAvailable = await isHelmAvailable();
@@ -62,6 +77,27 @@ export async function renderHelmTemplate(
 
 		if (fs.existsSync(envValuesPath)) {
 			args.push("-f", envValuesPath);
+		}
+
+		for (const extraFile of renderOptions.valuesFiles ?? []) {
+			const resolvedPath = path.isAbsolute(extraFile) ? extraFile : path.join(chartPath, extraFile);
+			if (fs.existsSync(resolvedPath)) {
+				args.push("-f", resolvedPath);
+			} else {
+				console.warn(`Configured values file not found, skipping: ${resolvedPath}`);
+			}
+		}
+
+		for (const setValue of renderOptions.setValues ?? []) {
+			args.push("--set", setValue);
+		}
+
+		for (const apiVersion of renderOptions.apiVersions ?? []) {
+			args.push("--api-versions", apiVersion);
+		}
+
+		if (renderOptions.kubeVersion) {
+			args.push("--kube-version", renderOptions.kubeVersion);
 		}
 
 		commandPreview = ["helm", ...args.map((a) => JSON.stringify(a))].join(" ");

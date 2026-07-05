@@ -112,7 +112,7 @@ async function showRenderedTemplates(chartPath: string, environment: string, cha
 
 			// Render templates using chart-specific context
 			const renderContext = getChartContext(chartPath, environment);
-			const resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace);
+			const resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace, renderContext);
 
 			progress.report({ increment: 50 });
 
