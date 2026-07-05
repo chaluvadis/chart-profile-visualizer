@@ -49,7 +49,7 @@ export class ChartValidator {
 		let resources: RenderedResource[] = [];
 		try {
 			const renderContext = getChartContext(this.chartPath, environment);
-			resources = await renderHelmTemplate(this.chartPath, environment, renderContext.releaseName, renderContext.namespace);
+			resources = await renderHelmTemplate(this.chartPath, environment, renderContext.releaseName, renderContext.namespace, renderContext);
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			issues.push({
@@ -627,8 +627,8 @@ export class ChartValidator {
 		try {
 			const fromContext = getChartContext(this.chartPath, fromEnvironment);
 			const toContext = getChartContext(this.chartPath, toEnvironment);
-			const fromResources = await renderHelmTemplate(this.chartPath, fromEnvironment, fromContext.releaseName, fromContext.namespace);
-			const toResources = await renderHelmTemplate(this.chartPath, toEnvironment, toContext.releaseName, toContext.namespace);
+			const fromResources = await renderHelmTemplate(this.chartPath, fromEnvironment, fromContext.releaseName, fromContext.namespace, fromContext);
+			const toResources = await renderHelmTemplate(this.chartPath, toEnvironment, toContext.releaseName, toContext.namespace, toContext);
 
 			const connector = getKubernetesConnector();
 

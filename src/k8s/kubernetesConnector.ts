@@ -128,27 +128,31 @@ export class KubernetesConnector implements vscode.Disposable {
 	async getHelmReleases(namespace?: string): Promise<HelmRelease[]> {
 		try {
 			const ns = namespace || this.namespace;
-			const { stdout } = await this.runKubectl(["get", "releases", "-o", "json"], ns, {
-				timeout: TIMEOUT.DEFAULT,
-			});
+			const kubeconfigFlag = this.kubeconfig ? ["--kubeconfig", this.kubeconfig] : [];
+			const contextFlag = this.context ? ["--kube-context", this.context] : [];
+			const { stdout } = await runCommand(
+				"helm",
+				[...kubeconfigFlag, ...contextFlag, "list", "--namespace", ns, "-o", "json"],
+				{ timeout: TIMEOUT.DEFAULT }
+			);
 			const data = JSON.parse(stdout);
-			return (data.items || []).map(
+			return (Array.isArray(data) ? data : []).map(
 				(item: {
 					name?: string;
 					namespace?: string;
-					version?: string;
+					revision?: string;
 					status?: string;
 					chart?: string;
 					app_version?: string;
-					info?: { last_deployed?: string };
+					updated?: string;
 				}) => ({
 					name: item.name || "",
 					namespace: item.namespace || ns,
-					revision: item.version || "1",
+					revision: item.revision || "1",
 					status: item.status || "Unknown",
 					chart: item.chart || "",
 					appVersion: item.app_version,
-					updated: item.info?.last_deployed,
+					updated: item.updated,
 				})
 			);
 		} catch {
