@@ -614,8 +614,8 @@ async function handleMessage(message: WebviewMessage) {
 
 					const renderContext1 = getChartContext(chartPath, leftEnv);
 					const renderContext2 = getChartContext(chartPath, rightEnv);
-					const resources1 = await renderHelmTemplate(chartPath, leftEnv, renderContext1.releaseName, renderContext1.namespace);
-					const resources2 = await renderHelmTemplate(chartPath, rightEnv, renderContext2.releaseName, renderContext2.namespace);
+					const resources1 = await renderHelmTemplate(chartPath, leftEnv, renderContext1.releaseName, renderContext1.namespace, renderContext1);
+					const resources2 = await renderHelmTemplate(chartPath, rightEnv, renderContext2.releaseName, renderContext2.namespace, renderContext2);
 
 					const comparison = compareEnvironments(leftEnv, resources1, rightEnv, resources2, chartName);
 					const comparisonData = formatComparisonForWebview(comparison);
@@ -694,8 +694,8 @@ async function runComparisonFromWebview(env1: string, env2: string): Promise<voi
 
 		const renderContext1 = getChartContext(chartPath, env1);
 		const renderContext2 = getChartContext(chartPath, env2);
-		const resources1 = await renderHelmTemplate(chartPath, env1, renderContext1.releaseName, renderContext1.namespace);
-		const resources2 = await renderHelmTemplate(chartPath, env2, renderContext2.releaseName, renderContext2.namespace);
+		const resources1 = await renderHelmTemplate(chartPath, env1, renderContext1.releaseName, renderContext1.namespace, renderContext1);
+		const resources2 = await renderHelmTemplate(chartPath, env2, renderContext2.releaseName, renderContext2.namespace, renderContext2);
 
 		const comparison = compareEnvironments(env1, resources1, env2, resources2, chartName);
 		const comparisonData = formatComparisonForWebview(comparison);
@@ -1116,7 +1116,7 @@ async function collectChartDataCore(params: CollectChartDataParams): Promise<{
 
 	try {
 		const renderContext = getChartContext(chartPath, environment);
-		resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace);
+		resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace, renderContext);
 		renderedResources = resources;
 
 		resources.forEach((resource) => {

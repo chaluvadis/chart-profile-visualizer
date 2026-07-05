@@ -112,7 +112,7 @@ export class RuntimeStateManager {
 		// Render chart to get expected resources
 		try {
 			const renderContext = getChartContext(chartPath, environment);
-			const renderedResources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace);
+			const renderedResources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace, renderContext);
 
 			// Get runtime state for each resource
 			for (const resource of renderedResources) {
@@ -303,7 +303,7 @@ export class RuntimeStateManager {
 
 		// Get rendered resource with chart-specific context
 		const renderContext = getChartContext(chartPath, environment);
-		const resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace);
+		const resources = await renderHelmTemplate(chartPath, environment, renderContext.releaseName, renderContext.namespace, renderContext);
 		const resource = resources.find((r) => r.kind === kind && r.name === name);
 
 		const rendered = resource?.yaml || "";

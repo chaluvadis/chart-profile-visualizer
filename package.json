@@ -2,7 +2,7 @@
   "name": "chart-profile-visualizer",
   "displayName": "Helm Chart Visualizer",
   "description": "Visualize Helm charts across environments with value merging and template rendering",
-  "version": "0.0.9",
+  "version": "0.10.0",
   "publisher": "nomad-in-code",
   "repository": {
     "type": "git",
@@ -13,7 +13,7 @@
     "url": "https://github.com/chaluvadis/chart-profile-visualizer/issues"
   },
   "engines": {
-    "vscode": "^1.110.0"
+    "vscode": "^1.125.0"
   },
   "categories": [
     "Other",
@@ -199,17 +199,17 @@
     "test": "tsc -p tsconfig.test.json && node test/driftSeverity.test.js && node test/kubectlDetection.test.js && node test/firstRunWalkthrough.test.js && node test/renderContext.test.js"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
+    "@biomejs/biome": "^2.5.2",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^25.6.2",
-    "@types/vscode": "^1.110.0",
-    "@vscode/vsce": "^3.9.1",
-    "esbuild": "^0.28.0",
+    "@types/node": "^26.1.0",
+    "@types/vscode": "^1.125.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.1",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^5.2.1"
   },
   "license": "MIT"
 }

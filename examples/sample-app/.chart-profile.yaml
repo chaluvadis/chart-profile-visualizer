@@ -2,11 +2,13 @@
 # This file defines chart-specific rendering context settings
 
 # Default release name and namespace for this chart
-releaseName: sample-app
-namespace: sample-app
+
 
 # Environment-specific overrides
 environments:
+  default:
+    releaseName: sample-app-dev
+    namespace: dev
   dev:
     releaseName: sample-app-dev
     namespace: dev
