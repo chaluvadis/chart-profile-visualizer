@@ -18,16 +18,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Activate pnpm
+        run: corepack prepare pnpm@11.9.0 --activate
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -58,10 +58,7 @@ jobs:
         run: pnpm exec vsce package --no-dependencies --out "$VSIX_NAME"
 
       - name: Publish to Visual Studio Marketplace
-        run: |
-          pnpm exec vsce publish \
-            --packagePath "$VSIX_NAME" \
-            --pat "${{ secrets.VSCE_TOKEN }}"
+        run: pnpm exec vsce publish --packagePath "$VSIX_NAME" --pat "${{ secrets.VSCE_TOKEN }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
