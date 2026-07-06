@@ -12,9 +12,6 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
 
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -24,7 +21,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
+          cache: pnpm
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -50,9 +48,9 @@ jobs:
             exit 1
           fi
 
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "VSIX_NAME=chart-profile-visualizer-${TAG}.vsix" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "VSIX_NAME=chart-profile-visualizer-${TAG}.vsix" >> "$GITHUB_ENV"
 
       - name: Package extension
         run: |
